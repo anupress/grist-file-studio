@@ -14,7 +14,7 @@ import { t, tn } from '../i18n/index.js';
  * @param on {onStep(dir), onOpen(file, list), onAdd(rowId), onDrop(rowId, files), onReorder(file, toIndex),
  *            onMenu(file, anchor), onDownload(file), onZip(rowId), onReport(rowId), onSelect(rowId)}
  */
-export function createViewer(host, { source, thumbs }, on) {
+export function createViewer(host, { source, thumbs, culture }, on) {
   const title = el('span', { class: 'gs-viewer__title' });
   const pos = el('span', { class: 'gs-viewer__pos' });
   const prevRec = el('button', { type: 'button', class: 'gs-icon-btn', title: t('Previous record'), 'aria-label': t('Previous record'), onclick: () => on.onStep(-1) }, [icon('arrowLeft')]);
@@ -41,7 +41,7 @@ export function createViewer(host, { source, thumbs }, on) {
         S.editable ? el('div', { class: 'gs-empty__actions' }, [el('button', { type: 'button', class: 'gs-btn gs-btn--primary', onclick: () => on.onAdd(S.rec.rowId) }, [icon('plus'), t('Add files')])]) : null,
       ]));
     } else {
-      S.view = showFile(stage, f, { source, thumbs, onSwipe: (d) => show(S.i + d), onDownload: () => on.onDownload(f) });
+      S.view = showFile(stage, f, { source, thumbs, culture, onSwipe: (d) => show(S.i + d), onDownload: () => on.onDownload(f) });
     }
     [...strip.querySelectorAll('.gs-strip__item')].forEach((n, k) => { n.classList.toggle('is-on', k === S.i); n.setAttribute('aria-selected', k === S.i ? 'true' : 'false'); });
     strip.querySelector('.is-on')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });

@@ -1,7 +1,7 @@
 # File Studio — a custom widget for Grist (by ANUPRESS)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-2563EB.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.5.0-0F1B2D.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.6.0-0F1B2D.svg)](CHANGELOG.md)
 
 File Studio is a gallery, viewer, editor and file manager for the files in your Grist
 **Attachments** columns. It shows them the way people look at files:
@@ -52,7 +52,14 @@ The lightbox shows the file as big as the widget allows and steps through everyt
 - **Video and audio:** played in the browser, with skipping ahead.
 - **Text, CSV, JSON, Markdown, HTML:** shown as text, CSV as a table. Never run as a web page.
 
-- **Anything else** (Word, Excel, ZIP, HEIC on Chrome): its type, size and a Download button.
+- **Word, Excel and PowerPoint** (`.docx`, `.xlsx`, `.pptx`): drawn on white sheets. Word shows the text with its headings,
+  lists, bold, italic and underline, tables and pictures; Excel shows each sheet as a grid, with the numbers in their format,
+  dates as dates in your language, percentages, merged cells and the stored result of formulas, and a tab for every sheet
+  (the first 1,000 rows and 60 columns); PowerPoint shows each slide's title and text. It is the content, not the program's
+  page: no page breaks, fonts, colours, charts or shapes. The file is read as data and never run. Up to 30 MB.
+- **Anything else** (ZIP, the old `.doc` and `.xls`, OpenDocument, HEIC on Chrome): its type, size and a Download button.
+
+![A Word document and an Excel workbook in the lightbox](docs/images/office-previews.png)
 
 Arrow keys, swipes and the filmstrip move between files; **I** shows the details (size, picture size,
 pages, length, upload date, record and column).

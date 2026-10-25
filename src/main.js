@@ -238,7 +238,7 @@ function render() {
     if (wall) { wall.destroy(); wall = null; }
     if (!viewer) {
       clear(stage);
-      viewer = createViewer(stage, { source, thumbs }, {
+      viewer = createViewer(stage, { source, thumbs, culture: gristCulture() }, {
         onStep: (d) => stepRecord(d),
         onOpen: (f, list) => openFile(f, list, f.rowId),
         onAdd: (rowId) => pickFiles(rowId),

@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.6.0
+
+Previews of Word, Excel and PowerPoint files. Checked in Grist 1.7.20 (a guest document: the Word and Excel demo files through the attachment endpoint) and in the demo with a presentation added through the
+file chooser.
+
+### Previews
+- `.docx` files open in the lightbox and the Viewer as a white sheet: headings (by style name or outline level), numbered and
+  bulleted lists with their markers, bold, italic, underline and strike-through, line breaks, links (http, https and mailto
+  only), tables with merged cells, pictures out of the file, tracked changes as accepted. No page layout, headers, footers,
+  footnotes or colours.
+- `.xlsx` files show each visible sheet as a grid with column letters and row numbers, a tab per sheet, the numbers in their own
+  format (decimals, thousands, percent, scientific, a currency sign), dates and times in the viewer's language, booleans,
+  errors, merged cells, column widths and the stored result of formulas; 1,000 rows by 60 columns, with a note when cut.
+- `.pptx` files show each slide as a white card: title, subtitle, text with its levels and bullets, tables, and a note
+  where pictures are not shown.
+- Read as data and drawn with text nodes: nothing in a file can run. The XML reader is our own (no DTDs or external entities:
+  a DOCTYPE is skipped, never read), so the readers are tested in Node (46 cases). Files over 30 MB, damaged files and files
+  with a password say so and offer Download.
+- The demo has `inspection-costs.xlsx` (Testgasse 7).
+
+### Smaller
+- One token for the dark room of the lightbox and editors, and one for the ink on white sheets.
+
 ## 1.5.0
 
 More PDF tools. Checked in the demo with real mouse and keys, read back with pdf-lib, and in Grist 1.7.20 (a guest document: the form saved in place with its fields kept, opened again with the entries, Undo).

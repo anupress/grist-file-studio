@@ -856,4 +856,17 @@ export const FR = {
   '{n} page with a cover-up is drawn again as a picture, so what was under the cover is gone for good. Its text can no longer be selected or searched.': `{n} page avec un masque est redessinée en image${NB}: ce qui était dessous disparaît pour de bon. Son texte ne peut plus être sélectionné ni recherché.`,
   '{n} pages with a cover-up are drawn again as pictures, so what was under the covers is gone for good. Their text can no longer be selected or searched.': `{n} pages avec un masque sont redessinées en images${NB}: ce qui était dessous disparaît pour de bon. Leur texte ne peut plus être sélectionné ni recherché.`,
   'Drag over what to cover. A cover hides it from view and print, but the text under it stays in the file until you turn the page into a picture (tab Finish).': 'Faites glisser sur ce qu’il faut masquer. Le masque le cache à l’écran et à l’impression, mais le texte dessous reste dans le fichier tant que vous ne transformez pas la page en image (onglet Finition).',
+  // previews of Word, Excel and PowerPoint files
+  'Preview of {name}': 'Aperçu de {name}',
+  'Sheets': 'Feuilles',
+  'Showing the first part of the document. Download the file for the rest.': 'Seule la première partie du document est affichée. Téléchargez le fichier pour voir le reste.',
+  'Showing the first slides. Download the file for the rest.': 'Seules les premières diapositives sont affichées. Téléchargez le fichier pour voir le reste.',
+  'Showing the first {rows} rows and {cols} columns. Download the file for the rest.': 'Seules les {rows} premières lignes et les {cols} premières colonnes sont affichées. Téléchargez le fichier pour voir le reste.',
+  'Slide {n} of {total}': 'Diapositive {n} sur {total}',
+  'There is nothing in this workbook to show.': 'Il n’y a rien à afficher dans ce classeur.',
+  'This file could not be previewed here. Download it to open it on your computer.': 'Ce fichier ne peut pas être affiché en aperçu ici. Téléchargez-le pour l’ouvrir sur votre ordinateur.',
+  'This file is too large to preview here. Download it to open it on your computer.': 'Ce fichier est trop volumineux pour l’aperçu ici. Téléchargez-le pour l’ouvrir sur votre ordinateur.',
+  '[picture]': '[image]',
+  '{n} picture on this slide is not shown.': '{n} image de cette diapositive n’est pas affichée.',
+  '{n} pictures on this slide are not shown.': '{n} images de cette diapositive ne sont pas affichées.',
 };

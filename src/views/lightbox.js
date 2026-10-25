@@ -157,7 +157,7 @@ export function openLightbox(host, o) {
     prev.hidden = i <= 0;
     next.hidden = i >= files.length - 1;
     view = showFile(stage, f, {
-      source: o.source, thumbs: o.thumbs, page: hit?.paged ? hit.pages[0] : 1,
+      source: o.source, thumbs: o.thumbs, culture: o.culture, page: hit?.paged ? hit.pages[0] : 1,
       onZoom: (z) => { view && (view.fitted = z.fitted); zoomText.textContent = Math.round(z.level * 100) + ' %'; },
       onSwipe: (d) => go(i + d),
       onDownload: () => o.onDownload(f),

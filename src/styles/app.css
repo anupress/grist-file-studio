@@ -30,7 +30,9 @@
   --gs-paper-ink: #3a4756;
   --gs-tip-bg: #14202b;
   --gs-tip-ink: #f0f5fa;
-  --gs-scrim-ink: #f0f5fa;   /* ink on the dark scrims over pictures: light in both themes (unlike the tooltip ink) */
+  --gs-room: #080c10;   /* the dark room of the lightbox and the editors, in both themes */
+  --gs-scrim-ink: #f0f5fa;
+  --gs-sheet-ink: #1b1f24; --gs-sheet-mute: #5b6670; --gs-sheet-line: #cfd6de; --gs-sheet-head: #eef1f5;   /* ink and lines on the white sheets of a document: the same in both themes */   /* ink on the dark scrims over pictures: light in both themes (unlike the tooltip ink) */
   --gs-field-bg: rgba(20, 80, 155, 0.1); --gs-field-line: rgba(20, 80, 155, 0.55);   /* PDF form fields on a white sheet: the same in both themes */
   --gs-note: #f8efdc;
   --gs-chrome: #101c29;
@@ -397,7 +399,7 @@ a.gs-btn { color: inherit; text-decoration: none; }   /* a link that looks like 
 
 /* ---- the lightbox: a dark room, whatever the theme ---- */
 .gs-lightbox {
-  position: absolute; inset: 0; z-index: 40; display: flex; flex-direction: column; background: #080c10; color: var(--gs-ink);
+  position: absolute; inset: 0; z-index: 40; display: flex; flex-direction: column; background: var(--gs-room); color: var(--gs-ink);
   --gs-surface: #111a22; --gs-surface-2: #18232e; --gs-ink: #e7eef5; --gs-muted: #8fa1b3; --gs-line: #243240; --gs-line-strong: #314253;
   --gs-tile: #17222d; --gs-paper: #1d2935; --gs-paper-ink: #c4d0dc; --gs-focus: #6ba5f0; --gs-accent: #6ba5f0; --gs-accent-ink: #0b1219; --gs-accent-soft: #17293f; --gs-danger: #ff6b6f; --gs-danger-ink: #0b1219; --gs-ok: #62c08d;
   --gs-t-red: #f0855a; --gs-t-blue: #7aa9f0; --gs-t-green: #5fc495; --gs-t-orange: #e9a55a; --gs-t-violet: #b59cf5; --gs-t-teal: #5cc3cf; --gs-t-grey: #a3acb7; --gs-t-slate: #9fb0c2; --gs-tab-ink: #0b1117;
@@ -444,7 +446,7 @@ a.gs-btn { color: inherit; text-decoration: none; }   /* a link that looks like 
 .gs-lb__info dd { margin: 0; word-break: break-word; }
 .gs-lb__strip { flex: none; display: flex; gap: 6px; padding: 8px 12px 10px; overflow-x: auto; scrollbar-width: thin; }
 .gs-lb__strip .gs-strip__item { width: 64px; height: 48px; }
-.gs-lightbox .gs-strip__item.is-on { box-shadow: 0 0 0 2px #080c10, 0 0 0 4px var(--gs-ink); }
+.gs-lightbox .gs-strip__item.is-on { box-shadow: 0 0 0 2px var(--gs-room), 0 0 0 4px var(--gs-ink); }
 .gs-lb__record { border: 0; background: none; color: var(--gs-muted); cursor: pointer; padding: 4px 6px; min-height: 26px; border-radius: var(--gs-r-1); font: inherit; font-size: var(--gs-fs-2); text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 30%; }
 .gs-lb__record:hover { color: #fff; }
 .gs-lightbox .gs-menu { background: var(--gs-surface-2); border-color: var(--gs-line-strong); color: var(--gs-ink); }
@@ -724,7 +726,7 @@ a.gs-btn { color: inherit; text-decoration: none; }   /* a link that looks like 
 
 /* ---- the PDF editor: pages as a grid, pages as sheets to fill and sign ---- */
 .gs-ed .gs-field { display: flex; flex-direction: column; gap: 4px; margin: 0; }
-.gs-pe__stage { overflow: auto; background: #080c10; padding: 16px; box-sizing: border-box; }
+.gs-pe__stage { overflow: auto; background: var(--gs-room); padding: 16px; box-sizing: border-box; }
 .gs-pe__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(156px, 1fr)); gap: 12px; align-content: start; }
 .gs-pe__tile {
   position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 8px 8px; min-width: 0;
@@ -862,3 +864,60 @@ a.gs-btn { color: inherit; text-decoration: none; }   /* a link that looks like 
 textarea.gs-pe__field { padding: 3px; resize: none; line-height: 1.25; }
 select.gs-pe__field { padding: 0 2px; }
 .gs-pe__field--tick { padding: 0; accent-color: var(--gs-accent); cursor: pointer; }
+
+/* ---- a Word, Excel or PowerPoint file in the lightbox and the Viewer: on white sheets, like a PDF's pages ---- */
+.gs-office { position: absolute; inset: 0; overflow: auto; background: var(--gs-room); padding: 18px 28px 40px; box-sizing: border-box; outline: none; }
+.gs-office:focus-visible { box-shadow: inset 0 0 0 2px var(--gs-focus); }
+.gs-office__wait { color: var(--gs-muted); text-align: center; padding: 40px 0; }
+.gs-office__note { color: var(--gs-sheet-mute); font-size: var(--gs-fs-2); margin: 10px 0 0; }
+.gs-office > .gs-office__note { color: var(--gs-muted); }
+.gs-office__paper {
+  max-width: 800px; margin: 0 auto; background: #fff; color: var(--gs-sheet-ink); padding: 52px 60px 60px; box-sizing: border-box;
+  box-shadow: 0 0 0 1px var(--gs-line-strong); font: 15px/1.6 var(--gs-font); overflow-wrap: anywhere; color-scheme: light;
+}
+.gs-office__p { margin: 0 0 0.7em; font-weight: 400; font-size: 1em; line-height: inherit; }
+.gs-office__p.is-title { font-size: 22px; font-weight: 700; line-height: 1.3; margin-bottom: 0.6em; }
+.gs-office__p.is-h1 { font-size: 18px; font-weight: 700; line-height: 1.3; margin: 1.2em 0 0.5em; }
+.gs-office__p.is-h2 { font-size: 15px; font-weight: 700; line-height: 1.4; margin: 1.1em 0 0.4em; }
+.gs-office__p.is-h3, .gs-office__p.is-h4, .gs-office__p.is-h5, .gs-office__p.is-h6 { font-size: 15px; font-weight: 600; margin: 0.9em 0 0.35em; }
+.gs-office__p.is-item { margin-bottom: 0.3em; }
+.gs-office__marker { display: inline-block; min-width: 1.5em; margin-left: -1.5em; }
+.gs-office__p.is-item { position: static; }
+.gs-office .is-b { font-weight: 700; } .gs-office .is-i { font-style: italic; } .gs-office .is-u { text-decoration: underline; } .gs-office .is-s { text-decoration: line-through; }
+.gs-office a { color: #1d4ed8; text-decoration: underline; }
+.gs-office__img { max-width: 100%; height: auto; vertical-align: middle; }
+.gs-office__noimg { color: var(--gs-sheet-mute); font-style: italic; }
+.gs-office__tblwrap { overflow-x: auto; margin: 0 0 1em; }
+.gs-office__tbl { border-collapse: collapse; width: 100%; font-size: 13px; }
+.gs-office__tbl td { border: 1px solid var(--gs-sheet-line); padding: 4px 8px; vertical-align: top; }
+.gs-office__tbl td .gs-office__p { margin: 0; }
+/* a workbook: the grid fills the stage, the sheet tabs sit under it like in Excel */
+.gs-office.is-sheet { display: flex; flex-direction: column; padding: 0; }
+.gs-office__grid { flex: 1; min-height: 0; overflow: auto; background: var(--gs-room); }
+.gs-office__sheetwrap { width: max-content; min-width: 100%; }
+.gs-office__sheetwrap { color: var(--gs-sheet-ink); font: 13px/1.35 var(--gs-font); color-scheme: light; }
+.gs-office__sheetwrap .gs-office__note { background: #fff; }
+.gs-office__sheet { border-collapse: separate; border-spacing: 0; table-layout: fixed; }
+.gs-office__sheet col.is-corner { width: 44px; }
+.gs-office__sheet td, .gs-office__sheet th { border-right: 1px solid var(--gs-sheet-line); border-bottom: 1px solid var(--gs-sheet-line); padding: 2px 6px; height: 22px; box-sizing: border-box; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: #fff; }
+.gs-office__sheet th { background: var(--gs-sheet-head); color: var(--gs-sheet-mute); font-weight: 500; font-size: 12px; text-align: center; position: sticky; z-index: 1; }
+.gs-office__sheet thead th { top: 0; }
+.gs-office__sheet th.is-row { left: 0; z-index: 1; }
+.gs-office__sheet th.is-corner { left: 0; z-index: 2; }
+.gs-office__sheet td.k-number { text-align: right; font-variant-numeric: tabular-nums; }
+.gs-office__sheet td.k-bool, .gs-office__sheet td.k-error { text-align: center; }
+.gs-office__sheetwrap .gs-office__note { padding: 8px 12px; }
+.gs-office__tabs { flex: none; display: flex; gap: 2px; padding: 0 8px; overflow-x: auto; background: #101820; border-top: 1px solid var(--gs-line-strong); }
+.gs-office__tab { border: 0; border-top: 2px solid transparent; background: none; color: var(--gs-muted); padding: 8px 14px; cursor: pointer; font: inherit; font-size: var(--gs-fs-2); white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+.gs-office__tab:hover { color: var(--gs-ink); }
+.gs-office__tab.is-on { color: var(--gs-ink); border-top-color: var(--gs-accent); font-weight: 600; background: rgba(255, 255, 255, 0.05); }
+.gs-office__tab:focus-visible { outline: 2px solid var(--gs-focus); outline-offset: -2px; }
+/* a presentation: one white card per slide */
+.gs-office__slides { max-width: 780px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+.gs-office__slide { background: #fff; color: var(--gs-sheet-ink); padding: 5% 6%; box-sizing: border-box; box-shadow: 0 0 0 1px var(--gs-line-strong); font: 15px/1.45 var(--gs-font); color-scheme: light; overflow-wrap: anywhere; }
+.gs-office__stitle { font-size: 22px; line-height: 1.25; margin: 0 0 0.4em; }
+.gs-office__ssub { font-size: 15px; color: var(--gs-sheet-mute); margin: 0 0 0.8em; }
+.gs-office__items { list-style: none; margin: 0; padding: 0; }
+.gs-office__items li { margin: 0 0 0.3em; }
+.gs-office__items li.is-bullet::before { content: "•"; display: inline-block; width: 1.1em; }
+.gs-office__stbl { margin-top: 0.6em; }

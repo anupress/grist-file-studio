@@ -16,6 +16,7 @@ import { icon } from '../core/assets/icons.js';
 import { mimeOf, typeLabel, tintOf, sizeText } from '../model/kinds.js';
 import { renderPage } from '../media/pdf.js';
 import { ALPHA } from './face.js';
+import { officeView, OFFICE } from './office.js';
 import { t, uiLang } from '../i18n/index.js';
 
 const MAX_MEDIA_BLOB = 300e6;
@@ -359,6 +360,7 @@ export function showFile(host, file, o) {
   else if (file.kind === 'pdf') view = pdfView(host, file, opts);
   else if (file.kind === 'video' || file.kind === 'audio') view = mediaView(host, file, opts);
   else if (file.kind === 'text') view = textView(host, file, opts);
+  else if (OFFICE.test(file.ext)) view = officeView(host, file, { ...opts, fail: (why) => fileCard(host, file, { why, onDownload: o.onDownload }) });
   else {
     fileCard(host, file, { why: t('There is no preview for this type of file.'), onDownload: o.onDownload });
     view = { zoomable: false, destroy() {} };

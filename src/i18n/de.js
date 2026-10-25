@@ -849,4 +849,17 @@ export const DE = {
   '{n} page with a cover-up is drawn again as a picture, so what was under the cover is gone for good. Its text can no longer be selected or searched.': '{n} Seite mit Abdeckung wird neu als Bild gezeichnet, sodass das Verdeckte endgültig weg ist. Ihr Text lässt sich nicht mehr markieren oder durchsuchen.',
   '{n} pages with a cover-up are drawn again as pictures, so what was under the covers is gone for good. Their text can no longer be selected or searched.': '{n} Seiten mit Abdeckung werden neu als Bilder gezeichnet, sodass das Verdeckte endgültig weg ist. Ihr Text lässt sich nicht mehr markieren oder durchsuchen.',
   'Drag over what to cover. A cover hides it from view and print, but the text under it stays in the file until you turn the page into a picture (tab Finish).': 'Ziehen Sie über das, was verdeckt werden soll. Die Abdeckung verbirgt es in Ansicht und Druck, aber der Text darunter bleibt in der Datei, bis Sie die Seite in ein Bild umwandeln (Reiter Abschluss).',
+  // previews of Word, Excel and PowerPoint files
+  'Preview of {name}': 'Vorschau von {name}',
+  'Sheets': 'Tabellenblätter',
+  'Showing the first part of the document. Download the file for the rest.': 'Gezeigt wird der erste Teil des Dokuments. Laden Sie die Datei herunter, um den Rest zu sehen.',
+  'Showing the first slides. Download the file for the rest.': 'Gezeigt werden die ersten Folien. Laden Sie die Datei herunter, um den Rest zu sehen.',
+  'Showing the first {rows} rows and {cols} columns. Download the file for the rest.': 'Gezeigt werden die ersten {rows} Zeilen und {cols} Spalten. Laden Sie die Datei herunter, um den Rest zu sehen.',
+  'Slide {n} of {total}': 'Folie {n} von {total}',
+  'There is nothing in this workbook to show.': 'In dieser Arbeitsmappe gibt es nichts zu zeigen.',
+  'This file could not be previewed here. Download it to open it on your computer.': 'Diese Datei lässt sich hier nicht in der Vorschau zeigen. Laden Sie sie herunter, um sie auf Ihrem Computer zu öffnen.',
+  'This file is too large to preview here. Download it to open it on your computer.': 'Diese Datei ist zu groß für die Vorschau hier. Laden Sie sie herunter, um sie auf Ihrem Computer zu öffnen.',
+  '[picture]': '[Bild]',
+  '{n} picture on this slide is not shown.': '{n} Bild auf dieser Folie wird nicht gezeigt.',
+  '{n} pictures on this slide are not shown.': '{n} Bilder auf dieser Folie werden nicht gezeigt.',
 };
