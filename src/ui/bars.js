@@ -42,6 +42,7 @@ export function createBars(chrome, filters, on) {
   const mode = el('span', { class: 'gs-mode' }, [modeDot, modeText]);
   const layouts = seg(t('Layout'), Object.entries(LAYOUT_LABELS).map(([id, label]) => [id, t(label), LAYOUT_ICONS[id]]), (id) => on.onLayout(id));
   const counts = el('span', { class: 'gs-counts', role: 'status' });
+  const tree = el('button', { type: 'button', class: 'gs-btn gs-btn--tree', title: t('Show or hide the list of folders'), 'aria-pressed': 'false', onclick: () => on.onTree() }, [icon('folder2'), el('span', { class: 'gs-btn__label', text: t('Folders') })]);
   const add = el('button', { type: 'button', class: 'gs-btn gs-btn--primary', title: t('Add files (or drop them anywhere, or paste)'), onclick: () => on.onAdd() }, [icon('plus'), el('span', { class: 'gs-wide', text: t('Add files') }), el('span', { class: 'gs-narrow', text: t('Add') })]);
   const download = el('button', { type: 'button', class: 'gs-btn', title: t('Download or zip files'), 'aria-label': t('Download'), 'aria-haspopup': 'menu', onclick: () => on.onDownload(download) }, [icon('download2'), el('span', { class: 'gs-btn__label', text: t('Download') })]);
   const keys = el('button', { type: 'button', class: 'gs-btn gs-btn--key', text: '?', title: t('Keyboard shortcuts (?)'), 'aria-label': t('Keyboard shortcuts'), onclick: () => on.onKeys() });
@@ -53,7 +54,7 @@ export function createBars(chrome, filters, on) {
         el('img', { class: 'gs-brand__logo', src: ANUPRESS_LOGO, alt: 'ANUPRESS' }),
         el('span', { class: 'gs-brand__name', text: 'File Studio' }),
       ]),
-      mode, layouts.box, counts,
+      mode, layouts.box, tree, counts,
     ]),
     el('div', { class: 'gs-bar-right' }, [add, download, keys, storage, columns]),
   );
@@ -68,6 +69,8 @@ export function createBars(chrome, filters, on) {
   const insideBox0 = el('input', { type: 'checkbox', onclick: (e) => { e.preventDefault(); setTimeout(() => on.onInside(), 0); } });
   const insideBtn = el('label', { class: 'gs-check gs-inside__switch', title: t('Also search the text inside PDFs, Word, Excel and text files'), hidden: true }, [insideBox0, t('Inside files')]);
   const searchBox = el('div', { class: 'gs-search' }, [icon('filter'), search, insideBtn]);
+  // The folder the wall is limited to, with a way back to all the files.
+  const scopeChip = el('button', { type: 'button', class: 'gs-chip gs-chip--scope', hidden: true, onclick: () => on.onScopeClear() });
   const insideNote = el('span', { class: 'gs-inside__note', role: 'status' });
   const insideAct = el('button', { type: 'button', class: 'gs-linkbtn', hidden: true });
   const insideBox = el('div', { class: 'gs-inside', hidden: true }, [insideNote, insideAct]);
@@ -112,7 +115,7 @@ export function createBars(chrome, filters, on) {
     }
     return el('div', { class: 'gs-pop__body' }, rows);
   }
-  const normal = el('div', { style: { display: 'contents' } }, [searchBox, insideBox, chips, end]);
+  const normal = el('div', { style: { display: 'contents' } }, [searchBox, insideBox, scopeChip, chips, end]);
 
   const markedN = el('span', { class: 'gs-marked__n' });
   const marked = el('div', { style: { display: 'contents' } }, [
@@ -144,6 +147,11 @@ export function createBars(chrome, filters, on) {
       layouts.box.hidden = level !== 'full';
       layouts.set(s.layout);
       counts.hidden = level !== 'full';
+      tree.hidden = level !== 'full';
+      scopeChip.hidden = !s.folderName;
+      if (s.folderName) { clear(scopeChip).append(icon('folder2'), el('span', { class: 'gs-chip__name', text: t('In “{name}”', { name: s.folderName }) }), icon('close')); scopeChip.title = t('Show all files'); scopeChip.setAttribute('aria-label', t('Show all files') + ': ' + s.folderName); }
+      tree.classList.toggle('is-on', !!s.tree);
+      tree.setAttribute('aria-pressed', s.tree ? 'true' : 'false');
       counts.textContent = level === 'full' ? [tn(s.records, '{n} record', '{n} records'), tn(s.files, '{n} file', '{n} files')].join(' · ') : '';
       add.hidden = level !== 'full' || !s.editable;
       download.hidden = level !== 'full' || !s.files;

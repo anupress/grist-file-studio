@@ -274,6 +274,50 @@ a.gs-btn { color: inherit; text-decoration: none; }   /* a link that looks like 
 .gs-row.is-dragged { opacity: 0.5; }
 /* a long press opens the menu: no text selection or callout on what is pressed */
 .gs-tile, .gs-row, .gs-card, .gs-head { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+/* ---- the folder list on the left ---- */
+.gs-body { flex: 1; min-height: 0; display: flex; position: relative; }
+.gs-body .gs-stage { min-width: 0; }
+.gs-treebox { flex: none; width: 268px; min-height: 0; display: flex; border-right: 1px solid var(--gs-line); background: var(--gs-surface); }
+.gs-treebox[hidden] { display: none; }
+.gs-tree { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
+.gs-tree__head { display: flex; align-items: center; gap: 4px; padding: 10px 8px 6px 14px; }
+.gs-tree__title { margin: 0; font-size: var(--gs-fs-1); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gs-muted); }
+.gs-tree__close { display: none; }
+.gs-tree__find { margin: 0 10px 6px; width: auto; }
+.gs-tree__scroll { flex: 1; min-height: 0; overflow: auto; position: relative; outline: none; }
+.gs-tree__all, .gs-tree__row {
+  display: flex; align-items: center; gap: 6px; box-sizing: border-box; height: 30px; padding-right: 10px; cursor: pointer; white-space: nowrap; font-size: var(--gs-fs-3);
+  color: var(--gs-ink); outline: none; user-select: none;
+}
+.gs-tree__all { padding-left: 14px; }
+.gs-tree__all svg, .gs-tree__row svg { width: 15px; height: 15px; flex: none; color: var(--gs-muted); }
+.gs-tree__list { position: relative; }
+.gs-tree__space { width: 1px; }
+.gs-tree__row { position: absolute; left: 0; right: 0; }
+.gs-tree__all:hover, .gs-tree__row:hover { background: var(--gs-surface-2); }
+.gs-tree__all:focus-visible, .gs-tree__row:focus-visible { box-shadow: inset 0 0 0 2px var(--gs-focus); }
+.gs-tree__row.is-selected, .gs-tree__all.is-selected { background: var(--gs-accent-soft); box-shadow: inset 3px 0 0 var(--gs-accent); font-weight: 600; }
+.gs-tree__row.is-current:not(.is-selected) .gs-tree__name { color: var(--gs-focus); }
+.gs-tree__row.is-dragged { opacity: 0.5; }
+.gs-tree__row.is-drop-target, .gs-tree__all.is-drop-target { outline: 2px dashed var(--gs-accent); outline-offset: -2px; }
+.gs-tree__toggle { flex: none; width: 18px; height: 18px; padding: 0; border: 0; background: none; border-radius: var(--gs-r-1); display: grid; place-items: center; cursor: pointer; color: var(--gs-muted); }
+.gs-tree__toggle svg { width: 12px; height: 12px; transform: rotate(-90deg); transition: transform 0.12s; }   /* the chevron points down; closed it points right */
+.gs-tree__row[aria-expanded="true"] .gs-tree__toggle svg { transform: none; }
+.gs-tree__toggle:hover { background: var(--gs-surface); color: var(--gs-ink); }
+.gs-tree__toggle.is-none { cursor: default; }
+.gs-tree__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.gs-tree__n { flex: none; color: var(--gs-muted); font-size: var(--gs-fs-1); font-variant-numeric: tabular-nums; }
+.gs-tree__nest { padding: 10px 14px 14px; border-top: 1px solid var(--gs-line); }
+.gs-tree__nest .gs-hint { margin: 0 0 8px; }
+.gs-toolbar .gs-btn--tree.is-on { background-color: var(--gs-chrome-soft-2); border-color: var(--gs-chrome-ink); }   /* on, in the dark bar: lighter, with a ring */
+@media (max-width: 760px) {
+  /* on a narrow widget the list slides over the files, and closing it is a button of its own */
+  .gs-treebox { position: absolute; z-index: 30; left: 0; top: 0; bottom: 0; width: min(300px, 88%); box-shadow: var(--gs-float); }
+  .gs-tree__close { display: grid; }
+}
+.gs-chip--scope { max-width: 220px; background: var(--gs-accent-soft); border-color: var(--gs-accent); align-items: center; }
+.gs-chip--scope svg { width: 13px; height: 13px; flex: none; }
+.gs-chip__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 /* the box dragged over the wall */
 .gs-lasso { position: absolute; z-index: 5; pointer-events: none; border: 1px solid var(--gs-accent); background: color-mix(in srgb, var(--gs-accent) 14%, transparent); border-radius: 2px; }
 .gs-scroll.is-lassoing { user-select: none; cursor: crosshair; }

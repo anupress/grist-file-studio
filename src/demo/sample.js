@@ -32,6 +32,7 @@ export const DEMO_COLUMNS = columnsFromFixture([
   { id: 'Visited', type: 'Date' },
   { id: 'Photos', type: 'Attachments' },
   { id: 'Documents', type: 'Attachments' },
+  { id: 'Parent', type: 'Ref:Inspections' },
 ]);
 
 export function demoMeta() {
@@ -42,14 +43,20 @@ export function demoMeta() {
 }
 
 const L = (...ids) => (ids.length ? ['L', ...ids] : null);
+/** A Reference cell as Grist sends it with keepEncoded. */
+const R = (id) => ['R', 'Inspections', id];
 const D = (y, m, d) => ['d', Date.UTC(y, m - 1, d) / 1000];
 
 export function demoRows() {
   return [
-    { id: 1, Property: 'Testgasse 7, Vienna', Inspector: 'Anna', Visited: D(2026, 10, 2), Photos: L(1, 2, 3, 4), Documents: L(9, 10, 15, 8, 18) },
-    { id: 2, Property: 'Hafenstraße 12, Hamburg', Inspector: 'Jonas', Visited: D(2026, 10, 6), Photos: L(5, 6, 20), Documents: L(11, 12, 13, 17) },
-    { id: 3, Property: '14 Rue des Lilas, Lyon', Inspector: 'Claire', Visited: D(2026, 10, 9), Photos: L(7), Documents: L(14, 16, 13, 19) },
-    { id: 4, Property: 'Kanalstraße 41, Berlin', Inspector: 'Jonas', Visited: null, Photos: null, Documents: null },
+    { id: 1, Property: 'Testgasse 7, Vienna', Inspector: 'Anna', Visited: D(2026, 10, 2), Photos: L(1, 2, 3, 4), Documents: L(9, 10, 15, 8, 18), Parent: R(5) },
+    { id: 2, Property: 'Hafenstraße 12, Hamburg', Inspector: 'Jonas', Visited: D(2026, 10, 6), Photos: L(5, 6, 20), Documents: L(11, 12, 13, 17), Parent: R(6) },
+    { id: 3, Property: '14 Rue des Lilas, Lyon', Inspector: 'Claire', Visited: D(2026, 10, 9), Photos: L(7), Documents: L(14, 16, 13, 19), Parent: R(7) },
+    { id: 4, Property: 'Kanalstraße 41, Berlin', Inspector: 'Jonas', Visited: null, Photos: null, Documents: null, Parent: R(6) },
+    // the folders the properties sit in: a country each
+    { id: 5, Property: 'Austria', Inspector: null, Visited: null, Photos: null, Documents: null, Parent: null },
+    { id: 6, Property: 'Germany', Inspector: null, Visited: null, Photos: null, Documents: null, Parent: null },
+    { id: 7, Property: 'France', Inspector: null, Visited: null, Photos: null, Documents: null, Parent: null },
   ];
 }
 

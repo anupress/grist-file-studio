@@ -183,6 +183,26 @@ The Files layout hides records that have no file (a table can have thousands), s
 visit, and **Display → Show records without files** (also in the empty-space menu, and kept for next time) shows them all. Cards and
 the Viewer always show every record.
 
+## Folders inside folders
+
+The **Folders** button (or Ctrl+K → "Show the folder list") opens a list of every folder on the left, with the number of files in each and below it.
+
+![The folder list: Germany chosen, with Hamburg and Berlin below it; the wall shows their files](docs/images/folder-list.png)
+
+- **Choose a folder** to see its files and those of the folders below it, in every layout (Cards, Files, Viewer). The bar says
+  **In "Germany"** with a cross that goes back to all files; **All files** at the top of the list does the same. Folders with no file yet show
+  a line that takes dropped files.
+- **Nesting needs a column**: a Reference column of the same table that says which record a record is inside. File Studio finds one named
+  *Parent*, *Folder*, *Ordner* or *Dossier*; the Columns panel lets you pick another (**Folder it is inside**); and **Let folders nest** in the
+  list adds a column named *Parent* that shows the folder's name, for you. Without it the list is flat, and still lets you choose a folder.
+  A folder that is its own parent, or in a loop, or whose parent is gone is simply shown at the top.
+- **Move a folder** by dragging it onto another (or onto **All files** to take it to the top level), or with **Move folder to…** in its menu. A
+  folder cannot go inside itself or one of its own folders. **New subfolder…** makes one inside the folder you right-click; **New folder…** makes
+  one inside the chosen folder.
+- **Put files in a folder** by dragging files from the wall, or from your computer, onto it (Ctrl or Alt copies instead of moving).
+- The keyboard works as in a file manager: arrows move, Right opens, Left closes or goes up, Enter chooses, F2 renames, the menu key opens the menu.
+  On a narrow widget the list slides over the files and closes after a choice.
+
 ## Adding and arranging files
 
 - **Drop** files on a card, a record's heading or the Viewer to add them to that record. Drop them

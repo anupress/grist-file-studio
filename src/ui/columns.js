@@ -5,7 +5,7 @@
 import { el, clear } from '../core/util.js';
 import { icon } from '../core/assets/icons.js';
 import { trapFocus } from './dialog.js';
-import { isFileColumn, isFieldColumn } from '../model/roles.js';
+import { isFileColumn, isFieldColumn, isParentColumn } from '../model/roles.js';
 import { exportPaths, unknownPlaceholders } from '../model/names.js';
 import { LAYOUTS } from '../model/settings.js';
 import { t, UI_LANGUAGES, storedLanguage } from '../i18n/index.js';
@@ -18,11 +18,12 @@ const TOKENS = ['{file}', '{n}', '{nn}', '{record}', '{date}', '{id}'];
  *           onSave({roles, settings, language}), onAddColumn(), onClose()}
  */
 export function openColumns(host, o) {
-  const roles = { files: [...o.roles.files], title: o.roles.title, fields: [...o.roles.fields] };
+  const roles = { files: [...o.roles.files], title: o.roles.title, fields: [...o.roles.fields], parent: o.roles.parent || null };
   const s = JSON.parse(JSON.stringify(o.settings));
   let language = storedLanguage();
   const fileCols = o.columns.filter(isFileColumn);
   const fieldCols = o.columns.filter(isFieldColumn);
+  const parentCols = o.columns.filter((c) => isParentColumn(c, o.tableId));
 
   const close = () => { release(); scrim.remove(); drawer.remove(); o.onClose?.(); };
   const scrim = el('div', { class: 'gs-scrim', onclick: () => close() });
@@ -103,6 +104,8 @@ export function openColumns(host, o) {
     // ---- records
     body.append(el('h3', { text: t('Records') }));
     body.append(select('gs-c-title', t('Name of a record'), [['', t('(none)')], ...fieldCols.map((c) => [c.id, c.label])], roles.title || '', (v) => { roles.title = v || null; }, t('Shown on cards and headings. New records made from files get the file name here.')));
+    body.append(select('gs-c-parent', t('Folder it is inside'), [['', t('(none: folders do not nest)')], ...parentCols.map((c) => [c.id, c.label])], roles.parent || '', (v) => { roles.parent = v || null; },
+      parentCols.length ? t('A Reference column to this table that says which record a record is inside. It makes the folder list on the left show folders inside folders.') : t('This table has no Reference column to itself yet. The Folders list on the left can add one (named Parent).')));
     body.append(el('div', { class: 'gs-field' }, [
       el('span', { class: 'gs-field__label', text: t('Card fields (up to 4)') }),
       el('div', { class: 'gs-checks' }, fieldCols.filter((c) => c.id !== roles.title).map((c) => {

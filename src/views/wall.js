@@ -20,7 +20,8 @@ import { t, tn, uiLang, dateLocale } from '../i18n/index.js';
 const OVERSCAN = 700;
 const COARSE = typeof matchMedia === 'function' ? matchMedia('(pointer: coarse)') : { matches: false };
 /** The drag type of tiles dragged inside the widget (files from the desktop come as 'Files'). */
-const INTERNAL = 'application/x-file-studio-files';
+export const INTERNAL_FILES = 'application/x-file-studio-files';
+const INTERNAL = INTERNAL_FILES;
 
 /** Where a search found its words in a file: "Page 3", "Pages 3, 7, 9…" or "In the text". */
 export function hitWhere(hit) {
@@ -576,6 +577,7 @@ export function createWall(host, thumbs, on) {
     },
     /** The file with the keyboard focus (Files layout), or null. */
     focusedFile() { return S.mode === 'files' ? fileByKey(S.focusKey) : null; },
+    scrollToTop() { scroll.scrollTop = 0; },
     focusFile(key) { if (S.mode === 'files' && fileByKey(key)) focusKey(key); },
     focus() { const k = focusTarget(); if (k) S.nodes.get(k)?.node.focus({ preventScroll: true }); else scroll.focus(); },
     files() { return S.mode === 'files' ? (S.data?.groups || []).flatMap((g) => g.files) : []; },

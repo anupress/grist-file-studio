@@ -27,6 +27,8 @@ import { makeZip, manifestCsv, ZIP_LIMIT } from './media/zip.js';
 import { shrinkPhoto } from './media/shrink.js';
 import { TextIndex, canRead } from './media/textindex.js';
 import { createReader } from './media/ocr.js';
+import { createTree } from './views/tree.js';
+import { buildTree, subtreeIds, ancestorIds, canMoveTo, visibleRows, moveFolderActions, refId } from './model/tree.js';
 import { heicJpeg } from './media/picture.js';
 import { ExifIndex, hasExif } from './media/exifindex.js';
 import { createWall } from './views/wall.js';
@@ -55,8 +57,8 @@ const S = {
   live: false, demo: false, ready: false, problem: null,
   tableId: null, columns: [], roles: { files: [], title: null, fields: [] }, settings: readOptions(null), options: null,
   rows: [], meta: new Map(), labels: {}, gallery: null, ownSection: null,
-  view: { layout: null, query: '', tag: '', group: null, sort: null, cardSize: null, fileSize: null, fit: null, grouped: null, captions: null, cover: null, empty: null },
-  current: null, selfCursor: null, marked: new Set(), lastMark: null, fresh: new Set(), clip: null,
+  view: { layout: null, query: '', tag: '', folder: null, group: null, sort: null, cardSize: null, fileSize: null, fit: null, grouped: null, captions: null, cover: null, empty: null },
+  current: null, selfCursor: null, marked: new Set(), lastMark: null, fresh: new Set(), clip: null, tree: null, treeGen: 0, treeShow: null, treeOpen: new Set(), treeFind: '',
   lb: null,   // {box, scope: 'wall' | rowId}
   // Searching inside files: on/off is this browser's choice; the text itself is read on request (see "inside files" below).
   inside: { on: false, reading: false, done: 0, total: 0, ocr: 'none', page: null }, readable: new Map(),
@@ -71,9 +73,11 @@ const chrome = el('div', { class: 'gs-toolbar' });
 const filters = el('div', { class: 'gs-filters' });
 const banner = el('div', { class: 'gs-banner', hidden: true });
 const stage = el('div', { class: 'gs-stage' });
+const treeBox = el('div', { class: 'gs-treebox', hidden: true });
+const appBody = el('div', { class: 'gs-body' }, [treeBox, stage]);
 const toastBox = el('div', { class: 'gs-toast', role: 'status', 'aria-live': 'polite', hidden: true });
 const srBox = el('div', { class: 'gs-sr', role: 'status', 'aria-live': 'polite' });
-const shell = el('div', { class: 'gs-app', dataset: { version: VERSION } }, [chrome, filters, banner, stage, toastBox, srBox]);
+const shell = el('div', { class: 'gs-app', dataset: { version: VERSION } }, [chrome, filters, banner, appBody, toastBox, srBox]);
 const picker = el('input', { type: 'file', multiple: true, hidden: true });
 shell.append(picker);
 clear(app).appendChild(shell);
@@ -147,6 +151,7 @@ function rebuild() {
   S.readable = new Map();
   for (const f of S.gallery.files) if (canRead(f, { pictures: S.inside.ocr === 'all' })) { const id = identOf(f); if (!S.readable.has(id)) S.readable.set(id, f); }
   if (S.inside.on) loadKnownText();
+  buildFolderTree();
 }
 const recordOf = (rowId) => S.gallery?.records.find((r) => r.rowId === rowId) || null;
 const rowOf = (rowId) => S.rows.find((r) => r.id === rowId) || null;
@@ -182,6 +187,8 @@ const bars = createBars(chrome, filters, {
   onKeys: () => openKeys(shell),
   onColumns: () => openColumnsPanel(),
   onStorage: () => openStorage(),
+  onTree: () => setTreeShown(!treeShown()),
+  onScopeClear: () => chooseFolder(null),
   onQuery: (q) => { setView({ query: q }, { remember: false }); render(); },
   onTag: (tag) => { setView({ tag }, { remember: false }); render(); },
   onMarkedTag: () => tagMarked(),
@@ -216,8 +223,9 @@ function updateBars(level = 'full') {
     level, mode: S.demo ? 'demo' : canEdit() ? 'live' : 'ro', readOnlyWhy: readOnlyWhy(), layout: v.layout, editable: canEdit() && !!fileColumn(),
     records: S.gallery?.records.length || 0, files: files.length, query: v.query, group: v.group, groupCounts: groupCounts(files), sort: v.sort,
     size: v.layout === 'cards' ? v.cardSize : v.fileSize, fit: v.fit, grouped: v.grouped, captions: v.captions, cover: v.cover, empty: v.empty, markedCount: S.marked.size, markedPictures: markedFiles().some((f) => REPORT_PICTURE.test(f.ext)), markedPair: (() => { const m = markedFiles(); return m.length === 2 && m.every((f) => f.kind === 'image'); })(),
-    inside: insideInfo(), dates: datesInfo(), tags: allTags(NOTES.map), tag: v.tag,
+    inside: insideInfo(), dates: datesInfo(), tags: allTags(NOTES.map), tag: v.tag, tree: treeShown(), folderName: S.view.folder && S.tree?.nodes.has(S.view.folder) ? (S.tree.nodes.get(S.view.folder).title || t('Untitled record')) : null,
   });
+  renderTree();
 }
 
 function emptyState(title, body, actions = []) {
@@ -232,7 +240,8 @@ function emptyState(title, body, actions = []) {
 function filesData() {
   const v = V();
   const inside = insideFn();
-  const vis = visibleFiles(S.gallery, { query: v.query, group: v.group, sort: v.sort, inside, taken: takenOf, tag: v.tag, empty: v.empty ? true : S.fresh });
+  const scope = scopeIds();
+  const vis = visibleFiles(S.gallery, { query: v.query, group: v.group, sort: v.sort, inside, taken: takenOf, tag: v.tag, scope, empty: v.empty ? true : new Set([...S.fresh, ...(scope || [])]) });
   setHits(vis.files, v.query, inside);
   const groups = v.grouped ? vis.groups : [{ rec: null, files: v.sort === 'cell' ? vis.files : sortFiles(vis.files, v.sort, { taken: takenOf }) }];
   return { groups, size: v.fileSize, fit: v.fit, grouped: v.grouped, captions: v.captions, sort: v.sort };
@@ -268,8 +277,8 @@ function render() {
         onReport: (rowId) => photoReport(recordOf(rowId)?.files || [], recordOf(rowId)),
       });
     }
-    const recs = S.gallery.records;
-    if (S.current == null || !recordOf(S.current)) S.current = recs[0]?.rowId ?? null;
+    const recs = scopedRecords();
+    if (S.current == null || !recs.some((r) => r.rowId === S.current)) S.current = recs[0]?.rowId ?? S.gallery.records[0]?.rowId ?? null;
     const index = recs.findIndex((r) => r.rowId === S.current);
     viewer.set(recordOf(S.current), { editable: canEdit() && !!fileColumn(), index, count: recs.length });
   } else {
@@ -296,7 +305,7 @@ function render() {
     }
     if (v.layout === 'cards') {
       setHits([], '', null);
-      const records = visibleRecords(S.gallery, { query: v.query, inside: insideFn() });
+      const records = visibleRecords(S.gallery, { query: v.query, inside: insideFn(), scope: scopeIds() });
       if (!records.length) emptyInWall(v.query ? t('No record matches “{q}”.', { q: v.query }) : t('No records to show. Grist’s filters or a linked selection may hide them.'));
       else wall.setCards({ records, size: v.cardSize, fields: S.roles.fields.length, cover: v.cover });
     } else {
@@ -332,7 +341,7 @@ function select(rowId, { tellGrist = true, scroll = false } = {}) {
   if (V().layout === 'viewer') render(); else renderState();
 }
 function stepRecord(d) {
-  const recs = S.gallery.records;
+  const recs = scopedRecords();
   const i = recs.findIndex((r) => r.rowId === S.current);
   const next = recs[Math.max(0, Math.min(recs.length - 1, (i < 0 ? 0 : i) + d))];
   if (next) select(next.rowId);
@@ -1051,7 +1060,7 @@ async function addFilesColumn() {
     await apply([['AddColumn', S.tableId, id, { type: 'Attachments' }]]);
     forgetMeta();
     S.columns = await loadColumns(S.tableId);
-    S.roles = resolveRoles(S.settings.roles, S.columns);
+    S.roles = resolveRoles(S.settings.roles, S.columns, S.tableId);
     rebuild(); render();
     toast(t('Added the column “{id}”. Drop files on a card to fill it.', { id }));
   } catch (e) { toast(t('Grist refused the change: {why}', { why: errText(e) })); }
@@ -1155,7 +1164,7 @@ async function zipFiles(files, name) {
 function openColumnsPanel() {
   const first = S.gallery?.files[0];
   openColumns(shell, {
-    columns: S.columns, roles: S.roles, settings: S.settings, editable: canEdit(), demo: S.demo, readOnlyWhy: readOnlyWhy(),
+    columns: S.columns, tableId: S.tableId, roles: S.roles, settings: S.settings, editable: canEdit(), demo: S.demo, readOnlyWhy: readOnlyWhy(),
     sample: first ? { file: first, record: recordOf(first.rowId) || { rowId: first.rowId, title: first.recordTitle }, textOf } : null,
     onAddColumn: () => addFilesColumn(),
     onSave: async ({ roles, settings, language }) => {
@@ -1426,27 +1435,31 @@ function tidy(items) {
   return out;
 }
 
-async function newFolder() {
+async function newFolder({ parent = null } = {}) {
   const why = folderWhy();
   if (why) { toast(why); return; }
   const col = titleColumn();
+  const into = parent && S.roles.parent && recordOf(parent) ? parent : null;
   const name = await textBox(shell, {
-    title: t('New folder'),
+    title: into ? t('New folder in “{parent}”', { parent: recordOf(into).title || t('Untitled record') }) : t('New folder'),
     body: t('A folder is a record of this table: a new row with this name in “{col}”, ready for files.', { col: col.label }),
     label: t('Name'), ok: t('Create'), empty: t('Type a name.'),
   });
   if (!name) return;
   const before = new Set(S.rows.map((r) => r.id));
-  const ok = await write(newFolderActions(S.tableId, name, { titleCol: col, prefill: linkPrefill() }), t('Made the folder “{name}”.', { name }));
+  const ok = await write(newFolderActions(S.tableId, name, { titleCol: col, prefill: linkPrefill(), parent: into ? { col: S.roles.parent, value: into } : null }), t('Made the folder “{name}”.', { name }));
   if (!ok) return;
   // Grist sends the new row a moment later: wait for it, then show it and take the cursor there.
   for (let i = 0; i < 40 && newestId(S.rows, before) == null; i++) await new Promise((r) => setTimeout(r, 100));
   const id = newestId(S.rows, before);
   if (id == null) return;
   S.fresh.add(id);
+  if (into) { S.treeOpen.add(into); saveTreeOpen(); }
+  rebuild();
+  if (treeShown() && S.roles.parent) { chooseFolder(id, { close: false }); treePane?.reveal(id); return; }   // the list is on: go into the new folder
   S.current = id;
   if (!S.demo) { S.selfCursor = id; moveCursor(id).catch(() => {}); }
-  rebuild(); render();
+  render();
   wall?.scrollToRecord(id);
 }
 
@@ -1526,8 +1539,10 @@ function recordMenu(rowId, anchor) {
     [t('Add files…'), () => pickFiles(rowId), { disabled: !can }],
     clipN() > 0 && [tn(clipN(), 'Paste {n} file here', 'Paste {n} files here'), () => pasteClip(rowId), { disabled: !can }],
     null,
-    [t('New folder…'), () => newFolder(), { disabled: !folder, note: folder ? null : folderWhy() }],
+    S.roles.parent ? [t('New subfolder…'), () => newFolder({ parent: rowId }), { disabled: !folder, note: folder ? null : folderWhy() }] : [t('New folder…'), () => newFolder(), { disabled: !folder, note: folder ? null : folderWhy() }],
     [t('Rename folder…'), () => renameFolder(rowId), { disabled: !folder }],
+    S.roles.parent && [t('Move folder to…'), () => moveFolderTo(rowId), { disabled: !canEdit() }],
+    S.roles.parent && S.tree?.nodes.get(rowId)?.parent && [t('Move to the top level'), () => moveFolder(rowId, 0), { disabled: !canEdit() }],
     null,
     [t('Download as zip'), () => zipRecord(rowId), { disabled: !rec.files.length }],
     [t('Photo report…'), () => photoReport(rec.files, rec), { disabled: !rec.files.some((f) => REPORT_PICTURE.test(f.ext)) }],
@@ -1545,7 +1560,7 @@ function spaceMenu(anchor) {
   openMenu(shell, anchor, tidy([
     [t('Add files…'), () => pickFiles(null), { disabled: !(canEdit() && fileColumn()), hint: t('Into the selected record, or one new record for each file') }],
     clipN() > 0 && recordOf(S.current) && [tn(clipN(), 'Paste {n} file into “{record}”', 'Paste {n} files into “{record}”').replace('{record}', recordOf(S.current).title || t('the selected record')), () => pasteClip(S.current)],
-    [t('New folder…'), () => newFolder(), { disabled: !folder, note: folder ? null : folderWhy() }],
+    [t('New folder…'), () => newFolder({ parent: S.view.folder }), { disabled: !folder, note: folder ? null : folderWhy() }],
     null,
     files && shownFiles().length > 0 && [t('Mark all shown'), () => { for (const f of shownFiles()) S.marked.add(f.key); renderState(); }],
     [t('Find a file, a folder or a command'), () => openFinder(), { hint: 'Ctrl+K' }],
@@ -1594,7 +1609,9 @@ function goToFolder(rowId) {
   const rec = recordOf(rowId);
   if (!rec) return;
   // The Files layout hides records without a file: show this one for now.
-  if (V().layout === 'files' && !rec.files.length && !S.fresh.has(rowId)) { S.fresh.add(rowId); render(); }
+  if (V().layout === 'files' && !rec.files.length && !S.fresh.has(rowId)) S.fresh.add(rowId);
+  if (treeShown() && S.roles.parent) { chooseFolder(rowId, { close: false }); treePane?.reveal(rowId); return; }
+  render();
   select(rowId, { scroll: true });
 }
 function paletteItems() {
@@ -1605,7 +1622,9 @@ function paletteItems() {
   const out = [];
   const cmd = (label, run, o = {}) => out.push({ group: 'commands', label, run, ...o });
   if (edit) cmd(t('Add files…'), () => pickFiles(null), { disabled: !can });
-  if (edit) cmd(t('New folder…'), () => newFolder(), { disabled: !canFolder(), hint: canFolder() ? '' : folderWhy() });
+  if (edit) cmd(t('New folder…'), () => newFolder({ parent: S.view.folder }), { disabled: !canFolder(), hint: canFolder() ? '' : folderWhy() });
+  cmd(treeShown() ? t('Hide the folder list') : t('Show the folder list'), () => setTreeShown(!treeShown()));
+  if (S.view.folder) cmd(t('Show all files'), () => chooseFolder(null));
   if (S.marked.size) cmd(t('Unmark all'), () => clearMarks(), { keys: 'Esc' });
   if (inFiles && shownFiles().length) cmd(t('Mark all shown'), () => { for (const f of shownFiles()) S.marked.add(f.key); renderState(); });
   for (const [id, name, keys] of [['cards', 'Cards', 'Alt+1'], ['files', 'Files', 'Alt+2'], ['viewer', 'Viewer', 'Alt+3']]) {
@@ -1645,6 +1664,113 @@ function paletteItems() {
   return out;
 }
 const openFinder = () => { if (S.ready && !S.problem) openPalette(shell, { items: paletteItems }); };
+
+// ---- the folder list on the left ------------------------------------------------------------------------------------
+// Every record is a folder. With a column that says which record a record is inside (S.roles.parent) the folders nest; without one the list is
+// flat. Choosing a folder shows its files and those of the folders below it in every layout (the "scope"). Moving a folder is one update of that
+// column; making the list able to nest adds the column.
+const TREE_SHOW_KEY = () => 'file-studio-tree.' + (S.tableId || 'demo');
+const TREE_OPEN_KEY = () => 'file-studio-tree-open.' + (S.tableId || 'demo');
+let treePane = null, treeRowsKey = '', treeRows = [];
+// open at first when folders nest and there is room (on a narrow widget the list would cover the files); then whatever was chosen
+const treeShown = () => (S.treeShow == null ? !!S.roles.parent && shell.clientWidth >= 760 : S.treeShow);
+
+function buildFolderTree() {
+  const col = S.roles.parent;
+  const byId = col ? new Map(S.rows.map((r) => [r.id, r])) : null;
+  S.tree = buildTree(S.gallery.records, (id) => (col ? refId(byId.get(id)?.[col]) : 0));
+  S.treeGen++;
+}
+function loadTreeState() {
+  S.treeShow = mem.get(TREE_SHOW_KEY()) === '1' ? true : mem.get(TREE_SHOW_KEY()) === '0' ? false : null;
+  try { S.treeOpen = new Set(JSON.parse(mem.get(TREE_OPEN_KEY()) || '[]').map(Number)); } catch { S.treeOpen = new Set(); }
+}
+const saveTreeOpen = () => mem.set(TREE_OPEN_KEY(), JSON.stringify([...S.treeOpen]));
+function setTreeShown(on) { S.treeShow = on; mem.set(TREE_SHOW_KEY(), on ? '1' : '0'); render(); }
+
+/** The records of the chosen folder and everything below it, or null when no folder is chosen. */
+const scopeIds = () => (S.view.folder && S.tree?.nodes.has(S.view.folder) ? subtreeIds(S.tree, S.view.folder) : null);
+const scopedRecords = () => { const s = scopeIds(); if (!s) return S.gallery.records; const byId = new Map(S.gallery.records.map((r) => [r.rowId, r])); return [...s].map((id) => byId.get(id)).filter(Boolean); };
+
+/** Choose a folder (null: all files): its files show, the way to it opens in the list, and the cursor goes to it. */
+function chooseFolder(rowId, { close = true } = {}) {
+  S.view.folder = rowId || null;
+  if (rowId) {
+    for (const a of ancestorIds(S.tree, rowId)) S.treeOpen.add(a);
+    saveTreeOpen();
+    S.current = rowId;
+    if (!S.demo) { S.selfCursor = rowId; moveCursor(rowId).catch(() => {}); }
+  }
+  clearMarks(false);
+  if (close && shell.clientWidth < 760 && treeShown()) { S.treeShow = false; }
+  render();
+  wall?.scrollToTop?.();
+}
+
+function renderTree() {
+  if (!treePane) return;
+  const show = treeShown() && !S.problem && !!S.gallery && S.roles.files.length > 0;
+  treeBox.hidden = !show;
+  appBody.classList.toggle('has-tree', show);
+  if (!show) return;
+  const q = S.treeFind.trim();
+  const key = `${S.treeGen}|${[...S.treeOpen].join()}|${q}`;
+  if (key !== treeRowsKey) {
+    treeRowsKey = key;
+    let only = null;
+    if (q) { const m = matcher(q); only = new Set(S.gallery.records.filter((r) => m(r.title)).map((r) => r.rowId)); }
+    treeRows = visibleRows(S.tree, S.treeOpen, only);
+  }
+  treePane.set({
+    rows: treeRows, selected: S.view.folder && S.tree.nodes.has(S.view.folder) ? S.view.folder : null, current: S.current,
+    total: S.gallery.files.length, nested: !!S.roles.parent, editable: canEdit(), count: S.gallery.records.length, query: S.treeFind,
+  });
+}
+
+async function moveFolder(rowId, parentId) {
+  if (!canEdit() || !S.roles.parent) return;
+  if (!canMoveTo(S.tree, rowId, parentId)) { toast(t('A folder cannot go inside itself or one of its own folders.')); return; }
+  const was = S.tree.nodes.get(rowId)?.parent?.rowId || 0;
+  if (was === parentId) return;
+  const name = recordOf(rowId)?.title || t('Untitled record');
+  const ok = await write(moveFolderActions(S.tableId, rowId, S.roles.parent, parentId),
+    parentId ? t('Moved “{name}” into “{parent}”.', { name, parent: recordOf(parentId)?.title || t('Untitled record') }) : t('Moved “{name}” to the top level.', { name }));
+  if (ok && parentId) { S.treeOpen.add(parentId); saveTreeOpen(); renderTree(); }
+}
+async function moveFolderTo(rowId) {
+  const sub = subtreeIds(S.tree, rowId);
+  const target = await pickRecord(shell, {
+    title: t('Move “{name}” into…', { name: recordOf(rowId)?.title || t('Untitled record') }),
+    body: t('The folder and the folders in it go inside the folder you pick.'),
+    records: S.gallery.records, exclude: sub,
+  });
+  if (target != null) moveFolder(rowId, target);
+}
+
+/** Add a "Parent" column (a Reference to this table that shows the record's name) so that folders can go inside folders. */
+async function addParentColumn() {
+  if (!canEdit()) { toast(readOnlyWhy()); return; }
+  const title = titleColumn();
+  try {
+    if (S.demo) { toast(t('The demo’s folders already nest.')); return; }
+    const res = await apply([['AddColumn', S.tableId, 'Parent', { type: 'Ref:' + S.tableId, label: t('Parent folder'), ...(title ? { visibleCol: title.ref } : {}) }]]);
+    const made = res?.retValues?.[0];
+    if (made?.colRef && title) await apply([['SetDisplayFormula', S.tableId, null, made.colRef, `$${made.colId}.${title.id}`]]);
+    forgetMeta();
+    S.columns = await loadColumns(S.tableId);
+    S.roles = { ...S.roles, parent: made?.colId || 'Parent', source: 'saved' };
+    S.settings = { ...S.settings, roles: toStored(S.roles, S.columns) };
+    try { await setOptions(writeOptions(S.settings, toStored(S.roles, S.columns))); } catch { /* shown for this visit only */ }
+    S.treeShow = true; mem.set(TREE_SHOW_KEY(), '1');
+    rebuild(); render();
+    toast(t('Added the column “{id}”. Choose a folder it is inside in each record, or drag a folder onto another.', { id: made?.colId || 'Parent' }));
+  } catch (e) { toast(t('Grist refused the change: {why}', { why: errText(e) })); }
+}
+
+function treeMenu(rowId, anchor) {
+  if (rowId == null) { spaceMenu(anchor); return; }
+  recordMenu(rowId, anchor);
+}
 
 // ---- inside files ---------------------------------------------------------------------------------------------------
 // The search can look at the words in PDFs, Word, Excel, PowerPoint and text files. Reading them means downloading each
@@ -1785,7 +1911,7 @@ async function onRows(rows) {
           // The table itself may have been renamed.
           S.tableId = (await selectedTableId()) || S.tableId;
           S.columns = await loadColumns(S.tableId);
-          S.roles = resolveRoles(S.settings.roles, S.columns);
+          S.roles = resolveRoles(S.settings.roles, S.columns, S.tableId);
           S.labels = await loadLabels(S.columns, [S.roles.title, ...S.roles.fields].filter(Boolean)).catch(() => S.labels);
         } catch { /* keep what is known */ }
       }
@@ -1814,7 +1940,7 @@ async function onOptions(options) {
   S.options = json;
   S.settings = readOptions(options);
   if (!S.ready || !S.columns.length) return;
-  S.roles = resolveRoles(S.settings.roles, S.columns);
+  S.roles = resolveRoles(S.settings.roles, S.columns, S.tableId);
   S.labels = await loadLabels(S.columns, [S.roles.title, ...S.roles.fields].filter(Boolean)).catch(() => S.labels);
   rebuild(); render();
 }
@@ -1843,7 +1969,7 @@ async function boot() {
     const [columns, meta] = await Promise.all([loadColumns(S.tableId), loadFileMeta().catch(() => new Map())]);
     S.columns = columns;
     S.meta = meta;
-    S.roles = resolveRoles(S.settings.roles, S.columns);
+    S.roles = resolveRoles(S.settings.roles, S.columns, S.tableId);
     S.labels = await loadLabels(S.columns, [S.roles.title, ...S.roles.fields].filter(Boolean)).catch(() => ({}));
     S.ownSection = await loadOwnSection(S.tableId, S.options ? JSON.parse(S.options) : null);
     // Files renamed or uploaded elsewhere: Grist sends nothing for those, so look again when the person comes back.
@@ -1859,13 +1985,27 @@ async function boot() {
     source = demoSource(S.meta, openPdf);
     makeThumbs();
     S.rows = speed ? speed.rows : demoRows();
-    S.roles = resolveRoles(null, S.columns);
+    S.roles = resolveRoles(null, S.columns, S.tableId);
     S.roles.fields = [...DEMO_FIELDS];
     S.current = 1;
     const ex = params.get('layout');
     if (ex && ['cards', 'files', 'viewer'].includes(ex)) S.view.layout = ex;
   }
   const stored = readView(S.tableId);
+  loadTreeState();
+  treePane = createTree(treeBox, {
+    onSelect: (id) => chooseFolder(id),
+    onToggle: (id) => { if (S.treeOpen.has(id)) S.treeOpen.delete(id); else S.treeOpen.add(id); saveTreeOpen(); renderTree(); },
+    onMenu: (id, anchor) => treeMenu(id, anchor),
+    onNew: () => newFolder({ parent: S.view.folder }),
+    onRename: (id) => renameFolder(id),
+    onDrop: (id, files) => addFiles(files, id),
+    onSendFiles: (keys, id, mode) => { const fs = (S.gallery?.files || []).filter((x) => keys.includes(x.key)); if (fs.length) sendTo(fs, mode, id); },
+    onMoveFolder: (id, parentId) => moveFolder(id, parentId),
+    onNest: () => addParentColumn(),
+    onFind: (q) => { S.treeFind = q; renderTree(); },
+    onClose: () => setTreeShown(false),
+  });
   for (const k of ['layout', 'cardSize', 'fileSize', 'fit', 'grouped', 'captions', 'cover', 'sort', 'group', 'empty']) if (stored[k] != null && S.view[k] == null) S.view[k] = stored[k];
   // Right click on the blank part of the stage (also when the wall is not there): the wall's menu.
   stage.addEventListener('contextmenu', (e) => { if (e.defaultPrevented || e.target.closest?.('input, textarea, .gs-menu')) return; e.preventDefault(); spaceMenu({ x: e.clientX, y: e.clientY }); });

@@ -161,17 +161,24 @@ export function sortFiles(files, sort, opts = {}) {
   }
 }
 
+/** The records of a scope (a Set of record ids, in the order they were added: a folder, then the folders below it), or all of them. */
+function inScope(gallery, scope) {
+  if (!scope) return gallery.records;
+  const byId = new Map(gallery.records.map((r) => [r.rowId, r]));
+  return [...scope].map((id) => byId.get(id)).filter(Boolean);
+}
+
 /**
  * What the Files layout shows: the records with their matching files, filtered by search and the
  * chosen group, each record's files sorted. Records left with no file are dropped, except (when nothing narrows the wall) the folders
  * `empty` asks for: every record without a file (true) or the ids in a Set.
  * @returns {{groups: [{rec, files}], files: [file]}} files = the flat order the lightbox steps through
  */
-export function visibleFiles(gallery, { query = '', group = 'all', sort = 'cell', inside = null, taken = null, tag = '', empty = null } = {}) {
+export function visibleFiles(gallery, { query = '', group = 'all', sort = 'cell', inside = null, taken = null, tag = '', empty = null, scope = null } = {}) {
   const match = matcher(query);
   const groups = [];
   const flat = [];
-  for (const rec of gallery.records) {
+  for (const rec of inScope(gallery, scope)) {   // only the chosen folder and the folders in it
     const recText = [rec.title, ...rec.fields.map((f) => f.text)];
     const keep = rec.files.filter((f) => {
       if (group !== 'all' && f.group !== group) return false;
@@ -189,10 +196,11 @@ export function visibleFiles(gallery, { query = '', group = 'all', sort = 'cell'
 }
 
 /** What the Cards layout shows: records whose title, fields or file names match. Records with no files stay. */
-export function visibleRecords(gallery, { query = '', inside = null } = {}) {
+export function visibleRecords(gallery, { query = '', inside = null, scope = null } = {}) {
   const match = matcher(query);
-  if (!match) return gallery.records;
-  return gallery.records.filter((rec) => {
+  const all = inScope(gallery, scope);
+  if (!match) return all;
+  return all.filter((rec) => {
     const texts = [rec.title, ...rec.fields.map((f) => f.text), ...rec.files.map((f) => f.name), ...rec.files.map((f) => f.notesText)];
     return match(...texts) || (inside && rec.files.some((f) => { const e = inside(f); return e && match.within(e.all, ...texts); }));
   });

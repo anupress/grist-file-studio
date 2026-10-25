@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.19.0
+
+Folders inside folders, with a folder list on the left. Checked in the demo (the nested folders, choosing one in each layout, opening and closing,
+the menu, a new subfolder, moving by menu and by drag, a refused loop, dropping a file on a folder, the keyboard) and in Grist 1.7.20 (the Parent
+column added with a display formula, folders moved by drag, a subfolder made inside one, the column kept after a reload), and in the audit.
+
+### Folders
+- **The folder list** (the Folders button): every record is a folder, with its file count and below it. Choose one to limit the wall, the cards and the
+  viewer to it and the folders below it. A chip in the bar says which, and clears it.
+- **Folders inside folders** through a Reference column of the same table (found by its name, picked in the Columns panel, or added by **Let folders
+  nest**). Drag a folder onto another, or **Move folder to…**; **New subfolder…**. Loops and missing parents are shown at the top, never lost.
+- Drop files on a folder in the list (from the wall or from the computer). Keyboard, menu key, long press and right click.
+- The demo's properties sit in a country each.
+
 ## 1.18.0
 
 HEIC pictures. Checked in the demo (thumbnail, lightbox, editor, Convert to JPEG and Undo, shrink on upload, the photo report, date and place) and in

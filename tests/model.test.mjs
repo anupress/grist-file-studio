@@ -39,12 +39,12 @@ const cols = columnsFromFixture([
   { id: 'Code', type: 'Text' }, { id: 'Name', type: 'Text' }, { id: 'Location', type: 'Ref:Places' },
   { id: 'Photos', type: 'Attachments' }, { id: 'Docs', type: 'Attachments' }, { id: 'Checked', type: 'Date' },
 ]);
-eq('detection', detectRoles(cols), { files: ['Photos', 'Docs'], title: 'Name', fields: ['Code', 'Location'] });
+eq('detection', detectRoles(cols), { files: ['Photos', 'Docs'], title: 'Name', fields: ['Code', 'Location'], parent: null });
 eq('German title', detectRoles(columnsFromFixture([{ id: 'Nr', type: 'Int' }, { id: 'Bezeichnung', type: 'Text' }, { id: 'Bilder', type: 'Attachments' }])).title, 'Bezeichnung');
 eq('first text column when nothing is named', detectRoles(columnsFromFixture([{ id: 'A', type: 'Numeric' }, { id: 'B', type: 'Text' }, { id: 'C', type: 'Text' }])).title, 'B');
 eq('no attachments column', detectRoles(columnsFromFixture([{ id: 'Name', type: 'Text' }])).files, []);
 const stored = toStored({ files: ['Docs'], title: 'Code', fields: ['Checked'] }, cols);
-eq('stored by ref', stored, { files: [{ ref: 5, id: 'Docs' }], title: { ref: 1, id: 'Code' }, fields: [{ ref: 6, id: 'Checked' }] });
+eq('stored by ref', stored, { files: [{ ref: 5, id: 'Docs' }], title: { ref: 1, id: 'Code' }, fields: [{ ref: 6, id: 'Checked' }], parent: null });
 const renamed = cols.map((c) => (c.id === 'Docs' ? { ...c, id: 'Documents' } : c));
 eq('a renamed column is found by its ref', fromStored(stored, renamed).files, ['Documents']);
 eq('a column that became Text is dropped', fromStored({ files: [{ ref: 4, id: 'Photos' }] }, cols.map((c) => (c.id === 'Photos' ? { ...c, kind: 'Text' } : c))).files, []);
@@ -87,6 +87,17 @@ eq('sort by newest', sortFiles(g.files, 'newest').map((f) => f.attId), [1, 3, 2]
 eq('sort by size', sortFiles(g.files, 'largest').map((f) => f.attId), [3, 1, 2]);
 eq('sort by name is natural', sortFiles([{ name: 'img10.jpg' }, { name: 'img2.jpg' }, { name: 'Img1.jpg' }], 'name').map((f) => f.name), ['Img1.jpg', 'img2.jpg', 'img10.jpg']);
 eq('a matcher needs every word', [matcher('front plan')('front.jpg', 'plan'), matcher('front plan')('front.jpg')], [true, false]);
+
+// the folder column: a Reference to this table, found by its name only
+const fcols = columnsFromFixture([{ id: 'Name', type: 'Text' }, { id: 'Photos', type: 'Attachments' }, { id: 'Parent', type: 'Ref:Sites' }, { id: 'Manager', type: 'Ref:Sites' }, { id: 'Owner', type: 'Ref:People' }]);
+eq('parent: a Reference to this table named Parent', detectRoles(fcols, 'Sites').parent, 'Parent');
+eq('parent: not found without the table, not for another table, not for a column with another name', [detectRoles(fcols).parent, detectRoles(fcols, 'People').parent, detectRoles(columnsFromFixture([{ id: 'Manager', type: 'Ref:Sites' }]), 'Sites').parent], [null, null, null]);
+eq('parent: German and French names', [detectRoles(columnsFromFixture([{ id: 'Ordner', type: 'Ref:Orte' }]), 'Orte').parent, detectRoles(columnsFromFixture([{ id: 'Dossier', type: 'Ref:Lieux' }]), 'Lieux').parent], ['Ordner', 'Dossier']);
+eq('parent: a formula column cannot be written to', detectRoles(columnsFromFixture([{ id: 'Parent', type: 'Ref:Sites', isFormula: true, formula: '$A' }]), 'Sites').parent, null);
+const storedF = toStored({ files: ['Photos'], title: 'Name', fields: [], parent: 'Manager' }, fcols);
+eq('parent: stored by ref and found again', [storedF.parent.id, resolveRoles(storedF, fcols, 'Sites').parent], ['Manager', 'Manager']);
+eq('parent: chosen as none stays none, saved before there was one follows detection', [resolveRoles({ ...storedF, parent: null }, fcols, 'Sites').parent, resolveRoles({ files: storedF.files, title: storedF.title, fields: [] }, fcols, 'Sites').parent], [null, 'Parent']);
+eq('parent: a saved column that is no longer a Reference to the table is dropped', resolveRoles(toStored({ files: ['Photos'], title: 'Name', fields: [], parent: 'Owner' }, fcols), fcols, 'Sites').parent, 'Parent');
 
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

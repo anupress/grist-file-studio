@@ -15,11 +15,16 @@ const TITLE_NAMES = [
 // Columns that are rarely what a card should say first.
 const NOT_TITLE = /^(id|uuid|key|code|ref|sku|notes?|comments?|bemerkung|remarque)$/;
 
+// Names of the column that says which folder a folder is inside (a Reference column of the same table), English / German / French.
+const PARENT_NAMES = ['parent', 'parent folder', 'parent record', 'folder', 'inside', 'ordner', 'uebergeordnet', 'oberordner', 'elternordner', 'dossier', 'dossier parent', 'parent dossier', 'dans'];
+
 /** Columns a card can show as a field: anything readable as text. */
 const FIELD_KINDS = ['Text', 'Numeric', 'Int', 'Bool', 'Date', 'DateTime', 'Choice', 'ChoiceList', 'Ref', 'RefList'];
 
 export const isFileColumn = (c) => c && c.kind === 'Attachments';
 export const isFieldColumn = (c) => c && FIELD_KINDS.includes(c.kind);
+/** A column that can say which record a record is inside: a Reference to this very table that a person may write to. */
+export const isParentColumn = (c, tableId) => !!c && c.kind === 'Ref' && !c.isFormula && !!tableId && c.refTable === tableId;
 
 function titleScore(c) {
   if (!isFieldColumn(c) || c.kind === 'Bool') return -1;
@@ -34,9 +39,11 @@ function titleScore(c) {
 /**
  * Detect the roles.
  * @param {Array} columns  from tableColumns()
- * @returns {{files: string[], title: string|null, fields: string[]}} column ids
+ * @param {string} tableId  the table, to know which Reference columns point back at it (without it no parent is found)
+ * @returns {{files: string[], title: string|null, fields: string[], parent: string|null}} column ids. The parent is found by its name only (a
+ *   table's other Reference columns to itself, a manager or a successor, are not folders).
  */
-export function detectRoles(columns) {
+export function detectRoles(columns, tableId = null) {
   const files = columns.filter(isFileColumn).map((c) => c.id);
   let best = null, bestScore = 0;
   columns.forEach((c, i) => {
@@ -46,7 +53,8 @@ export function detectRoles(columns) {
   });
   const title = best ? best.id : null;
   const fields = columns.filter((c) => isFieldColumn(c) && c.id !== title && !c.id.startsWith('gristHelper')).slice(0, 2).map((c) => c.id);
-  return { files, title, fields };
+  const parent = columns.find((c) => isParentColumn(c, tableId) && PARENT_NAMES.some((n) => fold(c.id) === n || fold(c.label) === n || fold(c.id).startsWith(n + ' ') || fold(c.label).startsWith(n + ' ')));
+  return { files, title, fields, parent: parent ? parent.id : null };
 }
 
 /**
@@ -54,7 +62,7 @@ export function detectRoles(columns) {
  * renamed column is still found; the id is a fallback for a copy of the document where refs differ.
  * Anything that no longer exists, or no longer has a fitting type, is dropped.
  */
-export function fromStored(stored, columns) {
+export function fromStored(stored, columns, tableId = null) {
   if (!stored || typeof stored !== 'object') return null;
   const find = (s) => (s && (columns.find((c) => s.ref && c.ref === s.ref) || columns.find((c) => c.id === s.id))) || null;
   const list = (v) => (Array.isArray(v) ? v : []).map(find).filter(Boolean);
@@ -64,6 +72,7 @@ export function fromStored(stored, columns) {
     files,
     title: title && isFieldColumn(title) ? title.id : null,
     fields: list(stored.fields).filter(isFieldColumn).map((c) => c.id).slice(0, 4),
+    parent: (() => { const p = find(stored.parent); return p && isParentColumn(p, tableId) ? p.id : null; })(),
   };
 }
 
@@ -74,18 +83,21 @@ export function toStored(roles, columns) {
     files: (roles.files || []).map(one).filter(Boolean),
     title: roles.title ? one(roles.title) : null,
     fields: (roles.fields || []).map(one).filter(Boolean),
+    parent: roles.parent ? one(roles.parent) : null,
   };
 }
 
 /** Saved roles fall back to detection for whatever they lack (no files column saved -> detected ones). */
-export function resolveRoles(stored, columns) {
-  const auto = detectRoles(columns);
-  const saved = fromStored(stored, columns);
+export function resolveRoles(stored, columns, tableId = null) {
+  const auto = detectRoles(columns, tableId);
+  const saved = fromStored(stored, columns, tableId);
   if (!saved) return { ...auto, source: 'auto' };
   return {
     files: saved.files.length ? saved.files : auto.files,
     title: stored.title === null ? null : saved.title || auto.title,
     fields: Array.isArray(stored.fields) ? saved.fields : auto.fields,
+    // saved with no folder column chosen (null) is a choice; saved before there was one (nothing) follows detection
+    parent: stored.parent === null ? null : saved.parent || auto.parent,
     source: 'saved',
   };
 }

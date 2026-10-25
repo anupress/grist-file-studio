@@ -11,14 +11,16 @@ export const cleanName = (s) => String(s ?? '').replace(/\s+/g, ' ').trim().slic
 export const canName = (col) => !!col && col.kind === 'Text' && !col.isFormula;
 
 /**
- * The action that makes a folder. `prefill` is the value a Select-by link needs so the new record shows under the current selection.
+ * The action that makes a folder. `prefill` is the value a Select-by link needs so the new record shows under the current selection;
+ * `parent` ({col, value}) puts it inside another folder.
  * @returns [] when the name is empty or there is no column to put it in
  */
-export function newFolder(table, name, { titleCol, prefill = null } = {}) {
+export function newFolder(table, name, { titleCol, prefill = null, parent = null } = {}) {
   const clean = cleanName(name);
   if (!clean || !canName(titleCol)) return [];
   const fields = { [titleCol.id]: clean };
   if (prefill && prefill.col && prefill.col !== titleCol.id) fields[prefill.col] = prefill.value;
+  if (parent && parent.col && parent.value && parent.col !== titleCol.id) fields[parent.col] = parent.value;   // inside another folder
   return [['AddRecord', table, null, fields]];
 }
 
