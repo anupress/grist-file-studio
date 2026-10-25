@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.13.0
+
+Cut, copy and paste between folders. Checked in the demo with the real keys and mouse (Ctrl+C, Ctrl+X, the folder's Paste item, Esc, Undo) and in the audit.
+
+### Files
+- **Ctrl+X** and **Ctrl+C** take the marked files (or the focused one) onto an inside clipboard; **Ctrl+V** or **Paste n files here** in a
+  folder's menu puts them into the selected record: a cut moves, a copy adds the same files. Cut files are dimmed. **Cut** and **Copy**
+  are also in the file menu and the menu of marked files; the keyboard sheet lists them.
+
 ## 1.12.0
 
 The list. Checked in the demo (clicks, keys and the right mouse button, 1366 to 390 px), in the audit (light and dark, English, German

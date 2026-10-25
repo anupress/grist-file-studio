@@ -1,6 +1,6 @@
 // Folders (a folder is a record): the actions that make and rename one, showing records that have no file yet, and where they sit in the layout.
 
-import { cleanName, canName, newFolder, renameFolder, showsEmpty, newestId, folderStats, MAX_NAME } from '../src/model/folders.js';
+import { cleanName, canName, newFolder, renameFolder, showsEmpty, newestId, folderStats, clipFiles, MAX_NAME } from '../src/model/folders.js';
 import { visibleFiles } from '../src/model/files.js';
 import { layoutFiles, HEAD_H, EMPTY_H } from '../src/model/layout.js';
 
@@ -61,6 +61,11 @@ eq('folder stats: by type, biggest first', st.groups, [{ group: 'image', count: 
 eq('folder stats: largest, first and last upload', [st.largest.key, st.first, st.last], ['a', 1000, 4000]);
 eq('folder stats of nothing', folderStats([]), { count: 0, bytes: 0, stored: 0, groups: [], largest: null, first: null, last: null });
 eq('files without a size or a hash still count', [folderStats([{ key: 'z', group: 'other' }]).count, folderStats([{ key: 'z', group: 'other' }, { key: 'y', group: 'other' }]).stored], [1, 0]);
+
+// The inside clipboard: keys that still point at a file
+const shelf = [{ key: 'a' }, { key: 'b' }, { key: 'c' }];
+eq('clip files: the ones still there, in the order of the files', clipFiles({ mode: 'copy', keys: ['c', 'a', 'gone'] }, shelf).map((x) => x.key), ['a', 'c']);
+eq('clip files: nothing on the clipboard, or an empty one', [clipFiles(null, shelf), clipFiles({ mode: 'cut', keys: [] }, shelf), clipFiles({ mode: 'cut', keys: ['z'] }, shelf)], [[], [], []]);
 
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

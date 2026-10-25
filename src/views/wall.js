@@ -41,7 +41,7 @@ export function createWall(host, thumbs, on) {
 
   const S = {
     mode: 'files', width: 0, layout: null, data: null, nodes: new Map(), current: null, focusKey: null,
-    marked: new Set(), editable: false, raf: 0, cardIndex: new Map(), off: 0, list: false, cols: [], colKey: '',
+    marked: new Set(), cut: new Set(), editable: false, raf: 0, cardIndex: new Map(), off: 0, list: false, cols: [], colKey: '',
   };
 
   // ---- drawing -----------------------------------------------------------------------------------
@@ -152,6 +152,7 @@ export function createWall(host, thumbs, on) {
   function refresh(node, f) {
     node.draggable = S.editable && !f.readOnly;
     node.classList.toggle('is-marked', S.marked.has(f.key));
+    node.classList.toggle('is-cut', S.cut.has(f.key));
     node.setAttribute('aria-selected', S.marked.has(f.key) ? 'true' : 'false');
     node.tabIndex = f.key === focusTarget() ? 0 : -1;
   }
@@ -487,7 +488,8 @@ export function createWall(host, thumbs, on) {
       if (changed || !keepScroll) scroll.scrollTop = 0;
       relayout();
     },
-    setState({ current, marked, editable }) {
+    setState({ current, marked, editable, cut }) {
+      if (cut !== undefined) S.cut = cut;
       if (current !== undefined) S.current = current;
       if (marked !== undefined) S.marked = marked;
       if (editable !== undefined) S.editable = editable;
@@ -502,6 +504,8 @@ export function createWall(host, thumbs, on) {
       const blk = g >= 0 ? S.layout.blocks.find((b) => b.g === g) : null;
       if (blk && (blk.y < scroll.scrollTop || blk.y + S.off > scroll.scrollTop + scroll.clientHeight - 60)) { scroll.scrollTop = Math.max(0, blk.y - 8); draw(); }
     },
+    /** The file with the keyboard focus (Files layout), or null. */
+    focusedFile() { return S.mode === 'files' ? fileByKey(S.focusKey) : null; },
     focusFile(key) { if (S.mode === 'files' && fileByKey(key)) focusKey(key); },
     focus() { const k = focusTarget(); if (k) S.nodes.get(k)?.node.focus({ preventScroll: true }); else scroll.focus(); },
     files() { return S.mode === 'files' ? (S.data?.groups || []).flatMap((g) => g.files) : []; },

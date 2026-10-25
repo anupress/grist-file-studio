@@ -272,6 +272,8 @@ a.gs-btn { color: inherit; text-decoration: none; }   /* a link that looks like 
 .gs-row__more:hover { background: var(--gs-surface); color: var(--gs-ink); }
 .gs-row__more svg { width: 15px; height: 15px; }
 .gs-row.is-dragged { opacity: 0.5; }
+/* cut and not pasted yet */
+.gs-tile.is-cut, .gs-row.is-cut { opacity: 0.45; }
 
 /* ---- a tile ---- */
 .gs-tile {

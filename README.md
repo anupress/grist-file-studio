@@ -149,6 +149,12 @@ columns, formulas and links work on it. **Rename folder…** changes the name ce
 else it holds, so delete it in Grist. Undo takes back a new folder and a rename. There are no folders inside folders; for another way
 to group files (one file in several groups) use tags.
 
+**Cut, copy and paste** work between folders as on a computer. In the Files layout, **Ctrl+X** or **Ctrl+C** takes the marked files (or
+the one with the keyboard focus), or choose **Cut** or **Copy** in a file's menu or the menu of the marked files. Select a record (click
+its heading, or just focus one of its files) and press **Ctrl+V**, or right-click a folder and choose **Paste n files here**: a cut moves the
+files, a copy puts the same files there too. Cut files stay dimmed until they are pasted, **Esc** drops the clipboard, and a pasted
+picture from the computer's own clipboard still becomes a new file, as before. Undo takes a paste back in one step.
+
 A folder's heading says how much space its files take ("9 files · 469 kB"), and **Properties…** adds the details: the files, the
 space they take (and what the document really stores, when the same file is in the folder twice), the largest file, the first and last
 upload, the space by type as a small bar for each, and the record's own fields.

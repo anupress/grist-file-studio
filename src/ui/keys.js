@@ -9,7 +9,8 @@ const keys = () => [
   [t('Everywhere'), [
     [['/'], t('Search')],
     [['Alt+1', 'Alt+2', 'Alt+3'], t('Cards, Files, Viewer')],
-    [[t('Ctrl'), 'V'], t('Paste a picture into the selected record')],
+    [[t('Ctrl'), 'V'], t('Paste a picture, or the files cut or copied, into the selected record')],
+    [[t('Ctrl'), 'X', 'C'], t('Cut or copy the marked files (Files layout)')],
     [[t('Ctrl'), 'Z'], t('Undo')],
     [['?'], t('This list')],
   ]],

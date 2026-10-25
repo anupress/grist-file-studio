@@ -65,3 +65,13 @@ export function folderStats(files) {
   }
   return { count: files.length, bytes, stored, groups: [...by.values()].sort((a, b) => b.bytes - a.bytes || b.count - a.count), largest, first, last };
 }
+
+/**
+ * The files a cut or copy still points at: the clipboard holds file keys (a key names one place of a file in a cell), and files can have
+ * left since (removed, moved, the table reloaded). Order follows the files given.
+ */
+export function clipFiles(clip, files) {
+  if (!clip || !clip.keys || !clip.keys.length) return [];
+  const want = new Set(clip.keys);
+  return files.filter((f) => want.has(f.key));
+}

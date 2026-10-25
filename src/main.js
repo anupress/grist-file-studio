@@ -13,7 +13,7 @@ import { loadColumns, loadFileMeta, loadAttachmentRows, loadLabels, loadOwnSecti
 import { resolveRoles, toStored, detectRoles } from './model/roles.js';
 import { buildGallery, metaFromRows, visibleFiles, visibleRecords, groupCounts, sortFiles, matcher, listSortFor } from './model/files.js';
 import { hitFor } from './model/textsearch.js';
-import { newFolder as newFolderActions, renameFolder as renameFolderActions, canName, newestId, folderStats } from './model/folders.js';
+import { newFolder as newFolderActions, renameFolder as renameFolderActions, canName, newestId, folderStats, clipFiles } from './model/folders.js';
 import { NOTES_TABLE, createTable, cleanTag, rowsAreNotes, parseNotes, allTags, setNote, addTagTo, carryNotes, notesText } from './model/notes.js';
 import { attachmentIds, cellText } from './model/values.js';
 import { addFiles as addFilesActions, removeFile, removeFiles, moveFile, newRecords, renameFiles, sharedValue, replaceFile, replaceEverywhere, removeEverywhere, removeManyEverywhere, replaceMany, insertAfter, insertManyAfter, mergeResult, copyFilesTo, moveFilesTo } from './model/edits.js';
@@ -53,7 +53,7 @@ const S = {
   tableId: null, columns: [], roles: { files: [], title: null, fields: [] }, settings: readOptions(null), options: null,
   rows: [], meta: new Map(), labels: {}, gallery: null, ownSection: null,
   view: { layout: null, query: '', tag: '', group: null, sort: null, cardSize: null, fileSize: null, fit: null, grouped: null, captions: null, cover: null, empty: null },
-  current: null, selfCursor: null, marked: new Set(), lastMark: null, fresh: new Set(),
+  current: null, selfCursor: null, marked: new Set(), lastMark: null, fresh: new Set(), clip: null,
   lb: null,   // {box, scope: 'wall' | rowId}
   // Searching inside files: on/off is this browser's choice; the text itself is read on request (see "inside files" below).
   inside: { on: false, reading: false, done: 0, total: 0 }, readable: new Map(),
@@ -315,7 +315,7 @@ function emptyInWall(text) {
 }
 function renderState() {
   updateBars();
-  wall?.setState({ current: S.current, marked: S.marked, editable: canEdit() && !!fileColumn() });
+  wall?.setState({ current: S.current, marked: S.marked, editable: canEdit() && !!fileColumn(), cut: S.clip?.mode === 'cut' ? new Set(S.clip.keys) : new Set() });
 }
 
 // ---- selecting --------------------------------------------------------------------------------------------
@@ -393,6 +393,8 @@ function menuItems(f, { inLightbox = false } = {}) {
     null,
     [t('Rename…'), () => renameOne(f), { disabled: !canRename(f) }],
     [t('Duplicate'), () => duplicate(f), { disabled: !can, hint: t('A separate copy next to this file') }],
+    !inLightbox && [t('Cut'), () => setClip(S.marked.has(f.key) ? markedFiles() : [f], 'cut'), { disabled: !can, hint: t('Then choose a folder and paste with Ctrl+V') }],
+    !inLightbox && [t('Copy'), () => setClip(S.marked.has(f.key) ? markedFiles() : [f], 'copy'), { disabled: !canEdit() || !fileColumn(), hint: t('Then choose a folder and paste with Ctrl+V') }],
     ...(mergeable(f) ? [[t('Merge with…'), () => mergeWith(f), { disabled: !canEdit(), hint: t('Put pages of several PDFs and pictures into one new PDF') }]] : []),
     [t('Copy to…'), () => sendTo([f], 'copy'), { disabled: !canEdit() || !fileColumn(), hint: t('The same file, also in another record') }],
     [t('Move to…'), () => sendTo([f], 'move'), { disabled: !can }],
@@ -594,7 +596,7 @@ async function sendTo(files, mode, targetRowId = null) {
   const to = recordOf(targetRowId)?.title || t('the record');
   if (!actions.length) { toast(t('Those files are in {record} already.', { record: to })); return; }
   clearMarks(false);
-  await write(actions, mode === 'move' ? tn(movable.length, 'Moved {n} file to {record}.', 'Moved {n} files to {record}.').replace('{record}', to)
+  return write(actions, mode === 'move' ? tn(movable.length, 'Moved {n} file to {record}.', 'Moved {n} files to {record}.').replace('{record}', to)
     : tn(movable.length, 'Copied {n} file to {record}.', 'Copied {n} files to {record}.').replace('{record}', to));
 }
 
@@ -1134,16 +1136,22 @@ document.addEventListener('keydown', (e) => {
   const mod = e.ctrlKey || e.metaKey;
   if (mod && !typing && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
   if (mod && !typing && e.key === 'y') { e.preventDefault(); redo(); return; }
+  if (mod && !typing && !e.shiftKey && !e.altKey && V().layout === 'files' && (e.key === 'x' || e.key === 'X' || e.key === 'c' || e.key === 'C')) {
+    const list = focusedFiles();
+    if (list.length) { e.preventDefault(); setClip(list, e.key.toLowerCase() === 'x' ? 'cut' : 'copy'); }
+    return;
+  }
   if (typing) return;
   if (e.key === '/' && !mod) { e.preventDefault(); bars.focusSearch(); }
   else if (e.key === '?') { e.preventDefault(); openKeys(shell); }
   else if (e.altKey && ['1', '2', '3'].includes(e.key)) { e.preventDefault(); setView({ layout: ['cards', 'files', 'viewer'][Number(e.key) - 1] }); clearMarks(false); render(); }
-  else if (e.key === 'Escape' && S.marked.size) { e.preventDefault(); clearMarks(); }
+  else if (e.key === 'Escape' && (S.marked.size || S.clip)) { e.preventDefault(); if (S.clip) dropClip(); if (S.marked.size) clearMarks(); }
 });
 document.addEventListener('paste', (e) => {
   if (e.target.closest?.('input, textarea') || S.lb) return;
   const files = [...(e.clipboardData?.files || [])];
-  if (!files.length) return;
+  // Nothing from the computer's clipboard, but files cut or copied here: paste them into the selected record.
+  if (!files.length) { if (S.clip && V().layout !== 'viewer') { e.preventDefault(); pasteClip(S.current); } return; }
   e.preventDefault();
   // A pasted screenshot is called "image.png" by every browser: give it a name worth keeping.
   const stamp = new Date().toISOString().slice(0, 19).replace('T', ' ').replace(/:/g, '-');
@@ -1417,6 +1425,8 @@ function markedMenu(anchor) {
     [tn(files.length, '{n} file marked', '{n} files marked'), () => {}, { disabled: true }],
     null,
     [t('Download as zip'), () => zipFiles(files, t('Marked files'))],
+    [t('Cut'), () => setClip(files, 'cut'), { disabled: !can || !files.some(canEditFile) }],
+    [t('Copy'), () => setClip(files, 'copy'), { disabled: !can }],
     [t('Copy to…'), () => sendTo(files, 'copy'), { disabled: !can }],
     [t('Move to…'), () => sendTo(files, 'move'), { disabled: !can || !files.some(canEditFile) }],
     [t('Tag…'), () => tagMarked(), { disabled: !edit }],
@@ -1464,6 +1474,7 @@ function recordMenu(rowId, anchor) {
   openMenu(shell, anchor, tidy([
     [t('Open in the Viewer'), () => { select(rowId); setView({ layout: 'viewer' }); render(); }],
     [t('Add files…'), () => pickFiles(rowId), { disabled: !can }],
+    clipN() > 0 && [tn(clipN(), 'Paste {n} file here', 'Paste {n} files here'), () => pasteClip(rowId), { disabled: !can }],
     null,
     [t('New folder…'), () => newFolder(), { disabled: !folder, note: folder ? null : folderWhy() }],
     [t('Rename folder…'), () => renameFolder(rowId), { disabled: !folder }],
@@ -1483,6 +1494,7 @@ function spaceMenu(anchor) {
   const folder = canFolder();
   openMenu(shell, anchor, tidy([
     [t('Add files…'), () => pickFiles(null), { disabled: !(canEdit() && fileColumn()), hint: t('Into the selected record, or one new record for each file') }],
+    clipN() > 0 && recordOf(S.current) && [tn(clipN(), 'Paste {n} file into “{record}”', 'Paste {n} files into “{record}”').replace('{record}', recordOf(S.current).title || t('the selected record')), () => pasteClip(S.current)],
     [t('New folder…'), () => newFolder(), { disabled: !folder, note: folder ? null : folderWhy() }],
     null,
     files && shownFiles().length > 0 && [t('Mark all shown'), () => { for (const f of shownFiles()) S.marked.add(f.key); renderState(); }],
@@ -1491,6 +1503,38 @@ function spaceMenu(anchor) {
     null,
     [t('Storage…'), () => openStorage(), { hint: t('Where the space goes, shrinking photos, freeing what nobody uses') }],
   ]));
+}
+
+// ---- cut, copy and paste between folders ---------------------------------------------------------------------------------
+// Ctrl+X and Ctrl+C take the marked files (or the one with the focus) onto an inside clipboard (the computer's own clipboard is left
+// alone); Ctrl+V, or "Paste" in a folder's menu, puts them into the selected record: a cut moves them, a copy puts the same files there too.
+// Cut files are dimmed until they are pasted. A picture on the computer's clipboard still pastes as a new file, as before.
+const clipN = () => clipFiles(S.clip, S.gallery?.files || []).length;
+const focusedFiles = () => {
+  if (S.marked.size) return markedFiles();
+  const f = wall?.focusedFile?.();
+  return f ? [f] : [];
+};
+function setClip(files, mode) {
+  if (!files.length) return;
+  if (!canEdit()) { toast(readOnlyWhy()); return; }
+  if (mode === 'cut' && !files.some(canEditFile)) { toast(t('These files come from formula columns and cannot be moved here.')); return; }
+  S.clip = { mode, keys: files.map((f) => f.key) };
+  renderState();
+  toast(mode === 'cut'
+    ? tn(files.length, 'Cut {n} file. Choose a folder and press Ctrl+V.', 'Cut {n} files. Choose a folder and press Ctrl+V.')
+    : tn(files.length, 'Copied {n} file. Choose a folder and press Ctrl+V.', 'Copied {n} files. Choose a folder and press Ctrl+V.'));
+}
+function dropClip() { if (!S.clip) return; S.clip = null; renderState(); }
+async function pasteClip(rowId) {
+  if (!S.clip) return false;
+  const files = clipFiles(S.clip, S.gallery?.files || []);
+  if (!files.length) { dropClip(); toast(t('The files that were cut or copied are no longer there.')); return false; }
+  if (rowId == null || !recordOf(rowId)) { toast(t('Choose a folder to paste into.')); return false; }
+  const cut = S.clip.mode === 'cut';
+  const ok = await sendTo(files, cut ? 'move' : 'copy', rowId);
+  if (ok && cut) dropClip();
+  return ok;
 }
 
 // ---- inside files ---------------------------------------------------------------------------------------------------
