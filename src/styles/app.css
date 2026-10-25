@@ -205,6 +205,11 @@ a.gs-btn { color: inherit; text-decoration: none; }   /* a link that looks like 
 .gs-head__title:hover { text-decoration: underline; }
 .gs-head__n { color: var(--gs-muted); font-size: var(--gs-fs-2); white-space: nowrap; }
 .gs-head__add { margin-left: auto; }
+/* a folder with no file yet */
+.gs-emptyrow {
+  position: absolute; left: 12px; right: 12px; box-sizing: border-box; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 14px;
+  padding: 0 16px; border: 1px dashed var(--gs-line-strong); border-radius: var(--gs-r-2); color: var(--gs-muted); font-size: var(--gs-fs-2);
+}
 .gs-head.is-current .gs-head__title { color: var(--gs-focus); }
 .gs-head.is-current { border-bottom-color: var(--gs-focus); }
 
@@ -326,7 +331,7 @@ a.gs-btn { color: inherit; text-decoration: none; }   /* a link that looks like 
 
 /* ---- dropping files ---- */
 .is-drop-target { outline: 2px dashed var(--gs-accent) !important; outline-offset: -2px; }
-.gs-card.is-drop-target .gs-card__cover::after, .gs-head.is-drop-target::after, .gs-viewer.is-drop-target .gs-viewer__stage::after {
+.gs-card.is-drop-target .gs-card__cover::after, .gs-head.is-drop-target::after, .gs-emptyrow.is-drop-target::after, .gs-viewer.is-drop-target .gs-viewer__stage::after {
   content: attr(data-drop); position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 12px;
   background: color-mix(in srgb, var(--gs-accent) 18%, transparent); color: var(--gs-ink); font-weight: 600; z-index: 3;
 }

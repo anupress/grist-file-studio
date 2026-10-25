@@ -13,6 +13,7 @@ import { loadColumns, loadFileMeta, loadAttachmentRows, loadLabels, loadOwnSecti
 import { resolveRoles, toStored, detectRoles } from './model/roles.js';
 import { buildGallery, metaFromRows, visibleFiles, visibleRecords, groupCounts, sortFiles, matcher } from './model/files.js';
 import { hitFor } from './model/textsearch.js';
+import { newFolder as newFolderActions, renameFolder as renameFolderActions, canName, newestId } from './model/folders.js';
 import { NOTES_TABLE, createTable, cleanTag, rowsAreNotes, parseNotes, allTags, setNote, addTagTo, carryNotes, notesText } from './model/notes.js';
 import { attachmentIds, cellText } from './model/values.js';
 import { addFiles as addFilesActions, removeFile, removeFiles, moveFile, newRecords, renameFiles, sharedValue, replaceFile, replaceEverywhere, removeEverywhere, removeManyEverywhere, replaceMany, insertAfter, insertManyAfter, mergeResult, copyFilesTo, moveFilesTo } from './model/edits.js';
@@ -50,8 +51,8 @@ const S = {
   live: false, demo: false, ready: false, problem: null,
   tableId: null, columns: [], roles: { files: [], title: null, fields: [] }, settings: readOptions(null), options: null,
   rows: [], meta: new Map(), labels: {}, gallery: null, ownSection: null,
-  view: { layout: null, query: '', tag: '', group: null, sort: null, cardSize: null, fileSize: null, fit: null, grouped: null, captions: null, cover: null },
-  current: null, selfCursor: null, marked: new Set(), lastMark: null,
+  view: { layout: null, query: '', tag: '', group: null, sort: null, cardSize: null, fileSize: null, fit: null, grouped: null, captions: null, cover: null, empty: null },
+  current: null, selfCursor: null, marked: new Set(), lastMark: null, fresh: new Set(),
   lb: null,   // {box, scope: 'wall' | rowId}
   // Searching inside files: on/off is this browser's choice; the text itself is read on request (see "inside files" below).
   inside: { on: false, reading: false, done: 0, total: 0 }, readable: new Map(),
@@ -154,14 +155,14 @@ const V = () => {
   return {
     layout: v.layout || s.layout, cardSize: v.cardSize || s.cards.size, fileSize: v.fileSize || s.files.size,
     fit: v.fit || s.files.fit, grouped: v.grouped ?? s.files.grouped, captions: v.captions ?? s.files.captions, cover: v.cover || s.cards.cover,
-    query: v.query, group: v.group, sort: v.sort, tag: v.tag,
+    query: v.query, group: v.group, sort: v.sort, tag: v.tag, empty: !!v.empty,
   };
 }
 function setView(patch, { remember = true } = {}) {
   Object.assign(S.view, patch);
   if (remember) {
     const keep = {};
-    for (const k of ['layout', 'cardSize', 'fileSize', 'fit', 'grouped', 'captions', 'cover', 'sort', 'group']) if (k in patch) keep[k] = patch[k];
+    for (const k of ['layout', 'cardSize', 'fileSize', 'fit', 'grouped', 'captions', 'cover', 'sort', 'group', 'empty']) if (k in patch) keep[k] = patch[k];
     if (Object.keys(keep).length) writeView(S.tableId, keep);
   }
 }
@@ -191,6 +192,7 @@ const bars = createBars(chrome, filters, {
   onFit: (f) => { setView({ fit: f }); render(); },
   onGrouped: (on) => { setView({ grouped: on }); render(); },
   onCaptions: (on) => { setView({ captions: on }); render(); },
+  onEmpty: (on) => { setView({ empty: on }); render(); },
   onCover: (c) => { setView({ cover: c }); render(); },
   onMarkAll: () => { for (const f of shownFiles()) S.marked.add(f.key); renderState(); },
   onMarkedZip: () => zipFiles(markedFiles(), t('Marked files')),
@@ -208,7 +210,7 @@ function updateBars(level = 'full') {
   bars.update({
     level, mode: S.demo ? 'demo' : canEdit() ? 'live' : 'ro', readOnlyWhy: readOnlyWhy(), layout: v.layout, editable: canEdit() && !!fileColumn(),
     records: S.gallery?.records.length || 0, files: files.length, query: v.query, group: v.group, groupCounts: groupCounts(files), sort: v.sort,
-    size: v.layout === 'cards' ? v.cardSize : v.fileSize, fit: v.fit, grouped: v.grouped, captions: v.captions, cover: v.cover, markedCount: S.marked.size, markedPictures: markedFiles().some((f) => REPORT_PICTURE.test(f.ext)), markedPair: (() => { const m = markedFiles(); return m.length === 2 && m.every((f) => f.kind === 'image'); })(),
+    size: v.layout === 'cards' ? v.cardSize : v.fileSize, fit: v.fit, grouped: v.grouped, captions: v.captions, cover: v.cover, empty: v.empty, markedCount: S.marked.size, markedPictures: markedFiles().some((f) => REPORT_PICTURE.test(f.ext)), markedPair: (() => { const m = markedFiles(); return m.length === 2 && m.every((f) => f.kind === 'image'); })(),
     inside: insideInfo(), dates: datesInfo(), tags: allTags(NOTES.map), tag: v.tag,
   });
 }
@@ -225,7 +227,7 @@ function emptyState(title, body, actions = []) {
 function filesData() {
   const v = V();
   const inside = insideFn();
-  const vis = visibleFiles(S.gallery, { query: v.query, group: v.group, sort: v.sort, inside, taken: takenOf, tag: v.tag });
+  const vis = visibleFiles(S.gallery, { query: v.query, group: v.group, sort: v.sort, inside, taken: takenOf, tag: v.tag, empty: v.empty ? true : S.fresh });
   setHits(vis.files, v.query, inside);
   const groups = v.grouped ? vis.groups : [{ rec: null, files: v.sort === 'cell' ? vis.files : sortFiles(vis.files, v.sort, { taken: takenOf }) }];
   return { groups, size: v.fileSize, fit: v.fit, grouped: v.grouped, captions: v.captions };
@@ -274,6 +276,8 @@ function render() {
         onSelect: (rowId) => select(rowId),
         onMark: (f, mode) => mark(f, mode),
         onMenu: (f, anchor) => fileMenu(f, anchor),
+        onRecordMenu: (rowId, anchor) => recordMenu(rowId, anchor),
+        onSpaceMenu: (anchor) => spaceMenu(anchor),
         onDrop: (rowId, files) => addFiles(files, rowId),
         onAdd: (rowId) => pickFiles(rowId),
         onView: (rowId) => { select(rowId); setView({ layout: 'viewer' }); render(); },
@@ -289,7 +293,7 @@ function render() {
       else wall.setCards({ records, size: v.cardSize, fields: S.roles.fields.length, cover: v.cover });
     } else {
       const d = filesData();
-      if (!d.groups.length || !d.groups[0].files.length) {
+      if (!d.groups.length || (!d.grouped && !d.groups[0].files.length)) {
         emptyInWall(v.query || v.tag || v.group !== 'all' ? t('No file matches these filters.') : canEdit() ? t('No files yet. Drop files here, paste a screenshot, or use Add files.') : t('No files in these records.'));
       } else wall.setFiles(d);
     }
@@ -401,7 +405,11 @@ function menuItems(f, { inLightbox = false } = {}) {
       note: t('Every cell that holds it, in any table') }]);
   return items;
 }
-function fileMenu(f, anchor) { openMenu(shell, anchor, menuItems(f)); }
+function fileMenu(f, anchor) {
+  // Right click on one of several marked files: the menu of the marked files, as on a computer.
+  if (S.marked.size > 1 && S.marked.has(f.key) && V().layout === 'files') { markedMenu(anchor); return; }
+  openMenu(shell, anchor, menuItems(f));
+}
 
 // ---- what can be edited -------------------------------------------------------------------------------------------
 // Pictures the browser can decode and re-encode, text, and PDFs. Video, audio and office files are not edited.
@@ -697,6 +705,11 @@ function applyDemo(actions) {
       const ids = Array.isArray(id) ? id : [id];
       ids.forEach((x, i) => { const m = S.meta.get(x); if (m && fields.fileName) { const name = Array.isArray(id) ? fields.fileName[i] : fields.fileName; S.meta.set(x, { ...m, name, ext: extOf(name) || m.ext }); } });
     } else if (kind === 'UpdateRecord') { const r = rowOf(id); if (r) Object.assign(r, fields); }
+    else if (kind === 'AddRecord') {
+      const r = { id: Math.max(0, ...S.rows.map((x) => x.id)) + 1 };
+      for (const c of S.columns) r[c.id] = null;
+      S.rows.push(Object.assign(r, fields));
+    }
     else if (kind === 'BulkAddRecord') {
       let next = Math.max(0, ...S.rows.map((r) => r.id)) + 1;
       id.forEach((_, i) => { const r = { id: next++ }; for (const c of S.columns) r[c.id] = null; for (const [k, list] of Object.entries(fields)) r[k] = list[i]; S.rows.push(r); });
@@ -1333,6 +1346,123 @@ async function tagMarked() {
   await writeNotes(actions, tn(changed, 'Tagged {n} file “{tag}”.', 'Tagged {n} files “{tag}”.').replace('{tag}', cleanTag(tag)));
 }
 
+// ---- folders and the right-click menus ----------------------------------------------------------------------------------
+// Grist has no folders: a file sits in an Attachments cell, and a cell belongs to a record (a row). A folder here is a record: "New folder"
+// adds a row with a name in the title column, and a file is "in" the folder when it is in that row's cell. The Files layout hides records
+// without a file (a table can have thousands), so the folders made in this visit (S.fresh) stay on show, and Display can show them all.
+const titleColumn = () => S.columns.find((c) => c.id === S.roles.title) || null;
+const canFolder = () => canEdit() && canName(titleColumn());
+const folderWhy = () => (!canEdit() ? readOnlyWhy() : !canName(titleColumn()) ? t('A folder is named in a plain Text column: choose one as the record’s name in Columns.') : null);
+
+/** Menu items with the absent ones (false) dropped and no separator doubled, first or last. */
+function tidy(items) {
+  const out = [];
+  for (const it of items) {
+    if (it === false || it === undefined) continue;
+    if (it === null && (!out.length || out[out.length - 1] === null)) continue;
+    out.push(it);
+  }
+  if (out.length && out[out.length - 1] === null) out.pop();
+  return out;
+}
+
+async function newFolder() {
+  const why = folderWhy();
+  if (why) { toast(why); return; }
+  const col = titleColumn();
+  const name = await textBox(shell, {
+    title: t('New folder'),
+    body: t('A folder is a record of this table: a new row with this name in “{col}”, ready for files.', { col: col.label }),
+    label: t('Name'), ok: t('Create'), empty: t('Type a name.'),
+  });
+  if (!name) return;
+  const before = new Set(S.rows.map((r) => r.id));
+  const ok = await write(newFolderActions(S.tableId, name, { titleCol: col, prefill: linkPrefill() }), t('Made the folder “{name}”.', { name }));
+  if (!ok) return;
+  // Grist sends the new row a moment later: wait for it, then show it and take the cursor there.
+  for (let i = 0; i < 40 && newestId(S.rows, before) == null; i++) await new Promise((r) => setTimeout(r, 100));
+  const id = newestId(S.rows, before);
+  if (id == null) return;
+  S.fresh.add(id);
+  S.current = id;
+  if (!S.demo) { S.selfCursor = id; moveCursor(id).catch(() => {}); }
+  rebuild(); render();
+  wall?.scrollToRecord(id);
+}
+
+async function renameFolder(rowId) {
+  const rec = recordOf(rowId);
+  const why = folderWhy();
+  if (why) { toast(why); return; }
+  if (!rec) return;
+  const name = await textBox(shell, { title: t('Rename folder'), label: t('Name'), value: rec.title || '', ok: t('Rename'), empty: t('Type a name.') });
+  if (!name) return;
+  const actions = renameFolderActions(S.tableId, rowId, name, { titleCol: titleColumn(), current: rec.title || '' });
+  if (!actions.length) return;
+  await write(actions, t('Renamed the folder “{name}”.', { name }));
+}
+
+/** The menu of the marked files (right click on one of them while several are marked): what the marked bar offers. */
+function markedMenu(anchor) {
+  const files = markedFiles();
+  if (!files.length) return;
+  const edit = canEdit();
+  const can = edit && !!fileColumn();
+  const pictures = files.some((f) => REPORT_PICTURE.test(f.ext));
+  const pair = files.length === 2 && files.every((f) => f.kind === 'image');
+  openMenu(shell, anchor, tidy([
+    [tn(files.length, '{n} file marked', '{n} files marked'), () => {}, { disabled: true }],
+    null,
+    [t('Download as zip'), () => zipFiles(files, t('Marked files'))],
+    [t('Copy to…'), () => sendTo(files, 'copy'), { disabled: !can }],
+    [t('Move to…'), () => sendTo(files, 'move'), { disabled: !can || !files.some(canEditFile) }],
+    [t('Tag…'), () => tagMarked(), { disabled: !edit }],
+    [t('Rename…'), () => renameMany(files), { disabled: !edit }],
+    files.length >= 2 && files.some(mergeable) && [t('Merge into PDF…'), () => mergeFiles(files), { disabled: !edit }],
+    pictures && [t('Photo report…'), () => photoReport(files, null)],
+    pair && [t('Compare'), () => compareFiles(files[0], files[1])],
+    null,
+    [t('Unmark all'), () => clearMarks()],
+    [t('Remove from records'), () => removeMany(files), { danger: true, disabled: !edit }],
+  ]));
+}
+
+/** Right click on a folder: its header, its empty line or its card. */
+function recordMenu(rowId, anchor) {
+  const rec = recordOf(rowId);
+  if (!rec) return;
+  const can = canEdit() && !!fileColumn();
+  const folder = canFolder();
+  openMenu(shell, anchor, tidy([
+    [t('Open in the Viewer'), () => { select(rowId); setView({ layout: 'viewer' }); render(); }],
+    [t('Add files…'), () => pickFiles(rowId), { disabled: !can }],
+    null,
+    [t('New folder…'), () => newFolder(), { disabled: !folder, note: folder ? null : folderWhy() }],
+    [t('Rename folder…'), () => renameFolder(rowId), { disabled: !folder }],
+    null,
+    [t('Download as zip'), () => zipRecord(rowId), { disabled: !rec.files.length }],
+    [t('Photo report…'), () => photoReport(rec.files, rec), { disabled: !rec.files.some((f) => REPORT_PICTURE.test(f.ext)) }],
+    [t('Select this record'), () => select(rowId)],
+  ]));
+}
+
+/** Right click on the empty part of the wall. */
+function spaceMenu(anchor) {
+  if (S.problem || !S.roles.files.length) return;
+  const files = V().layout === 'files';
+  const folder = canFolder();
+  openMenu(shell, anchor, tidy([
+    [t('Add files…'), () => pickFiles(null), { disabled: !(canEdit() && fileColumn()), hint: t('Into the selected record, or one new record for each file') }],
+    [t('New folder…'), () => newFolder(), { disabled: !folder, note: folder ? null : folderWhy() }],
+    null,
+    files && shownFiles().length > 0 && [t('Mark all shown'), () => { for (const f of shownFiles()) S.marked.add(f.key); renderState(); }],
+    files && [V().empty ? t('Hide records without files') : t('Show records without files'), () => { setView({ empty: !V().empty }); render(); },
+      { hint: t('Records that have no file yet, so files can be put in them') }],
+    null,
+    [t('Storage…'), () => openStorage(), { hint: t('Where the space goes, shrinking photos, freeing what nobody uses') }],
+  ]));
+}
+
 // ---- inside files ---------------------------------------------------------------------------------------------------
 // The search can look at the words in PDFs, Word, Excel, PowerPoint and text files. Reading them means downloading each
 // file once, so it starts only when asked (the switch in the filter bar, with a one-time question), can be stopped, and
@@ -1518,7 +1648,9 @@ async function boot() {
     if (ex && ['cards', 'files', 'viewer'].includes(ex)) S.view.layout = ex;
   }
   const stored = readView(S.tableId);
-  for (const k of ['layout', 'cardSize', 'fileSize', 'fit', 'grouped', 'captions', 'cover', 'sort', 'group']) if (stored[k] != null && S.view[k] == null) S.view[k] = stored[k];
+  for (const k of ['layout', 'cardSize', 'fileSize', 'fit', 'grouped', 'captions', 'cover', 'sort', 'group', 'empty']) if (stored[k] != null && S.view[k] == null) S.view[k] = stored[k];
+  // Right click on the blank part of the stage (also when the wall is not there): the wall's menu.
+  stage.addEventListener('contextmenu', (e) => { if (e.defaultPrevented || e.target.closest?.('input, textarea, .gs-menu')) return; e.preventDefault(); spaceMenu({ x: e.clientX, y: e.clientY }); });
   if (!['all', 'image', 'pdf', 'video', 'audio', 'other'].includes(S.view.group)) S.view.group = 'all';
   if (!S.view.sort) S.view.sort = 'cell';
   await loadNotes();

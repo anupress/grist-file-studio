@@ -123,6 +123,30 @@ in the lightbox's Details, or mark several files and press **Tag…** to put one
 - **Who can change them.** Anyone who can edit the document. Anyone else sees the tags and note but cannot change them, and if the
   document has no such table, nothing is added.
 
+## Right-click and folders
+
+Right-click works where you would expect it: on a file, on a folder's heading or card, and on the empty part of the wall.
+
+![A folder's right-click menu in the Files layout, with the new folder "Garden shed" below it](docs/images/folders.png)
+
+- **On a file:** its menu (the same as **⋯**). With several files marked, right-click one of them for the menu of the marked
+  files: zip, copy, move, tag, rename, merge, report, compare, unmark, remove.
+- **On a folder** (its heading, its empty line or its card): Open in the Viewer, Add files…, New folder…, Rename folder…,
+  Download as zip, Photo report…, Select this record.
+- **On empty space:** Add files…, New folder…, Mark all shown, Show or hide records without files, Storage….
+
+**A folder is a record.** Grist has no folders: a file sits in an Attachments cell, and a cell belongs to a record (a row of your
+table). So **New folder…** adds a record with the name you type, written to the record's name column (the one Columns picks, a plain
+Text column), and a file is "in" the folder when it is in that record's Attachments cell. Put files in by pressing **Add**, by
+dropping them on the folder's line, or with **Move to…** and **Copy to…**. A folder is an ordinary row, so the table's other
+columns, formulas and links work on it. **Rename folder…** changes the name cell. There is no delete: a folder is a row with whatever
+else it holds, so delete it in Grist. Undo takes back a new folder and a rename. There are no folders inside folders; for another way
+to group files (one file in several groups) use tags.
+
+The Files layout hides records that have no file (a table can have thousands), so the folders you make stay on show during the
+visit, and **Display → Show records without files** (also in the empty-space menu, and kept for next time) shows them all. Cards and
+the Viewer always show every record.
+
 ## Adding and arranging files
 
 - **Drop** files on a card, a record's heading or the Viewer to add them to that record. Drop them
@@ -276,7 +300,7 @@ of the other files. Open it from the Viewer (**Report**), from **Download → Ph
 
 ## The file manager
 
-A file's menu (**⋯** on its tile, or the menu in the lightbox) has:
+A file's menu (**⋯** on its tile, a right click on it, or the menu in the lightbox) has:
 
 | | |
 |---|---|
@@ -316,6 +340,10 @@ Grist never changes an uploaded file. **Save** therefore uploads the edited vers
 points the cell, or every cell, to it. The original stays in the document while anything uses it.
 Files that no cell uses any more are kept for a while, so Undo can still bring them back, and then
 cleared out by Grist; how long is set by whoever runs the Grist server.
+
+In a Grist formula an Attachments cell is the list of those files, so `len($Photos)` counts them and `[a.fileName for a in $Photos]`
+lists their names (each has a fileName, fileSize, fileExt, fileType, imageWidth, imageHeight and timeUploaded). A folder is a record, so
+the same goes for it.
 
 File Studio stores no files of its own. It reads them from your Grist and writes them back there,
 in your browser; only the thumbnails are kept, in this browser's cache.

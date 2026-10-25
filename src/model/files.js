@@ -6,6 +6,7 @@
 
 import { attachmentIds, cellText, isError } from './values.js';
 import { extOf, kindOf, groupOf, KIND_GROUPS } from './kinds.js';
+import { showsEmpty } from './folders.js';
 
 /**
  * _grist_Attachments rows -> Map(id -> meta). Rows marked deleted are left out: their files are gone
@@ -139,10 +140,11 @@ export function sortFiles(files, sort, opts = {}) {
 
 /**
  * What the Files layout shows: the records with their matching files, filtered by search and the
- * chosen group, each record's files sorted. Records left with no file are dropped.
+ * chosen group, each record's files sorted. Records left with no file are dropped, except (when nothing narrows the wall) the folders
+ * `empty` asks for: every record without a file (true) or the ids in a Set.
  * @returns {{groups: [{rec, files}], files: [file]}} files = the flat order the lightbox steps through
  */
-export function visibleFiles(gallery, { query = '', group = 'all', sort = 'cell', inside = null, taken = null, tag = '' } = {}) {
+export function visibleFiles(gallery, { query = '', group = 'all', sort = 'cell', inside = null, taken = null, tag = '', empty = null } = {}) {
   const match = matcher(query);
   const groups = [];
   const flat = [];
@@ -155,7 +157,7 @@ export function visibleFiles(gallery, { query = '', group = 'all', sort = 'cell'
       const entry = inside?.(f);   // the file's own text, when the search looks inside files
       return entry ? match.within(entry.all, f.name, f.notesText, ...recText) : match(f.name, f.notesText, ...recText);
     });
-    if (!keep.length) continue;
+    if (!keep.length && !showsEmpty(rec, { empty, narrowed: !!match || group !== 'all' || !!tag })) continue;
     const sorted = sortFiles(keep, sort, { taken });
     groups.push({ rec, files: sorted });
     flat.push(...sorted);

@@ -146,10 +146,12 @@ export function openPopover(host, anchor, build, { label = '' } = {}) {
  * A small menu under a button: [label, run, {danger, disabled, hint, note}] items, or null for a
  * separator. `hint` is the tooltip; `note` a short second line always shown under the label, for the
  * items whose effect is not obvious from their name. Closes on a pick, a click outside or Escape.
+ * The anchor is the button the menu opens under, or a point {x, y} (a right click): then the menu's corner is at the point.
  */
 export function openMenu(host, anchor, items, { align = 'right' } = {}) {
+  const point = typeof anchor.getBoundingClientRect !== 'function';
   const close = () => { release(); document.removeEventListener('pointerdown', outside, true); menu.remove(); };
-  const outside = (e) => { if (!menu.contains(e.target) && e.target !== anchor && !anchor.contains(e.target)) close(); };
+  const outside = (e) => { if (!menu.contains(e.target) && (point || (e.target !== anchor && !anchor.contains(e.target)))) close(); };
   const menu = el('div', { class: 'gs-menu', role: 'menu' }, items.map((it) => (it ? el('button', {
     type: 'button', role: 'menuitem', class: 'gs-menu__item' + (it[2]?.danger ? ' is-danger' : '') + (it[2]?.note ? ' has-note' : ''), disabled: !!it[2]?.disabled,
     title: it[2]?.hint || null, onclick: () => { close(); it[1](); },
@@ -157,12 +159,12 @@ export function openMenu(host, anchor, items, { align = 'right' } = {}) {
     : el('div', { class: 'gs-menu__sep', role: 'separator' }))));
   host.append(menu);
   const hb = host.getBoundingClientRect();
-  const ab = anchor.getBoundingClientRect();
+  const ab = point ? { left: anchor.x, right: anchor.x, top: anchor.y, bottom: anchor.y } : anchor.getBoundingClientRect();
   const mw = menu.offsetWidth, mh = menu.offsetHeight;
-  let left = align === 'right' ? ab.right - hb.left - mw : ab.left - hb.left;
+  let left = align === 'right' && !point ? ab.right - hb.left - mw : ab.left - hb.left;
   left = Math.max(6, Math.min(left, hb.width - mw - 6));
-  let top = ab.bottom - hb.top + 4;
-  if (top + mh > hb.height - 6) top = Math.max(6, ab.top - hb.top - mh - 4);
+  let top = ab.bottom - hb.top + (point ? 0 : 4);
+  if (top + mh > hb.height - 6) top = Math.max(6, ab.top - hb.top - mh - (point ? 0 : 4));
   menu.style.left = left + 'px';
   menu.style.top = top + 'px';
   document.addEventListener('pointerdown', outside, true);

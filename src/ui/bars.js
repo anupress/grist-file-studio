@@ -102,6 +102,7 @@ export function createBars(chrome, filters, on) {
       rows.push(el('div', { class: 'gs-pop__checks' }, [
         box(t('A heading for each record'), !!s.grouped, (v) => on.onGrouped(v)),
         box(t('File names under the tiles'), !!s.captions, (v) => on.onCaptions(v)),
+        box(t('Show records without files'), !!s.empty, (v) => on.onEmpty(v), t('Records that have no file yet, so files can be put in them')),
       ]));
     } else {
       const cover = seg(t('Cover'), [['fill', t('Fill the card')], ['fit', t('Whole picture')]], (id) => { on.onCover(id); cover.set(id); });

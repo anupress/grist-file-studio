@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.10.0
+
+Right-click menus and folders. Checked in the demo with the real mouse (right button) and keys, and in Grist 1.7.20 (a guest document:
+New folder wrote a record, files dropped on the empty folder went into its cell, Move to and Rename wrote the cells, the switch
+stayed after a reload).
+
+### Right-click
+- On a file: its menu, at the pointer. With several files marked: the menu of the marked files (zip, copy, move, tag, rename, merge,
+  report, compare, unmark, remove).
+- On a folder's heading, empty line or card: Open in the Viewer, Add files…, New folder…, Rename folder…, Download as zip, Photo
+  report…, Select this record. On the empty part of the wall: Add files…, New folder…, Mark all shown, Show or hide records without
+  files, Storage…. The menu stays on screen (it opens upward or to the left near an edge). The menu key and Shift+F10 do the same
+  on a card.
+
+### Folders
+- **New folder…** adds a record named by you (in the record's name column: a plain Text column, not a formula) that can take
+  files: a line says it is empty and takes dropped files; Add, Move to and Copy to work as for any record. **Rename folder…** writes
+  the name cell. Undo takes both back.
+- The Files layout still hides records without a file; folders made in this visit stay on show, and **Display → Show records
+  without files** shows them all (kept per table in this browser).
+
 ## 1.9.0
 
 Tags and a note for each file. Checked in the demo with the real mouse and keys, and in Grist 1.7.20 (a guest document: the table is

@@ -29,6 +29,7 @@ export function hitWhere(hit) {
 
 /**
  * @param on {onOpen(file), onSelect(rowId), onMark(file, mode: 'toggle'|'range'), onMenu(file, anchor), onDrop(rowId|null, files),
+ *            onRecordMenu(rowId, anchor), onSpaceMenu(anchor) (anchor: an element, or {x, y} where the right click was),
  *            onAdd(rowId), onView(rowId), onRemove(file), onFocusFile(file)}
  */
 export function createWall(host, thumbs, on) {
@@ -70,6 +71,9 @@ export function createWall(host, thumbs, on) {
       if (b.kind === 'head') {
         const grp = S.data.groups[b.g];
         out.push(['h' + grp.rec.rowId, () => buildHead(grp), { top: b.y, height: b.h }]);
+      } else if (b.kind === 'empty') {
+        const grp = S.data.groups[b.g];
+        out.push(['empty' + grp.rec.rowId, () => buildEmpty(grp), { top: b.y, height: b.h }]);
       } else if (b.kind === 'row') {
         for (const tile of b.tiles) {
           out.push([tile.f.key, () => buildTile(tile.f, tile), { left: tile.x, top: b.y, width: tile.w, height: tile.h }]);
@@ -119,6 +123,16 @@ export function createWall(host, thumbs, on) {
       S.editable ? el('button', { type: 'button', class: 'gs-btn gs-head__add', title: t('Add files to this record'), onclick: () => on.onAdd(rec.rowId) }, [icon('plus'), t('Add')]) : null,
     ]);
     return { node, update: () => node.classList.toggle('is-current', S.current === rec.rowId) };
+  }
+
+  // A folder with no file yet: a line that says so and takes dropped files like its header does.
+  function buildEmpty(grp) {
+    const rec = grp.rec;
+    const node = el('div', { class: 'gs-emptyrow', dataset: { row: String(rec.rowId), drop: t('Drop to add to {name}', { name: rec.title || t('this record') }) } }, [
+      el('span', { text: t('No files in this folder yet.') }),
+      S.editable ? el('span', { class: 'gs-emptyrow__hint', text: t('Drop files here, or press Add.') }) : null,
+    ]);
+    return { node };
   }
 
   // ---- a tile (Files) ----------------------------------------------------------------------------------
@@ -238,7 +252,7 @@ export function createWall(host, thumbs, on) {
   function focusTarget() {
     if (S.focusKey && S.nodes.has(S.focusKey)) return S.focusKey;
     // Otherwise the first thing drawn, so Tab always lands somewhere.
-    for (const k of S.nodes.keys()) if (!k.startsWith('h') && !k.startsWith('cap')) return k;
+    for (const k of S.nodes.keys()) if (!k.startsWith('h') && !k.startsWith('cap') && !k.startsWith('empty')) return k;
     return null;
   }
   function focusKey(key) {
@@ -297,7 +311,24 @@ export function createWall(host, thumbs, on) {
     } else if (e.key === 'Enter') {
       e.preventDefault();
       on.onView(Number(key.slice(1)));
+    } else if (e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey)) {
+      e.preventDefault();
+      on.onRecordMenu?.(Number(key.slice(1)), S.nodes.get(key).node);
     }
+  });
+  // Right click: a file's menu on a tile, a folder's on its header, empty line or card, and the wall's own anywhere else.
+  scroll.addEventListener('contextmenu', (e) => {
+    if (e.target.closest?.('input, textarea, .gs-menu')) return;
+    e.preventDefault();
+    const at = { x: e.clientX, y: e.clientY };
+    const tile = S.mode === 'files' ? e.target.closest?.('.gs-tile') : null;
+    if (tile) {
+      const f = fileByKey(tile.dataset.key);
+      if (f) { S.focusKey = f.key; on.onMenu(f, at); return; }
+    }
+    const row = e.target.closest?.('.gs-head, .gs-emptyrow, .gs-card');
+    if (row) { on.onRecordMenu?.(Number(row.dataset.row), at); return; }
+    on.onSpaceMenu?.(at);
   });
   function fileByKey(key) {
     for (const g of S.data?.groups || []) { const f = g.files.find((x) => x.key === key); if (f) return f; }

@@ -67,13 +67,14 @@ export function grid(count, width, { size = 180, gap = 6 } = {}) {
 
 export const HEAD_H = 44;     // a record's header in the grouped Files layout
 export const CAPTION_H = 22;  // the file name under a tile, when names are shown
+export const EMPTY_H = 52;    // the line under the header of a folder with no file
 
 /**
  * The Files layout.
  * @param {Array<{rec, files}>} groups  from visibleFiles(); one group when not grouped
  * @param {{width, size, gap, fit: 'justify'|'square', grouped, captions, pad, fixed}} o
  * @returns {{blocks: Array, height: number}}
- *   block: {kind: 'head', y, h, g} | {kind: 'row', y, h, g, tiles: [{f, x, w, h}]}
+ *   block: {kind: 'head', y, h, g} | {kind: 'row', y, h, g, tiles: [{f, x, w, h}]} | {kind: 'empty', y, h, g} (a folder with no file)
  *   (g = the group's index; tiles' h is the picture's height, without the caption)
  */
 export function layoutFiles(groups, o) {
@@ -84,6 +85,10 @@ export function layoutFiles(groups, o) {
   const cap = captions ? CAPTION_H : 0;
   groups.forEach((grp, g) => {
     if (grouped) { blocks.push({ kind: 'head', y, h: HEAD_H, g }); y += HEAD_H; }
+    if (!grp.files.length) {
+      if (grouped) { blocks.push({ kind: 'empty', y, h: EMPTY_H, g }); y += EMPTY_H + 10; }
+      return;
+    }
     const rows = fit === 'square'
       ? grid(grp.files.length, inner, { size, gap }).rows
       : justify(grp.files.map((f) => aspectOf(f, fixed)), inner, { target: size, gap });
