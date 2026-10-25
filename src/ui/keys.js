@@ -1,0 +1,51 @@
+// The keyboard sheet (?): every shortcut, by where it works.
+
+import { el } from '../core/util.js';
+import { trapFocus } from './dialog.js';
+import { t } from '../i18n/index.js';
+
+// A function, so every label passes through t() in the language chosen when the sheet opens.
+const keys = () => [
+  [t('Everywhere'), [
+    [['/'], t('Search')],
+    [['Alt+1', 'Alt+2', 'Alt+3'], t('Cards, Files, Viewer')],
+    [[t('Ctrl'), 'V'], t('Paste a picture into the selected record')],
+    [[t('Ctrl'), 'Z'], t('Undo')],
+    [['?'], t('This list')],
+  ]],
+  [t('Cards and files'), [
+    [['← → ↑ ↓'], t('Move')],
+    [['Enter'], t('Open the file, or show the record in the Viewer')],
+    [[t('Space')], t('Mark a file (with Shift: everything up to it)')],
+    [[t('Delete')], t('Remove the file from its record')],
+    [['Esc'], t('Unmark all')],
+  ]],
+  [t('Lightbox and Viewer'), [
+    [['← →'], t('Previous and next file')],
+    [['↑ ↓'], t('Previous and next record (Viewer)')],
+    [['+ − 0 1'], t('Zoom in, out, fit, 100 %')],
+    [['R'], t('Rotate the view')],
+    [['I'], t('Details')],
+    [['D'], t('Download')],
+    [['Esc'], t('Close')],
+  ]],
+];
+
+export function openKeys(host) {
+  const close = () => { release(); scrim.remove(); box.remove(); };
+  const scrim = el('div', { class: 'gs-scrim', onclick: () => close() });
+  const box = el('div', { class: 'gs-dialog gs-dialog--keys', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'gs-keys-t' }, [
+    el('h2', { id: 'gs-keys-t', text: t('Keyboard shortcuts') }),
+    ...keys().flatMap(([group, rows]) => [
+      el('h3', { class: 'gs-keys__group', text: group }),
+      el('dl', { class: 'gs-keys' }, rows.flatMap(([combo, what]) => [
+        el('dt', {}, combo.flatMap((k, i) => (i ? [' ', el('kbd', { text: k })] : [el('kbd', { text: k })]))),
+        el('dd', { text: what }),
+      ])),
+    ]),
+    el('div', { class: 'gs-dialog__foot' }, [el('button', { type: 'button', class: 'gs-btn gs-btn--primary', text: t('Close'), onclick: () => close() })]),
+  ]);
+  host.append(scrim, box);
+  const release = trapFocus(box, () => close());
+  box.querySelector('button').focus();
+}

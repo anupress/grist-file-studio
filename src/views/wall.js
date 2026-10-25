@@ -1,0 +1,378 @@
+// The scrolling wall behind the Cards and Files layouts.
+//
+// Positions come from model/layout.js; this file only puts the cards, tiles and headers that are in
+// sight (plus a screen's worth either side) into the DOM, keyed so a node survives scrolling and
+// re-sorting, and takes them out again as they leave. Thumbnails are requested as a node appears and
+// withdrawn as it goes, so fast scrolling through 10,000 files downloads only what was stopped on.
+//
+// Keyboard: the wall holds one "current" tile or card with tabindex 0 (a roving tab stop). Arrows move
+// it, Enter opens, Space marks a file, Delete removes it from its record, Home and End jump.
+
+import { el, clear } from '../core/util.js';
+import { icon } from '../core/assets/icons.js';
+import { layoutFiles, layoutCards, visibleBlocks, locate, neighbour } from '../model/layout.js';
+import { flippable, coverOf } from '../model/files.js';
+import { renderFace, fileLabel } from './face.js';
+import { t, tn } from '../i18n/index.js';
+
+const OVERSCAN = 700;
+/** The drag type of tiles dragged inside the widget (files from the desktop come as 'Files'). */
+const INTERNAL = 'application/x-file-studio-files';
+
+/**
+ * @param on {onOpen(file), onSelect(rowId), onMark(file, mode: 'toggle'|'range'), onMenu(file, anchor), onDrop(rowId|null, files),
+ *            onAdd(rowId), onView(rowId), onRemove(file), onFocusFile(file)}
+ */
+export function createWall(host, thumbs, on) {
+  const scroll = el('div', { class: 'gs-scroll', tabindex: '-1', role: 'region', 'aria-label': t('Files') });
+  const canvas = el('div', { class: 'gs-canvas', role: 'list' });
+  scroll.append(canvas);
+  clear(host).append(scroll);
+
+  const S = {
+    mode: 'files', width: 0, layout: null, data: null, nodes: new Map(), current: null, focusKey: null,
+    marked: new Set(), editable: false, raf: 0, cardIndex: new Map(),
+  };
+
+  // ---- drawing -----------------------------------------------------------------------------------
+  function relayout() {
+    S.width = scroll.clientWidth || host.clientWidth || 800;
+    if (!S.data) return;
+    if (S.mode === 'files') {
+      const d = S.data;
+      S.layout = layoutFiles(d.groups, { width: S.width, size: d.size, fit: d.fit, grouped: d.grouped, captions: d.captions, fixed: thumbs.aspects });
+    } else {
+      const d = S.data;
+      S.layout = layoutCards(d.records.length, { width: S.width, size: d.size, fields: d.fields });
+    }
+    canvas.style.height = S.layout.height + 'px';
+    draw();
+  }
+
+  function schedule() {
+    if (S.raf) return;
+    S.raf = requestAnimationFrame(() => { S.raf = 0; draw(); });
+  }
+
+  function want() {
+    // The items in sight, as [key, build, place] triples.
+    const top = scroll.scrollTop - OVERSCAN, bottom = scroll.scrollTop + scroll.clientHeight + OVERSCAN;
+    const out = [];
+    for (const b of visibleBlocks(S.layout.blocks, top, bottom)) {
+      if (b.kind === 'head') {
+        const grp = S.data.groups[b.g];
+        out.push(['h' + grp.rec.rowId, () => buildHead(grp), { top: b.y, height: b.h }]);
+      } else if (b.kind === 'row') {
+        for (const tile of b.tiles) {
+          out.push([tile.f.key, () => buildTile(tile.f, tile), { left: tile.x, top: b.y, width: tile.w, height: tile.h }]);
+          if (S.data.captions) out.push(['cap' + tile.f.key, () => el('div', { class: 'gs-caption', text: tile.f.name, title: tile.f.name }), { left: tile.x, top: b.y + tile.h, width: tile.w }]);
+        }
+      } else if (b.kind === 'cards') {
+        for (const c of b.cards) {
+          const rec = S.data.records[c.i];
+          out.push(['c' + rec.rowId, () => buildCard(rec), { left: c.x, top: b.y, width: c.w, height: b.h }]);
+        }
+      }
+    }
+    return out;
+  }
+
+  function draw() {
+    if (!S.layout) return;
+    const items = want();
+    const keep = new Set(items.map((x) => x[0]));
+    for (const [key, n] of S.nodes) {
+      if (!keep.has(key) && key !== S.focusKey) { n.release?.(); n.node.remove(); S.nodes.delete(key); }
+    }
+    for (const [key, build, place] of items) {
+      let n = S.nodes.get(key);
+      if (!n) { n = build(); S.nodes.set(key, n); canvas.append(n.node); }
+      const st = n.node.style;
+      if (place.left != null) st.left = place.left + 'px';
+      st.top = place.top + 'px';
+      if (place.width != null) st.width = place.width + 'px';
+      if (place.height != null) st.height = place.height + 'px';
+      n.update?.();
+    }
+  }
+
+  /** Throw every node away (the data under them changed). */
+  function reset() {
+    for (const n of S.nodes.values()) { n.release?.(); n.node.remove(); }
+    S.nodes.clear();
+  }
+
+  // ---- a record's header (Files) --------------------------------------------------------------------
+  function buildHead(grp) {
+    const rec = grp.rec;
+    const node = el('div', { class: 'gs-head', dataset: { row: String(rec.rowId), drop: t('Drop to add to {name}', { name: rec.title || t('this record') }) } }, [
+      el('span', { class: 'gs-head__title', text: rec.title || t('Untitled record'), title: t('Select this record'), onclick: () => on.onSelect(rec.rowId) }),
+      el('span', { class: 'gs-head__n', text: grp.files.length === rec.files.length ? tn(rec.files.length, '{n} file', '{n} files') : t('{shown} of {n} files', { shown: grp.files.length, n: rec.files.length }) }),
+      S.editable ? el('button', { type: 'button', class: 'gs-btn gs-head__add', title: t('Add files to this record'), onclick: () => on.onAdd(rec.rowId) }, [icon('plus'), t('Add')]) : null,
+    ]);
+    return { node, update: () => node.classList.toggle('is-current', S.current === rec.rowId) };
+  }
+
+  // ---- a tile (Files) ----------------------------------------------------------------------------------
+  function buildTile(f, tile) {
+    const node = el('div', {
+      class: 'gs-tile', role: 'listitem', tabindex: '-1', 'aria-label': fileLabel(f), dataset: { key: f.key, row: String(f.rowId) },
+      title: f.name,
+    });
+    const release = renderFace(node, f, { thumbs, cssPx: Math.max(tile.w, tile.h) });
+    const mark = el('button', { type: 'button', class: 'gs-tile__mark', 'aria-label': t('Mark'), tabindex: '-1',
+      onclick: (e) => { e.stopPropagation(); on.onMark(f, e.shiftKey ? 'range' : 'toggle'); } }, [icon('check')]);
+    const more = el('button', { type: 'button', class: 'gs-tile__more', 'aria-label': t('More for {name}', { name: f.name }), tabindex: '-1',
+      onclick: (e) => { e.stopPropagation(); on.onMenu(f, more); } }, [icon('menu')]);
+    node.append(mark, more);
+    node.addEventListener('click', (e) => {
+      S.focusKey = f.key;
+      if (e.shiftKey) { on.onMark(f, 'range'); return; }
+      if (e.ctrlKey || e.metaKey || S.marked.size) { on.onMark(f, 'toggle'); return; }
+      on.onOpen(f);
+    });
+    node.addEventListener('focus', () => { S.focusKey = f.key; on.onFocusFile?.(f); });
+    // Drag a tile onto another record's heading or card to move it there (Ctrl or Alt: copy).
+    node.addEventListener('dragstart', (e) => {
+      if (!S.editable) { e.preventDefault(); return; }
+      const keys = S.marked.has(f.key) ? [...S.marked] : [f.key];
+      e.dataTransfer.setData(INTERNAL, JSON.stringify(keys));
+      e.dataTransfer.effectAllowed = 'copyMove';
+      node.classList.add('is-dragged');
+    });
+    node.addEventListener('dragend', () => node.classList.remove('is-dragged'));
+    return {
+      node, release,
+      update: () => {
+        node.draggable = S.editable && !f.readOnly;
+        node.classList.toggle('is-marked', S.marked.has(f.key));
+        node.setAttribute('aria-selected', S.marked.has(f.key) ? 'true' : 'false');
+        node.tabIndex = f.key === focusTarget() ? 0 : -1;
+      },
+    };
+  }
+
+  // ---- a card (Cards) ---------------------------------------------------------------------------------
+  function buildCard(rec) {
+    const cover = el('div', { class: 'gs-card__cover', style: { height: S.layout.coverH + 'px' } });
+    const node = el('div', {
+      class: 'gs-card', role: 'listitem', tabindex: '-1', dataset: { row: String(rec.rowId), drop: t('Drop to add to {name}', { name: rec.title || t('this record') }) },
+      'aria-label': (rec.title || t('Untitled record')) + ', ' + tn(rec.files.length, '{n} file', '{n} files'),
+    });
+    let release = () => {};
+    const pics = flippable(rec);
+    const first = coverOf(rec);
+    if (first) {
+      release = renderFace(cover, first, { thumbs, cssPx: S.layout.cardW, tags: false });
+      cover.addEventListener('click', (e) => { e.stopPropagation(); on.onSelect(rec.rowId); on.onOpen(currentPic || first); });
+      cover.append(el('span', { class: 'gs-card__count', text: tn(rec.files.length, '{n} file', '{n} files') }));
+    } else {
+      cover.classList.add('is-empty');
+      cover.append(el('div', { class: 'gs-card__none' }, [icon('image2'), el('span', { text: t('No files yet') }), S.editable ? el('span', { text: t('Drop files here') }) : null]));
+    }
+    // Hover across the cover to flip through the record's pictures, as on a shop's product card.
+    let currentPic = null, flipRelease = null;
+    if (pics.length > 1) {
+      const dots = el('div', { class: 'gs-card__dots', 'aria-hidden': 'true' }, pics.slice(0, 12).map((_, i) => el('span', { class: 'gs-card__dot' + (i ? '' : ' is-on') })));
+      cover.append(dots);
+      cover.addEventListener('pointermove', (e) => {
+        if (e.pointerType === 'touch') return;
+        const b = cover.getBoundingClientRect();
+        const i = Math.max(0, Math.min(pics.length - 1, Math.floor(((e.clientX - b.left) / b.width) * Math.min(pics.length, 12))));
+        if (pics[i] === (currentPic || pics[0])) return;
+        currentPic = pics[i];
+        [...dots.children].forEach((d, k) => d.classList.toggle('is-on', k === i));
+        flipRelease?.();
+        const holder = el('div', { style: { position: 'absolute', inset: '0' } });
+        flipRelease = renderFace(holder, currentPic, { thumbs, cssPx: S.layout.cardW, tags: false });
+        cover.querySelector('.gs-flip')?.remove();
+        holder.className = 'gs-flip';
+        cover.insertBefore(holder, cover.querySelector('.gs-card__count'));
+      });
+      cover.addEventListener('pointerleave', () => {
+        currentPic = null; flipRelease?.(); flipRelease = null;
+        cover.querySelector('.gs-flip')?.remove();
+        [...dots.children].forEach((d, k) => d.classList.toggle('is-on', k === 0));
+      });
+    }
+    const body = el('div', { class: 'gs-card__body' }, [
+      el('div', { class: 'gs-card__title' + (rec.title ? '' : ' is-blank'), text: rec.title || t('Untitled record') }),
+      ...rec.fields.slice(0, S.data.fields).map((f) => el('div', { class: 'gs-card__field' }, [
+        el('span', { class: 'gs-card__label', text: f.label }),
+        el('span', { class: 'gs-card__value' + (f.text ? '' : ' is-empty'), text: f.text || '—' }),
+      ])),
+    ]);
+    const open = el('button', { type: 'button', class: 'gs-card__open', tabindex: '-1', text: t('View'), title: t('Show this record in the Viewer'),
+      onclick: (e) => { e.stopPropagation(); on.onView(rec.rowId); } });
+    node.append(cover, body, open);
+    node.addEventListener('click', () => { S.focusKey = 'c' + rec.rowId; on.onSelect(rec.rowId); });
+    node.addEventListener('dblclick', () => on.onView(rec.rowId));
+    node.addEventListener('focus', () => { S.focusKey = 'c' + rec.rowId; });
+    return {
+      node, release: () => { release(); flipRelease?.(); },
+      update: () => {
+        node.classList.toggle('is-current', S.current === rec.rowId);
+        node.tabIndex = 'c' + rec.rowId === focusTarget() ? 0 : -1;
+      },
+    };
+  }
+
+  // ---- the keyboard -------------------------------------------------------------------------------------
+  function focusTarget() {
+    if (S.focusKey && S.nodes.has(S.focusKey)) return S.focusKey;
+    // Otherwise the first thing drawn, so Tab always lands somewhere.
+    for (const k of S.nodes.keys()) if (!k.startsWith('h') && !k.startsWith('cap')) return k;
+    return null;
+  }
+  function focusKey(key) {
+    S.focusKey = key;
+    scrollToKey(key);
+    draw();
+    S.nodes.get(key)?.node.focus({ preventScroll: true });
+  }
+  function scrollToKey(key) {
+    let y = null, h = 0;
+    if (S.mode === 'files') {
+      const at = locate(S.layout.blocks, key);
+      if (at) { y = at.block.y; h = at.block.h; }
+    } else {
+      const rowId = Number(key.slice(1));
+      const i = S.data.records.findIndex((r) => r.rowId === rowId);
+      const blk = S.layout.blocks.find((b) => b.cards.some((c) => c.i === i));
+      if (blk) { y = blk.y; h = blk.h; }
+    }
+    if (y == null) return;
+    const top = scroll.scrollTop, view = scroll.clientHeight;
+    if (y < top + 8) scroll.scrollTop = Math.max(0, y - 12);
+    else if (y + h > top + view - 8) scroll.scrollTop = y + h - view + 12;
+  }
+  function cardNeighbour(key, dir) {
+    const rowId = Number(key.slice(1));
+    const i = S.data.records.findIndex((r) => r.rowId === rowId);
+    const cols = S.layout.cols;
+    const j = { left: i - 1, right: i + 1, up: i - cols, down: i + cols }[dir];
+    return S.data.records[j] ? 'c' + S.data.records[j].rowId : null;
+  }
+  scroll.addEventListener('keydown', (e) => {
+    if (e.target.closest('input, select, textarea, .gs-menu')) return;
+    const key = focusTarget();
+    if (!key) return;
+    const dirs = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
+    if (dirs[e.key]) {
+      e.preventDefault();
+      const next = S.mode === 'files' ? neighbour(S.layout.blocks, key, dirs[e.key]) : cardNeighbour(key, dirs[e.key]);
+      if (next) { focusKey(next); if (S.mode === 'cards') on.onSelect(Number(next.slice(1))); else if (e.shiftKey) on.onMark(fileByKey(next), 'range'); }
+      return;
+    }
+    if (e.key === 'Home' || e.key === 'End') {
+      e.preventDefault();
+      const keys = S.mode === 'files' ? S.layout.blocks.filter((b) => b.kind === 'row').flatMap((b) => b.tiles.map((x) => x.f.key)) : S.data.records.map((r) => 'c' + r.rowId);
+      if (keys.length) focusKey(e.key === 'Home' ? keys[0] : keys[keys.length - 1]);
+      return;
+    }
+    if (S.mode === 'files') {
+      const f = fileByKey(key);
+      if (!f) return;
+      if (e.key === 'Enter') { e.preventDefault(); on.onOpen(f); }
+      else if (e.key === ' ') { e.preventDefault(); on.onMark(f, e.shiftKey ? 'range' : 'toggle'); }
+      else if ((e.key === 'Delete' || e.key === 'Backspace') && S.editable) { e.preventDefault(); on.onRemove(f); }
+      else if (e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey)) { e.preventDefault(); on.onMenu(f, S.nodes.get(key).node); }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      on.onView(Number(key.slice(1)));
+    }
+  });
+  function fileByKey(key) {
+    for (const g of S.data?.groups || []) { const f = g.files.find((x) => x.key === key); if (f) return f; }
+    return null;
+  }
+
+  // ---- dropping files ------------------------------------------------------------------------------------
+  let dropOver = null;
+  const internal = (e) => [...(e.dataTransfer?.types || [])].includes(INTERNAL);
+  const hasFiles = (e) => [...(e.dataTransfer?.types || [])].includes('Files') || internal(e);
+  const targetOf = (e) => (S.editable ? e.target.closest?.('[data-row]') : null);
+  scroll.addEventListener('dragover', (e) => {
+    if (!hasFiles(e) || !S.editable) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = internal(e) && !(e.ctrlKey || e.altKey) ? 'move' : 'copy';
+    let tgt = targetOf(e);
+    // In the Files layout a tile stands for its record: light up the record's header.
+    if (tgt && tgt.classList.contains('gs-tile')) tgt = S.nodes.get('h' + tgt.dataset.row)?.node || tgt;
+    if (tgt !== dropOver) { dropOver?.classList.remove('is-drop-target'); dropOver = tgt; dropOver?.classList.add('is-drop-target'); }
+  });
+  scroll.addEventListener('dragleave', (e) => { if (!scroll.contains(e.relatedTarget)) { dropOver?.classList.remove('is-drop-target'); dropOver = null; } });
+  scroll.addEventListener('drop', (e) => {
+    if (!hasFiles(e) || !S.editable) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dropOver?.classList.remove('is-drop-target');
+    const row = dropOver?.dataset.row || targetOf(e)?.dataset.row;
+    dropOver = null;
+    if (internal(e)) {
+      let keys = [];
+      try { keys = JSON.parse(e.dataTransfer.getData(INTERNAL) || '[]'); } catch { /* not ours after all */ }
+      if (row && keys.length) on.onSendFiles(keys, Number(row), e.ctrlKey || e.altKey ? 'copy' : 'move');
+      return;
+    }
+    on.onDrop(row ? Number(row) : null, [...e.dataTransfer.files]);
+  });
+
+  scroll.addEventListener('scroll', schedule, { passive: true });
+  // A new layout changes the wall's height, which can bring the scrollbar in or take it away, which
+  // changes the width, which asks for a new layout: a loop that froze the page in testing. The
+  // gutter is reserved in CSS (scrollbar-gutter), and where that is not supported, a width that only
+  // flips between the two it just had is ignored.
+  const widths = [];
+  const ro = new ResizeObserver(() => {
+    const w = scroll.clientWidth || 0;
+    if (Math.abs(w - S.width) <= 1) { schedule(); return; }
+    widths.push(w);
+    if (widths.length > 4) widths.shift();
+    if (widths.length === 4 && widths[0] === widths[2] && widths[1] === widths[3]) { schedule(); return; }
+    relayout();
+  });
+  ro.observe(scroll);
+
+  return {
+    /** Show the Files layout. d: {groups, size, fit, grouped, captions} */
+    setFiles(d, { keepScroll = true } = {}) {
+      const changed = S.mode !== 'files';
+      S.mode = 'files';
+      S.data = d;
+      scroll.classList.toggle('gs-fit-whole', d.fit === 'square' && d.whole);
+      reset();
+      if (changed || !keepScroll) scroll.scrollTop = 0;
+      relayout();
+    },
+    /** Show the Cards layout. d: {records, size, fields, cover} */
+    setCards(d, { keepScroll = true } = {}) {
+      const changed = S.mode !== 'cards';
+      S.mode = 'cards';
+      S.data = d;
+      scroll.classList.toggle('gs-cover-fit', d.cover === 'fit');
+      reset();
+      if (changed || !keepScroll) scroll.scrollTop = 0;
+      relayout();
+    },
+    setState({ current, marked, editable }) {
+      if (current !== undefined) S.current = current;
+      if (marked !== undefined) S.marked = marked;
+      if (editable !== undefined) S.editable = editable;
+      scroll.classList.toggle('has-marks', S.marked.size > 0);
+      for (const n of S.nodes.values()) n.update?.();
+    },
+    /** A picture turned out another shape than Grist said: lay out again, keeping the place. */
+    reflow() { if (S.mode === 'files') { const top = scroll.scrollTop; reset(); relayout(); scroll.scrollTop = top; } },
+    scrollToRecord(rowId) {
+      if (S.mode === 'cards') { if (S.data?.records.some((r) => r.rowId === rowId)) { scrollToKey('c' + rowId); draw(); } return; }
+      const g = S.data?.groups.findIndex((x) => x.rec.rowId === rowId);
+      const blk = g >= 0 ? S.layout.blocks.find((b) => b.g === g) : null;
+      if (blk && (blk.y < scroll.scrollTop || blk.y > scroll.scrollTop + scroll.clientHeight - 60)) { scroll.scrollTop = Math.max(0, blk.y - 8); draw(); }
+    },
+    focusFile(key) { if (S.mode === 'files' && fileByKey(key)) focusKey(key); },
+    focus() { const k = focusTarget(); if (k) S.nodes.get(k)?.node.focus({ preventScroll: true }); else scroll.focus(); },
+    files() { return S.mode === 'files' ? (S.data?.groups || []).flatMap((g) => g.files) : []; },
+    destroy() { ro.disconnect(); cancelAnimationFrame(S.raf); reset(); scroll.remove(); },
+  };
+}

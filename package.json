@@ -1,0 +1,35 @@
+{
+  "name": "grist-file-studio",
+  "version": "1.0.0",
+  "description": "File Studio — a Grist custom widget by ANUPRESS. A gallery, viewer, editor and file manager for the files in your Attachments columns: photos, PDFs, video and audio open large, pictures and text files can be edited and saved in place, files can be copied and moved between records, and zips are named after your columns. No server anywhere.",
+  "type": "module",
+  "private": true,
+  "author": "ANUPRESS",
+  "license": "MIT",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node scripts/check-version.mjs && node scripts/sync-core.mjs --check && node tests/run.mjs",
+    "sync": "node scripts/sync-core.mjs",
+    "sync:check": "node scripts/sync-core.mjs --check",
+    "sync:list": "node scripts/sync-core.mjs --list",
+    "clean": "node -e \"import('node:fs').then(fs=>fs.rmSync('dist',{recursive:true,force:true}))\""
+  },
+  "devDependencies": {
+    "@codemirror/commands": "6.11.1",
+    "@codemirror/lang-css": "6.3.1",
+    "@codemirror/lang-html": "6.4.12",
+    "@codemirror/lang-javascript": "6.2.5",
+    "@codemirror/lang-json": "6.0.2",
+    "@codemirror/lang-markdown": "6.5.2",
+    "@codemirror/lang-xml": "6.1.0",
+    "@codemirror/lang-yaml": "6.1.3",
+    "@codemirror/language": "6.13.1",
+    "@codemirror/search": "6.7.2",
+    "@codemirror/state": "6.7.6",
+    "@codemirror/view": "6.43.14",
+    "@lezer/highlight": "1.2.5",
+    "esbuild": "^0.23.0",
+    "javascript-obfuscator": "^4.1.0",
+    "marked": "18.1.0"
+  }
+}

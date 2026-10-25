@@ -1,0 +1,6 @@
+Meter,Number,Reading,Unit,Read on
+Electricity,1EMH0012345,48213.7,kWh,2026-10-06
+Gas,G4-778812,7904.2,m³,2026-10-06
+Cold water,W-55102,312.45,m³,2026-10-06
+Hot water,W-55103,98.10,m³,2026-10-06
+Heating (flat 3),HKV-30021,1240,units,2026-10-06

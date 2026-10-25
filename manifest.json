@@ -1,0 +1,62 @@
+[
+  {
+    "widgetId": "@anupress/widget-file-studio",
+    "name": "File Studio",
+    "url": "https://anupress.github.io/grist-file-studio/index.html",
+    "published": true,
+    "accessLevel": "full",
+    "description": "A gallery, viewer and file manager for the files in your Attachments columns: cards, a wall of files and a viewer. Photos, PDFs, video, audio and text open large; edit pictures and text files and save them in place or as a copy; see every cell a file sits in; copy, move, rename and zip files named after your columns. Runs entirely in the browser: no server, your files go only between the browser and your Grist.",
+    "authors": [
+      {
+        "name": "ANUPRESS",
+        "url": "https://anupress.com"
+      }
+    ],
+    "lastUpdatedAt": "2026-10-25T03:00:00+02:00"
+  },
+  {
+    "widgetId": "@anupress/widget-plan-studio",
+    "name": "Plan Studio",
+    "url": "https://anupress.github.io/grist-plan-studio/index.html",
+    "published": true,
+    "accessLevel": "full",
+    "description": "Gantt chart, timeline, board, booking grid and workload over the tables you already keep. Drag a task, a card or a booking and the change is written straight back to your table; level an overloaded plan in one step. Prints to PDF, in English, German or French. Runs entirely in the browser: no server, nothing leaves your document.",
+    "authors": [
+      {
+        "name": "ANUPRESS",
+        "url": "https://anupress.com"
+      }
+    ],
+    "lastUpdatedAt": "2026-10-25T02:30:00+02:00"
+  },
+  {
+    "widgetId": "@anupress/widget-advanced-charts",
+    "name": "Advanced Charts",
+    "url": "https://anupress.github.io/grist-advanced-charts/index.html",
+    "published": true,
+    "accessLevel": "full",
+    "description": "Turn a Grist table into a website-style dashboard: KPI cards, every ECharts chart type, group breakdowns, live tables, slicers and maps, edited in place. The design saves into your own Grist document, and your data is never sent anywhere: there is no server. Map blocks fetch tiles from public map providers.",
+    "authors": [
+      {
+        "name": "ANUPRESS",
+        "url": "https://anupress.com"
+      }
+    ],
+    "lastUpdatedAt": "2026-09-05T00:15:43+02:00"
+  },
+  {
+    "widgetId": "@anupress/widget-invoice-studio",
+    "name": "Invoice Studio",
+    "url": "https://anupress.github.io/grist-invoice-studio/index.html",
+    "published": true,
+    "accessLevel": "full",
+    "description": "Create, render and send invoices, quotes, receipts, credit notes, statements and delivery notes from the tables you already keep. PDF with embedded fonts, eight document languages, EU reverse charge and small-business exemptions, SEPA/UPI/payment-link QR codes, Factur-X, XRechnung and UBL e-invoices. Runs entirely in the browser: no server, nothing leaves your document.",
+    "authors": [
+      {
+        "name": "ANUPRESS",
+        "url": "https://anupress.com"
+      }
+    ],
+    "lastUpdatedAt": "2026-09-05T00:19:10+02:00"
+  }
+]
