@@ -962,4 +962,11 @@ export const FR = {
   'Space by type': 'Place par type',
   'Stored in the document': 'Stocké dans le document',
   'The same file in two cells is stored once.': 'Un même fichier dans deux cellules n’est stocké qu’une fois.',
+  // list layout
+  'List': 'Liste',
+  'Name, Z to A': 'Nom, de Z à A',
+  'Show as': 'Afficher en',
+  'Smallest first': 'Plus petit d’abord',
+  'Sort by {column}': 'Trier par {column}',
+  'Type, Z to A': 'Type, de Z à A',
 };

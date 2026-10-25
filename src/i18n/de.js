@@ -955,4 +955,11 @@ export const DE = {
   'Space by type': 'Platz nach Art',
   'Stored in the document': 'Im Dokument gespeichert',
   'The same file in two cells is stored once.': 'Dieselbe Datei in zwei Zellen wird nur einmal gespeichert.',
+  // list layout
+  'List': 'Liste',
+  'Name, Z to A': 'Name, Z bis A',
+  'Show as': 'Anzeigen als',
+  'Smallest first': 'Kleinste zuerst',
+  'Sort by {column}': 'Nach {column} sortieren',
+  'Type, Z to A': 'Typ, Z bis A',
 };

@@ -68,11 +68,28 @@ export function grid(count, width, { size = 180, gap = 6 } = {}) {
 export const HEAD_H = 44;     // a record's header in the grouped Files layout
 export const CAPTION_H = 22;  // the file name under a tile, when names are shown
 export const EMPTY_H = 52;    // the line under the header of a folder with no file
+export const ROW_H = 40;      // a file's row in the list
+export const LIST_HEAD_H = 34; // the column headings above the list
+
+/**
+ * The columns of the list for a width: the name takes what is left; type, size, date, tags and (when records have no heading) the record
+ * come in as there is room. Widths are px.
+ * @returns [{id, w}] with w = null for the name
+ */
+export function listColumns(width, { tags = false, folder = false } = {}) {
+  const cols = [{ id: 'name', w: null }];
+  if (folder && width >= 1000) cols.push({ id: 'folder', w: 200 });
+  if (width >= 640) cols.push({ id: 'type', w: 64 });
+  if (width >= 480) cols.push({ id: 'size', w: 76 });
+  if (width >= 760) cols.push({ id: 'added', w: 116 });
+  if (tags && width >= 900) cols.push({ id: 'tags', w: 180 });
+  return cols;
+}
 
 /**
  * The Files layout.
  * @param {Array<{rec, files}>} groups  from visibleFiles(); one group when not grouped
- * @param {{width, size, gap, fit: 'justify'|'square', grouped, captions, pad, fixed}} o
+ * @param {{width, size, gap, fit: 'justify'|'square'|'list', grouped, captions, pad, fixed}} o
  * @returns {{blocks: Array, height: number}}
  *   block: {kind: 'head', y, h, g} | {kind: 'row', y, h, g, tiles: [{f, x, w, h}]} | {kind: 'empty', y, h, g} (a folder with no file)
  *   (g = the group's index; tiles' h is the picture's height, without the caption)
@@ -87,6 +104,11 @@ export function layoutFiles(groups, o) {
     if (grouped) { blocks.push({ kind: 'head', y, h: HEAD_H, g }); y += HEAD_H; }
     if (!grp.files.length) {
       if (grouped) { blocks.push({ kind: 'empty', y, h: EMPTY_H, g }); y += EMPTY_H + 10; }
+      return;
+    }
+    if (fit === 'list') {
+      for (const f of grp.files) { blocks.push({ kind: 'row', y, h: ROW_H, g, tiles: [{ f, x: pad, w: inner, h: ROW_H }] }); y += ROW_H; }
+      if (grouped) y += 10;
       return;
     }
     const rows = fit === 'square'

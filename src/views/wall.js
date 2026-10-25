@@ -10,12 +10,12 @@
 
 import { el, clear } from '../core/util.js';
 import { icon } from '../core/assets/icons.js';
-import { layoutFiles, layoutCards, visibleBlocks, locate, neighbour } from '../model/layout.js';
-import { flippable, coverOf } from '../model/files.js';
+import { layoutFiles, layoutCards, visibleBlocks, locate, neighbour, listColumns, LIST_HEAD_H } from '../model/layout.js';
+import { flippable, coverOf, listSortState } from '../model/files.js';
 import { shorten } from '../model/textsearch.js';
 import { renderFace, fileLabel } from './face.js';
-import { sizeText } from '../model/kinds.js';
-import { t, tn, uiLang } from '../i18n/index.js';
+import { sizeText, typeLabel, tintOf } from '../model/kinds.js';
+import { t, tn, uiLang, dateLocale } from '../i18n/index.js';
 
 const OVERSCAN = 700;
 /** The drag type of tiles dragged inside the widget (files from the desktop come as 'Files'). */
@@ -30,7 +30,7 @@ export function hitWhere(hit) {
 
 /**
  * @param on {onOpen(file), onSelect(rowId), onMark(file, mode: 'toggle'|'range'), onMenu(file, anchor), onDrop(rowId|null, files),
- *            onRecordMenu(rowId, anchor), onSpaceMenu(anchor) (anchor: an element, or {x, y} where the right click was),
+ *            onSort(column) (a list heading was clicked), culture (for the dates), onRecordMenu(rowId, anchor), onSpaceMenu(anchor) (anchor: an element, or {x, y} where the right click was),
  *            onAdd(rowId), onView(rowId), onRemove(file), onFocusFile(file)}
  */
 export function createWall(host, thumbs, on) {
@@ -41,7 +41,7 @@ export function createWall(host, thumbs, on) {
 
   const S = {
     mode: 'files', width: 0, layout: null, data: null, nodes: new Map(), current: null, focusKey: null,
-    marked: new Set(), editable: false, raf: 0, cardIndex: new Map(),
+    marked: new Set(), editable: false, raf: 0, cardIndex: new Map(), off: 0, list: false, cols: [], colKey: '',
   };
 
   // ---- drawing -----------------------------------------------------------------------------------
@@ -51,7 +51,9 @@ export function createWall(host, thumbs, on) {
     if (S.mode === 'files') {
       const d = S.data;
       S.layout = layoutFiles(d.groups, { width: S.width, size: d.size, fit: d.fit, grouped: d.grouped, captions: d.captions, fixed: thumbs.aspects });
+      listState(d);
     } else {
+      listState(null);
       const d = S.data;
       S.layout = layoutCards(d.records.length, { width: S.width, size: d.size, fields: d.fields });
     }
@@ -66,7 +68,7 @@ export function createWall(host, thumbs, on) {
 
   function want() {
     // The items in sight, as [key, build, place] triples.
-    const top = scroll.scrollTop - OVERSCAN, bottom = scroll.scrollTop + scroll.clientHeight + OVERSCAN;
+    const top = scroll.scrollTop - S.off - OVERSCAN, bottom = scroll.scrollTop + scroll.clientHeight - S.off + OVERSCAN;
     const out = [];
     for (const b of visibleBlocks(S.layout.blocks, top, bottom)) {
       if (b.kind === 'head') {
@@ -77,8 +79,8 @@ export function createWall(host, thumbs, on) {
         out.push(['empty' + grp.rec.rowId, () => buildEmpty(grp), { top: b.y, height: b.h }]);
       } else if (b.kind === 'row') {
         for (const tile of b.tiles) {
-          out.push([tile.f.key, () => buildTile(tile.f, tile), { left: tile.x, top: b.y, width: tile.w, height: tile.h }]);
-          if (S.data.captions) out.push(['cap' + tile.f.key, () => el('div', { class: 'gs-caption', text: tile.f.name, title: tile.f.name }), { left: tile.x, top: b.y + tile.h, width: tile.w }]);
+          out.push([tile.f.key, () => (S.list ? buildRow(tile.f) : buildTile(tile.f, tile)), { left: tile.x, top: b.y, width: tile.w, height: tile.h }]);
+          if (S.data.captions && !S.list) out.push(['cap' + tile.f.key, () => el('div', { class: 'gs-caption', text: tile.f.name, title: tile.f.name }), { left: tile.x, top: b.y + tile.h, width: tile.w }]);
         }
       } else if (b.kind === 'cards') {
         for (const c of b.cards) {
@@ -128,6 +130,104 @@ export function createWall(host, thumbs, on) {
     return { node, update: () => node.classList.toggle('is-current', S.current === rec.rowId) };
   }
 
+  // What a tile and a row do alike: click, focus, drag, and the marks and focus they show.
+  function wire(node, f) {
+    node.addEventListener('click', (e) => {
+      S.focusKey = f.key;
+      if (e.shiftKey) { on.onMark(f, 'range'); return; }
+      if (e.ctrlKey || e.metaKey || S.marked.size) { on.onMark(f, 'toggle'); return; }
+      on.onOpen(f);
+    });
+    node.addEventListener('focus', () => { S.focusKey = f.key; on.onFocusFile?.(f); });
+    // Drag a tile onto another record's heading or card to move it there (Ctrl or Alt: copy).
+    node.addEventListener('dragstart', (e) => {
+      if (!S.editable) { e.preventDefault(); return; }
+      const keys = S.marked.has(f.key) ? [...S.marked] : [f.key];
+      e.dataTransfer.setData(INTERNAL, JSON.stringify(keys));
+      e.dataTransfer.effectAllowed = 'copyMove';
+      node.classList.add('is-dragged');
+    });
+    node.addEventListener('dragend', () => node.classList.remove('is-dragged'));
+  }
+  function refresh(node, f) {
+    node.draggable = S.editable && !f.readOnly;
+    node.classList.toggle('is-marked', S.marked.has(f.key));
+    node.setAttribute('aria-selected', S.marked.has(f.key) ? 'true' : 'false');
+    node.tabIndex = f.key === focusTarget() ? 0 : -1;
+  }
+
+  // ---- the list: column headings and a row for a file ---------------------------------------------------------
+  let listHead = null, dateFmt = null;
+  /** Set up (or take away) the column headings for the data on show, and forget the rows when the columns changed. */
+  function listState(d) {
+    S.list = !!d && d.fit === 'list';
+    scroll.classList.toggle('is-list', S.list);
+    if (!S.list) { listHead?.remove(); listHead = null; S.off = 0; S.colKey = ''; return; }
+    const anyTags = d.groups.some((g) => g.files.some((f) => f.tags && f.tags.length));
+    S.cols = listColumns(S.width, { tags: anyTags, folder: !d.grouped });
+    const key = S.cols.map((c) => c.id).join();
+    if (key !== S.colKey) { S.colKey = key; reset(); }
+    scroll.style.setProperty('--gs-cols', ['32px', '44px', 'minmax(0, 1fr)', ...S.cols.slice(1).map((c) => c.w + 'px'), '34px'].join(' '));
+    if (!listHead) { listHead = el('div', { class: 'gs-listhead', role: 'row' }); scroll.insertBefore(listHead, canvas); }
+    dateFmt = new Intl.DateTimeFormat(dateLocale(on.culture), { dateStyle: 'medium' });
+    clear(listHead).append(el('span'), el('span'), ...S.cols.map(headCell), el('span'));
+    S.off = LIST_HEAD_H;
+  }
+  function headCell(c) {
+    const label = { name: t('Name'), type: t('Type'), size: t('Size'), added: t('Added'), tags: t('Tags'), folder: t('Record') }[c.id];
+    if (!['name', 'type', 'size', 'added'].includes(c.id)) return el('span', { class: 'gs-listhead__cell', role: 'columnheader', text: label });
+    const state = listSortState(c.id, S.data.sort);
+    return el('span', { class: 'gs-listhead__cell' + (c.id === 'size' ? ' is-num' : '') + (state === 'none' ? '' : ' is-sorted'), role: 'columnheader', 'aria-sort': state }, [
+      el('button', { type: 'button', title: t('Sort by {column}', { column: label }), onclick: () => on.onSort?.(c.id) }, [
+        label, state === 'none' ? null : el('span', { class: 'gs-listhead__dir', 'aria-hidden': 'true', text: state === 'ascending' ? '▲' : '▼' }),
+      ]),
+    ]);
+  }
+  function buildRow(f) {
+    const where = f.hit ? hitWhere(f.hit) : '';
+    const labelled = f.tags && f.tags.length ? f.tags.join(', ') : '';
+    const node = el('div', {
+      class: 'gs-row' + (f.hit ? ' has-hit' : ''), role: 'listitem', tabindex: '-1', dataset: { key: f.key, row: String(f.rowId) },
+      'aria-label': fileLabel(f) + (where ? ', ' + where : '') + (labelled ? ', ' + labelled : ''),
+      title: [f.name, f.hit ? f.hit.snippet : '', labelled ? '# ' + labelled : '', f.note || ''].filter(Boolean).join('\n'),
+    });
+    const mark = el('button', { type: 'button', class: 'gs-row__mark', 'aria-label': t('Mark'), tabindex: '-1',
+      onclick: (e) => { e.stopPropagation(); on.onMark(f, e.shiftKey ? 'range' : 'toggle'); } }, [icon('check')]);
+    // A picture, PDF or video shows its thumbnail; everything else shows its type on its own colour.
+    const thumb = el('span', { class: 'gs-row__thumb gs-t-' + tintOf(f.ext) });
+    const typeOnly = () => { thumb.classList.add('is-type'); thumb.replaceChildren(el('span', { class: 'gs-row__ext', text: typeLabel(f.ext) })); };
+    let release = () => {};
+    if (thumbs && ['image', 'heic', 'pdf', 'video'].includes(f.kind)) {
+      const img = el('img', { class: 'gs-row__img', alt: '', decoding: 'async', draggable: false });
+      thumb.append(img);
+      let gone = false;
+      const stop = thumbs.want(f, 64, (r) => {
+        if (gone) return;
+        if (r.failed || !r.url) { typeOnly(); return; }
+        img.onload = () => img.classList.add('is-in');
+        img.src = r.url;
+      });
+      release = () => { gone = true; stop(); };
+    } else typeOnly();
+    const [head, word, tail] = f.hit ? shorten(f.hit, 44) : [];
+    const name = el('span', { class: 'gs-row__name' }, [
+      el('span', { class: 'gs-row__nm', text: f.name }),
+      f.hit ? el('span', { class: 'gs-row__hit' }, [el('b', { text: where }), ' ', head, el('mark', { text: word }), tail]) : null,
+    ]);
+    const cells = S.cols.slice(1).map((c) => {
+      if (c.id === 'folder') return el('span', { class: 'gs-row__cell', text: f.recordTitle || '', title: f.recordTitle || '' });
+      if (c.id === 'type') return el('span', { class: 'gs-row__cell', text: typeLabel(f.ext) });
+      if (c.id === 'size') return el('span', { class: 'gs-row__cell gs-row__num', text: sizeText(f.size, uiLang()) });
+      if (c.id === 'added') return el('span', { class: 'gs-row__cell', text: f.uploaded ? dateFmt.format(new Date(f.uploaded)) : '' });
+      return el('span', { class: 'gs-row__cell gs-row__tags', text: labelled, title: labelled });
+    });
+    const more = el('button', { type: 'button', class: 'gs-row__more', 'aria-label': t('More for {name}', { name: f.name }), tabindex: '-1',
+      onclick: (e) => { e.stopPropagation(); on.onMenu(f, more); } }, [icon('menu')]);
+    node.append(mark, thumb, name, ...cells, more);
+    wire(node, f);
+    return { node, release, update: () => refresh(node, f) };
+  }
+
   // A folder with no file yet: a line that says so and takes dropped files like its header does.
   function buildEmpty(grp) {
     const rec = grp.rec;
@@ -159,30 +259,10 @@ export function createWall(host, thumbs, on) {
       node.style.setProperty('--gs-hit-h', (tile.h >= 110 ? 50 : 22) + 'px');   // a document's paper stops above the band
       node.append(el('div', { class: 'gs-tile__hit' }, [el('b', { text: where }), tile.h >= 110 ? el('span', {}, [head, el('mark', { text: word }), tail]) : null]));
     }
-    node.addEventListener('click', (e) => {
-      S.focusKey = f.key;
-      if (e.shiftKey) { on.onMark(f, 'range'); return; }
-      if (e.ctrlKey || e.metaKey || S.marked.size) { on.onMark(f, 'toggle'); return; }
-      on.onOpen(f);
-    });
-    node.addEventListener('focus', () => { S.focusKey = f.key; on.onFocusFile?.(f); });
-    // Drag a tile onto another record's heading or card to move it there (Ctrl or Alt: copy).
-    node.addEventListener('dragstart', (e) => {
-      if (!S.editable) { e.preventDefault(); return; }
-      const keys = S.marked.has(f.key) ? [...S.marked] : [f.key];
-      e.dataTransfer.setData(INTERNAL, JSON.stringify(keys));
-      e.dataTransfer.effectAllowed = 'copyMove';
-      node.classList.add('is-dragged');
-    });
-    node.addEventListener('dragend', () => node.classList.remove('is-dragged'));
+    wire(node, f);
     return {
       node, release,
-      update: () => {
-        node.draggable = S.editable && !f.readOnly;
-        node.classList.toggle('is-marked', S.marked.has(f.key));
-        node.setAttribute('aria-selected', S.marked.has(f.key) ? 'true' : 'false');
-        node.tabIndex = f.key === focusTarget() ? 0 : -1;
-      },
+      update: () => refresh(node, f),
     };
   }
 
@@ -278,7 +358,7 @@ export function createWall(host, thumbs, on) {
     if (y == null) return;
     const top = scroll.scrollTop, view = scroll.clientHeight;
     if (y < top + 8) scroll.scrollTop = Math.max(0, y - 12);
-    else if (y + h > top + view - 8) scroll.scrollTop = y + h - view + 12;
+    else if (y + h + S.off > top + view - 8) scroll.scrollTop = y + h + S.off - view + 12;
   }
   function cardNeighbour(key, dir) {
     const rowId = Number(key.slice(1));
@@ -324,7 +404,7 @@ export function createWall(host, thumbs, on) {
     if (e.target.closest?.('input, textarea, .gs-menu')) return;
     e.preventDefault();
     const at = { x: e.clientX, y: e.clientY };
-    const tile = S.mode === 'files' ? e.target.closest?.('.gs-tile') : null;
+    const tile = S.mode === 'files' ? e.target.closest?.('.gs-tile, .gs-row') : null;
     if (tile) {
       const f = fileByKey(tile.dataset.key);
       if (f) { S.focusKey = f.key; on.onMenu(f, at); return; }
@@ -349,7 +429,7 @@ export function createWall(host, thumbs, on) {
     e.dataTransfer.dropEffect = internal(e) && !(e.ctrlKey || e.altKey) ? 'move' : 'copy';
     let tgt = targetOf(e);
     // In the Files layout a tile stands for its record: light up the record's header.
-    if (tgt && tgt.classList.contains('gs-tile')) tgt = S.nodes.get('h' + tgt.dataset.row)?.node || tgt;
+    if (tgt && (tgt.classList.contains('gs-tile') || tgt.classList.contains('gs-row'))) tgt = S.nodes.get('h' + tgt.dataset.row)?.node || tgt;
     if (tgt !== dropOver) { dropOver?.classList.remove('is-drop-target'); dropOver = tgt; dropOver?.classList.add('is-drop-target'); }
   });
   scroll.addEventListener('dragleave', (e) => { if (!scroll.contains(e.relatedTarget)) { dropOver?.classList.remove('is-drop-target'); dropOver = null; } });
@@ -392,6 +472,7 @@ export function createWall(host, thumbs, on) {
       S.mode = 'files';
       S.data = d;
       scroll.classList.toggle('gs-fit-whole', d.fit === 'square' && d.whole);
+      S.colKey = '';
       reset();
       if (changed || !keepScroll) scroll.scrollTop = 0;
       relayout();
@@ -419,7 +500,7 @@ export function createWall(host, thumbs, on) {
       if (S.mode === 'cards') { if (S.data?.records.some((r) => r.rowId === rowId)) { scrollToKey('c' + rowId); draw(); } return; }
       const g = S.data?.groups.findIndex((x) => x.rec.rowId === rowId);
       const blk = g >= 0 ? S.layout.blocks.find((b) => b.g === g) : null;
-      if (blk && (blk.y < scroll.scrollTop || blk.y > scroll.scrollTop + scroll.clientHeight - 60)) { scroll.scrollTop = Math.max(0, blk.y - 8); draw(); }
+      if (blk && (blk.y < scroll.scrollTop || blk.y + S.off > scroll.scrollTop + scroll.clientHeight - 60)) { scroll.scrollTop = Math.max(0, blk.y - 8); draw(); }
     },
     focusFile(key) { if (S.mode === 'files' && fileByKey(key)) focusKey(key); },
     focus() { const k = focusTarget(); if (k) S.nodes.get(k)?.node.focus({ preventScroll: true }); else scroll.focus(); },

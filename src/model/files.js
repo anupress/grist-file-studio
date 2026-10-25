@@ -106,7 +106,26 @@ export function groupCounts(files) {
   return out;
 }
 
-export const SORTS = ['cell', 'name', 'newest', 'oldest', 'taken-asc', 'taken-desc', 'largest', 'type'];
+export const SORTS = ['cell', 'name', 'name-desc', 'newest', 'oldest', 'taken-asc', 'taken-desc', 'largest', 'smallest', 'type', 'type-desc'];
+
+/** The sorts a column header of the list switches between, with the way each one runs. */
+export const LIST_SORTS = {
+  name: [['name', 'ascending'], ['name-desc', 'descending']],
+  type: [['type', 'ascending'], ['type-desc', 'descending']],
+  size: [['largest', 'descending'], ['smallest', 'ascending']],
+  added: [['newest', 'descending'], ['oldest', 'ascending']],
+};
+/** The sort a click on a column header asks for: the column's first sort, then its opposite, then back. */
+export function listSortFor(column, current) {
+  const pair = LIST_SORTS[column];
+  if (!pair) return current;
+  return current === pair[0][0] ? pair[1][0] : pair[0][0];
+}
+/** 'ascending', 'descending' or 'none': what a column header says about the sort now (aria-sort). */
+export function listSortState(column, current) {
+  const hit = (LIST_SORTS[column] || []).find(([id]) => id === current);
+  return hit ? hit[1] : 'none';
+}
 const collator = typeof Intl !== 'undefined' ? new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' }) : null;
 const byName = (a, b) => (collator ? collator.compare(a.name, b.name) : a.name.localeCompare(b.name));
 
@@ -118,6 +137,7 @@ export function sortFiles(files, sort, opts = {}) {
   const list = files.slice();
   switch (sort) {
     case 'name': return list.sort(byName);
+    case 'name-desc': return list.sort((a, b) => byName(b, a));
     case 'newest': return list.sort((a, b) => (b.uploaded || 0) - (a.uploaded || 0) || byName(a, b));
     case 'oldest': return list.sort((a, b) => (a.uploaded || 0) - (b.uploaded || 0) || byName(a, b));
     case 'taken-asc':
@@ -133,7 +153,9 @@ export function sortFiles(files, sort, opts = {}) {
       });
     }
     case 'largest': return list.sort((a, b) => b.size - a.size || byName(a, b));
+    case 'smallest': return list.sort((a, b) => a.size - b.size || byName(a, b));
     case 'type': return list.sort((a, b) => a.ext.localeCompare(b.ext) || byName(a, b));
+    case 'type-desc': return list.sort((a, b) => b.ext.localeCompare(a.ext) || byName(a, b));
     default: return list;
   }
 }

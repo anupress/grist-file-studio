@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.12.0
+
+The list. Checked in the demo (clicks, keys and the right mouse button, 1366 to 390 px), in the audit (light and dark, English, German
+and French) and in Grist 1.7.20 (thumbnails through the attachment endpoint, sort, opening, kept after a reload).
+
+### Files
+- **Display → Show as → List**: one row per file (picture or type, name, type, size, date added, tags; the record without headings)
+  with column headings that sort: click for the first order, again for the opposite. New sorts: Name Z to A, Smallest first, Type Z to A.
+  Marks, dragging to another record, right click, the keyboard and the search hit under the name all work as on tiles. The size slider
+  is hidden (rows have one height).
+
 ## 1.11.0
 
 Folder sizes. Checked in the demo (the right mouse button) and in the audit at 1366 and 390 px, light and dark, English, German and French.

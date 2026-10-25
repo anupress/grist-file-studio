@@ -41,6 +41,12 @@ to the table (**Select by**, same record) and it shows the files of whichever ro
 
 ![The Viewer: one record's files, large, with the filmstrip and the cover marked](docs/images/viewer.png)
 
+**The Files layout as a list.** **Display → Show as → List** turns the tiles into rows, as the Details view of a file manager does: a
+small picture or the file type, the name, and (as far as the width allows) the type, the size, the date added, the tags and, without
+record headings, the record. Click a heading to sort by it, and again for the other way round (Name A to Z and Z to A, Largest or
+Smallest first, Newest or Oldest first, Type); the Sort list beside the search follows. Rows are marked, dragged, opened and
+right-clicked like tiles, and the keyboard works the same. The choice is kept per table in this browser.
+
 ## Any file, large
 
 The lightbox shows the file as big as the widget allows and steps through everything on show:

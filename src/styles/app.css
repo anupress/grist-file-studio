@@ -225,6 +225,54 @@ a.gs-btn { color: inherit; text-decoration: none; }   /* a link that looks like 
 .gs-head.is-current .gs-head__title { color: var(--gs-focus); }
 .gs-head.is-current { border-bottom-color: var(--gs-focus); }
 
+/* ---- the list (Details view): column headings, then a row for each file ---- */
+.gs-listhead {
+  position: sticky; top: 0; z-index: 4; height: 34px; box-sizing: border-box; display: grid; grid-template-columns: var(--gs-cols); gap: 0 10px; align-items: center;
+  padding: 0 12px; background: var(--gs-ground); border-bottom: 1px solid var(--gs-line-strong); font-size: var(--gs-fs-2); color: var(--gs-muted);
+}
+.gs-listhead__cell { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gs-listhead__cell button { border: 0; background: none; padding: 4px 0; font: inherit; color: inherit; cursor: pointer; display: inline-flex; gap: 5px; align-items: baseline; }
+.gs-listhead__cell button:hover { color: var(--gs-ink); }
+.gs-listhead__cell.is-sorted { color: var(--gs-ink); font-weight: 600; }
+.gs-listhead__cell.is-num { text-align: right; padding-right: 8px; }
+.gs-listhead__dir { font-size: 9px; color: var(--gs-muted); }
+.gs-row {
+  position: absolute; box-sizing: border-box; display: grid; grid-template-columns: var(--gs-cols); gap: 0 10px; align-items: center; padding: 0 0 0 0;
+  border-bottom: 1px solid var(--gs-line); cursor: pointer; outline: none; font-size: var(--gs-fs-3); contain: layout paint;
+}
+.gs-row:hover { background: var(--gs-surface-2); }
+.gs-row.is-marked { background: var(--gs-accent-soft); }
+.gs-row.is-current { box-shadow: inset 3px 0 0 var(--gs-focus); }
+.gs-row:focus-visible { box-shadow: inset 0 0 0 2px var(--gs-focus); }
+.gs-row__mark {
+  justify-self: center; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--gs-line-strong); background: var(--gs-surface); color: transparent;
+  padding: 0; display: grid; place-items: center; cursor: pointer; opacity: 0; transition: opacity 0.12s;
+}
+.gs-row__mark svg { width: 12px; height: 12px; }
+.gs-row:hover .gs-row__mark, .gs-row:focus-within .gs-row__mark, .has-marks .gs-row__mark { opacity: 1; }
+.gs-row.is-marked .gs-row__mark { opacity: 1; background: var(--gs-accent); border-color: var(--gs-accent); color: #fff; }
+.gs-row__thumb {
+  position: relative; width: 36px; height: 36px; border-radius: var(--gs-r-1); overflow: hidden; background: var(--gs-tile); display: grid; place-items: center;
+  box-shadow: inset 0 0 0 1px var(--gs-line);
+}
+.gs-row__img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.18s; }
+.gs-row__img.is-in { opacity: 1; }
+.gs-row__ext { font-size: var(--gs-fs-1); font-weight: 700; letter-spacing: 0.02em; color: var(--gs-ink); }
+.gs-row__thumb.is-type::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--tint, var(--gs-line-strong)); }
+.gs-row__name { min-width: 0; display: grid; gap: 1px; line-height: 1.25; }
+.gs-row__nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.gs-row__hit { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--gs-fs-1); color: var(--gs-muted); }
+.gs-row__hit b { font-weight: 600; }
+.gs-row__hit mark { background: none; color: var(--gs-ink); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.gs-row__cell { font-variant-numeric: tabular-nums; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--gs-muted); font-size: var(--gs-fs-2); }
+.gs-row__num { text-align: right; font-variant-numeric: tabular-nums; padding-right: 8px; }
+.gs-row__more {
+  justify-self: center; width: 28px; height: 28px; border: 0; border-radius: var(--gs-r-1); background: none; color: var(--gs-muted); padding: 0; display: grid; place-items: center; cursor: pointer;
+}
+.gs-row__more:hover { background: var(--gs-surface); color: var(--gs-ink); }
+.gs-row__more svg { width: 15px; height: 15px; }
+.gs-row.is-dragged { opacity: 0.5; }
+
 /* ---- a tile ---- */
 .gs-tile {
   position: absolute; box-sizing: border-box; border-radius: var(--gs-r-1); background: var(--gs-tile); overflow: hidden; cursor: zoom-in;

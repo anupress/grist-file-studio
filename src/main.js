@@ -11,7 +11,7 @@ import { start, accessLevel, selectedTableId, gristCulture, setOptions, moveCurs
 import { fileUrl, fileBlob, fileHead, uploadFiles, dropTokens, docUrl, storageInfo, freeUnusedFiles } from './grist/files.js';
 import { loadColumns, loadFileMeta, loadAttachmentRows, loadLabels, loadOwnSection, forgetMeta, loadLocations } from './data/live.js';
 import { resolveRoles, toStored, detectRoles } from './model/roles.js';
-import { buildGallery, metaFromRows, visibleFiles, visibleRecords, groupCounts, sortFiles, matcher } from './model/files.js';
+import { buildGallery, metaFromRows, visibleFiles, visibleRecords, groupCounts, sortFiles, matcher, listSortFor } from './model/files.js';
 import { hitFor } from './model/textsearch.js';
 import { newFolder as newFolderActions, renameFolder as renameFolderActions, canName, newestId, folderStats } from './model/folders.js';
 import { NOTES_TABLE, createTable, cleanTag, rowsAreNotes, parseNotes, allTags, setNote, addTagTo, carryNotes, notesText } from './model/notes.js';
@@ -231,7 +231,7 @@ function filesData() {
   const vis = visibleFiles(S.gallery, { query: v.query, group: v.group, sort: v.sort, inside, taken: takenOf, tag: v.tag, empty: v.empty ? true : S.fresh });
   setHits(vis.files, v.query, inside);
   const groups = v.grouped ? vis.groups : [{ rec: null, files: v.sort === 'cell' ? vis.files : sortFiles(vis.files, v.sort, { taken: takenOf }) }];
-  return { groups, size: v.fileSize, fit: v.fit, grouped: v.grouped, captions: v.captions };
+  return { groups, size: v.fileSize, fit: v.fit, grouped: v.grouped, captions: v.captions, sort: v.sort };
 }
 const shownFiles = () => (V().layout === 'files' && wall ? wall.files() : []);
 const markedFiles = () => (S.gallery?.files || []).filter((f) => S.marked.has(f.key));
@@ -277,6 +277,8 @@ function render() {
         onSelect: (rowId) => select(rowId),
         onMark: (f, mode) => mark(f, mode),
         onMenu: (f, anchor) => fileMenu(f, anchor),
+        culture: gristCulture(),
+        onSort: (column) => { setView({ sort: listSortFor(column, V().sort) }); if (byDate(V().sort)) readDatesFor(); render(); },
         onRecordMenu: (rowId, anchor) => recordMenu(rowId, anchor),
         onSpaceMenu: (anchor) => spaceMenu(anchor),
         onDrop: (rowId, files) => addFiles(files, rowId),

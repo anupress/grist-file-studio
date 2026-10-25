@@ -19,7 +19,7 @@ const compareIcon = () => fromHTML('<svg width="18" height="18" viewBox="0 0 24 
 const LAYOUT_LABELS = { cards: 'Cards', files: 'Files', viewer: 'Viewer' };
 const LAYOUT_ICONS = { cards: 'grid2', files: 'gallery', viewer: 'image2' };
 const GROUP_LABELS = { all: 'All', image: 'Pictures', pdf: 'PDFs', video: 'Videos', audio: 'Audio', other: 'Other' };
-const SORT_LABELS = { cell: 'As in the table', name: 'Name', newest: 'Newest first', oldest: 'Oldest first', 'taken-asc': 'Date taken, oldest first', 'taken-desc': 'Date taken, newest first', largest: 'Largest first', type: 'Type' };
+const SORT_LABELS = { cell: 'As in the table', name: 'Name', 'name-desc': 'Name, Z to A', newest: 'Newest first', oldest: 'Oldest first', 'taken-asc': 'Date taken, oldest first', 'taken-desc': 'Date taken, newest first', largest: 'Largest first', smallest: 'Smallest first', type: 'Type', 'type-desc': 'Type, Z to A' };
 
 const seg = (label, items, onPick) => {
   // A segment with icons may drop its words on a narrow widget (the icon and the tooltip remain);
@@ -93,11 +93,12 @@ export function createBars(chrome, filters, on) {
     const files = s.layout === 'files';
     const size = el('input', { type: 'range', id: 'gs-d-size', min: files ? '80' : '160', max: files ? '400' : '420', step: '10', value: String(s.size),
       oninput: () => on.onSize(Number(size.value)) });
-    const rows = [el('div', { class: 'gs-pop__row' }, [el('label', { for: 'gs-d-size', class: 'gs-pop__label', text: t('Size') }), el('span', { class: 'gs-size' }, [icon('image2'), size, icon('image2')])])];
+    // A list has rows of one height: the size slider is for tiles and cards.
+    const rows = files && s.fit === 'list' ? [] : [el('div', { class: 'gs-pop__row' }, [el('label', { for: 'gs-d-size', class: 'gs-pop__label', text: t('Size') }), el('span', { class: 'gs-size' }, [icon('image2'), size, icon('image2')])])];
     if (files) {
-      const fit = seg(t('Tiles'), [['justify', t('Natural')], ['square', t('Square')]], (id) => { on.onFit(id); fit.set(id); });
+      const fit = seg(t('Show as'), [['justify', t('Natural')], ['square', t('Square')], ['list', t('List')]], (id) => { on.onFit(id); fit.set(id); });
       fit.set(s.fit);
-      rows.push(el('div', { class: 'gs-pop__row' }, [el('span', { class: 'gs-pop__label', text: t('Tiles') }), fit.box]));
+      rows.push(el('div', { class: 'gs-pop__row' }, [el('span', { class: 'gs-pop__label', text: t('Show as') }), fit.box]));
       const box = (label, value, change, hint) => el('label', { class: 'gs-check', title: hint || null }, [el('input', { type: 'checkbox', checked: value, onchange: (e) => change(e.target.checked) }), label]);
       rows.push(el('div', { class: 'gs-pop__checks' }, [
         box(t('A heading for each record'), !!s.grouped, (v) => on.onGrouped(v)),
