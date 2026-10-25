@@ -8,7 +8,7 @@
 import { el, clear } from './core/util.js';
 import { VERSION } from './version.js';
 import { start, accessLevel, selectedTableId, gristCulture, setOptions, moveCursor, apply, undo as gristUndo, redo as gristRedo, linkingInfo } from './grist/connect.js';
-import { fileUrl, fileBlob, uploadFiles, dropTokens, docUrl, storageInfo, freeUnusedFiles } from './grist/files.js';
+import { fileUrl, fileBlob, fileHead, uploadFiles, dropTokens, docUrl, storageInfo, freeUnusedFiles } from './grist/files.js';
 import { loadColumns, loadFileMeta, loadAttachmentRows, loadLabels, loadOwnSection, forgetMeta, loadLocations } from './data/live.js';
 import { resolveRoles, toStored, detectRoles } from './model/roles.js';
 import { buildGallery, metaFromRows, visibleFiles, visibleRecords, groupCounts, sortFiles, matcher } from './model/files.js';
@@ -24,9 +24,11 @@ import { openPdf } from './media/pdf.js';
 import { makeZip, manifestCsv, ZIP_LIMIT } from './media/zip.js';
 import { shrinkPhoto } from './media/shrink.js';
 import { TextIndex, canRead } from './media/textindex.js';
+import { ExifIndex, hasExif } from './media/exifindex.js';
 import { createWall } from './views/wall.js';
 import { createViewer } from './views/viewer.js';
 import { openLightbox } from './views/lightbox.js';
+import { openCompare } from './views/compare.js';
 import { createBars } from './ui/bars.js';
 import { openColumns } from './ui/columns.js';
 import { openLibrary } from './ui/library.js';
@@ -46,7 +48,7 @@ const S = {
   live: false, demo: false, ready: false, problem: null,
   tableId: null, columns: [], roles: { files: [], title: null, fields: [] }, settings: readOptions(null), options: null,
   rows: [], meta: new Map(), labels: {}, gallery: null, ownSection: null,
-  view: { layout: null, query: '', group: 'all', sort: 'cell', cardSize: null, fileSize: null, fit: null, grouped: null, captions: null, cover: null },
+  view: { layout: null, query: '', group: null, sort: null, cardSize: null, fileSize: null, fit: null, grouped: null, captions: null, cover: null },
   current: null, selfCursor: null, marked: new Set(), lastMark: null,
   lb: null,   // {box, scope: 'wall' | rowId}
   // Searching inside files: on/off is this browser's choice; the text itself is read on request (see "inside files" below).
@@ -90,6 +92,7 @@ function makeThumbs() {
 }
 const liveSource = {
   url: (file, o = {}) => fileUrl(file.attId, o),
+  head: (file, n, o = {}) => fileHead(file.attId, n, o),
   blob: (file, o = {}) => fileBlob(file.attId, o),
   openPdf,
   upload: (files, o) => uploadFiles(files, o),
@@ -176,7 +179,9 @@ const bars = createBars(chrome, filters, {
   onInsideRead: () => startReading(),
   onInsideStop: () => insideRun?.abort(),
   onGroup: (g) => { setView({ group: g }); render(); },
-  onSort: (s) => { setView({ sort: s }); render(); },
+  onSort: (s) => { setView({ sort: s }); if (byDate(s)) readDatesFor(); render(); },
+  onDatesRead: () => startDates(),
+  onDatesStop: () => datesRun?.abort(),
   onSize: (n) => { setView(V().layout === 'cards' ? { cardSize: n } : { fileSize: n }); render(); },
   onFit: (f) => { setView({ fit: f }); render(); },
   onGrouped: (on) => { setView({ grouped: on }); render(); },
@@ -188,6 +193,7 @@ const bars = createBars(chrome, filters, {
   onMarkedRename: () => renameMany(markedFiles()),
   onMarkedMerge: () => mergeFiles(markedFiles()),
   onMarkedReport: () => photoReport(markedFiles(), null),
+  onMarkedCompare: () => { const [a, b] = markedFiles(); if (a && b) compareFiles(a, b); },
   onMarkedClear: () => clearMarks(),
 });
 
@@ -197,8 +203,8 @@ function updateBars(level = 'full') {
   bars.update({
     level, mode: S.demo ? 'demo' : canEdit() ? 'live' : 'ro', readOnlyWhy: readOnlyWhy(), layout: v.layout, editable: canEdit() && !!fileColumn(),
     records: S.gallery?.records.length || 0, files: files.length, query: v.query, group: v.group, groupCounts: groupCounts(files), sort: v.sort,
-    size: v.layout === 'cards' ? v.cardSize : v.fileSize, fit: v.fit, grouped: v.grouped, captions: v.captions, cover: v.cover, markedCount: S.marked.size, markedPictures: markedFiles().some((f) => REPORT_PICTURE.test(f.ext)),
-    inside: insideInfo(),
+    size: v.layout === 'cards' ? v.cardSize : v.fileSize, fit: v.fit, grouped: v.grouped, captions: v.captions, cover: v.cover, markedCount: S.marked.size, markedPictures: markedFiles().some((f) => REPORT_PICTURE.test(f.ext)), markedPair: (() => { const m = markedFiles(); return m.length === 2 && m.every((f) => f.kind === 'image'); })(),
+    inside: insideInfo(), dates: datesInfo(),
   });
 }
 
@@ -214,9 +220,9 @@ function emptyState(title, body, actions = []) {
 function filesData() {
   const v = V();
   const inside = insideFn();
-  const vis = visibleFiles(S.gallery, { query: v.query, group: v.group, sort: v.sort, inside });
+  const vis = visibleFiles(S.gallery, { query: v.query, group: v.group, sort: v.sort, inside, taken: takenOf });
   setHits(vis.files, v.query, inside);
-  const groups = v.grouped ? vis.groups : [{ rec: null, files: v.sort === 'cell' ? vis.files : sortFiles(vis.files, v.sort) }];
+  const groups = v.grouped ? vis.groups : [{ rec: null, files: v.sort === 'cell' ? vis.files : sortFiles(vis.files, v.sort, { taken: takenOf }) }];
   return { groups, size: v.fileSize, fit: v.fit, grouped: v.grouped, captions: v.captions };
 }
 const shownFiles = () => (V().layout === 'files' && wall ? wall.files() : []);
@@ -344,6 +350,8 @@ function openFile(f, list, scope) {
     onRecord: (x) => { select(x.rowId, { scroll: true }); box.close(); },
     onDownload: (x) => downloadFile(x),
     hitOf: (x) => x.hit || null,
+    onCompare: (a, b) => compareFiles(a, b),
+    exifOf: (x) => exifOf(x),
     onOpenTab: (x) => openInTab(x),
     onRename: (x) => renameOne(x),
     onCover: (x) => reorder(x, 0),
@@ -353,6 +361,9 @@ function openFile(f, list, scope) {
   });
   S.lb = { box, scope };
 }
+
+/** Two pictures with a divider between them. */
+function compareFiles(a, b) { openCompare(shell, { a, b, source }); }
 
 // ---- the file menu ----------------------------------------------------------------------------------------------
 // One menu for a file wherever it is shown: on a tile, in the Viewer, in the lightbox.
@@ -1169,6 +1180,52 @@ async function photoReport(files, rec) {
   } finally { reporting = false; }
 }
 
+// ---- when a photo was taken --------------------------------------------------------------------------------------------------
+// JPEGs say when (and with what, and perhaps where) they were taken. "Date taken" in the sort reads that from the start of each photo,
+// four at a time, once, and keeps it in this browser under the photo's content hash (media/exifindex.js); a photo's details show it too.
+const exifIndex = new ExifIndex();
+let datesRun = null;
+const S_dates = { reading: false, done: 0, total: 0 };
+const byDate = (sort) => sort === 'taken-asc' || sort === 'taken-desc';
+const takenOf = (f) => { const info = exifIndex.get(identOf(f)); return info ? info.taken : null; };
+const datesList = () => { const seen = new Map(); for (const f of S.gallery?.files || []) if (hasExif(f) && !seen.has(identOf(f))) seen.set(identOf(f), f); return seen; };
+function datesInfo() {
+  if (!byDate(V().sort)) return null;
+  const all = datesList();
+  let unread = 0;
+  for (const id of all.keys()) if (!exifIndex.has(id)) unread++;
+  return { reading: S_dates.reading, done: S_dates.done, total: S_dates.total, unread, photos: all.size };
+}
+async function readDatesFor() {
+  await exifIndex.load([...datesList().keys()]);
+  updateBars();
+  if (V().layout === 'files') render();
+  startDates();
+}
+async function startDates() {
+  if (S_dates.reading) return;
+  const list = [...datesList()].filter(([id]) => !exifIndex.has(id)).map(([ident, file]) => ({ ident, file }));
+  if (!list.length) { updateBars(); return; }
+  const ctrl = new AbortController();
+  datesRun = ctrl;
+  Object.assign(S_dates, { reading: true, done: 0, total: list.length });
+  updateBars();
+  let drawn = 0;
+  try {
+    await exifIndex.read(list, { source, signal: ctrl.signal, onProgress: (done) => { S_dates.done = done; if (Date.now() - drawn > 700) { drawn = Date.now(); render(); } } });
+  } catch (e) { toast(t('Reading the dates stopped: {why}', { why: errText(e) })); }
+  finally { S_dates.reading = false; datesRun = null; }
+  render();
+}
+/** What a photo says about itself, read now if it has not been: {taken, make, model, lat, lon, ...} or null. */
+async function exifOf(f) {
+  if (!hasExif(f)) return null;
+  const id = identOf(f);
+  if (!exifIndex.has(id)) await exifIndex.load([id]);
+  if (exifIndex.has(id)) return exifIndex.get(id);
+  try { return await exifIndex.readOne(id, f, source); } catch { return null; }
+}
+
 // ---- inside files ---------------------------------------------------------------------------------------------------
 // The search can look at the words in PDFs, Word, Excel, PowerPoint and text files. Reading them means downloading each
 // file once, so it starts only when asked (the switch in the filter bar, with a one-time question), can be stopped, and
@@ -1360,6 +1417,7 @@ async function boot() {
   S.ready = true;
   rebuild();
   render();
+  if (byDate(V().sort)) readDatesFor();   // a date sort kept from the last visit: its dates are loaded, the missing ones read
   // For the speed checks (tools/m1/speed.js): when the first gallery was on screen.
   try { performance.mark('file-studio:first-draw'); } catch { /* old browser */ }
 }

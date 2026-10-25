@@ -26,6 +26,7 @@ const keys = () => [
     [['+ − 0 1'], t('Zoom in, out, fit, 100 %')],
     [['R'], t('Rotate the view')],
     [['I'], t('Details')],
+    [['S'], t('Start or stop the slideshow')],
     [['D'], t('Download')],
     [['Esc'], t('Close')],
   ]],

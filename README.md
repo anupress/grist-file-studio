@@ -1,7 +1,7 @@
 # File Studio — a custom widget for Grist (by ANUPRESS)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-2563EB.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.6.0-0F1B2D.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.7.0-0F1B2D.svg)](CHANGELOG.md)
 
 File Studio is a gallery, viewer, editor and file manager for the files in your Grist
 **Attachments** columns. It shows them the way people look at files:
@@ -65,6 +65,20 @@ Arrow keys, swipes and the filmstrip move between files; **I** shows the details
 pages, length, upload date, record and column).
 
 ![The inspection report, a PDF, in the lightbox](docs/images/lightbox.png)
+
+## Looking at photos
+
+- **Slideshow.** The play button in the lightbox (or **S**) goes on to the next file by itself: a picture stays 3, 5 or 8
+  seconds (More → the speed; it is remembered), a document twice as long, a video or a voice note until it ends. A thin line
+  along the top shows the time left. Stepping by hand keeps it going; pressing **S** or closing the lightbox stops it.
+- **Compare two pictures.** Mark two pictures and press **Compare**, or choose **Compare with the next picture** in the
+  lightbox's More menu. The two sit on top of each other with a divider to drag (or, with the divider selected, the arrow
+  keys): before and after, last year and this year. **Swap** changes the sides.
+- **Date taken.** **Sort → Date taken** orders photos by when the camera says they were taken, oldest or newest first
+  (photos with no date come last). It reads the date from the start of each JPEG, four at a time, once; the line beside
+  the sort says how far it is and has **Stop**. The dates are kept in this browser, never in the document. A photo's
+  **Details** (I) then also say **Taken**, the **Camera** and, when the phone was allowed to record it, the **Place**, as
+  a link that opens a map only when you click it. Only JPEGs carry this; other pictures keep their upload date.
 
 ## Search inside files
 
@@ -346,7 +360,8 @@ Enter opens, Space marks, Delete removes, **?** lists the rest.
   someone presses Save in Columns: the columns, the layout it opens in, card and tile options, zip
   naming and the upload option.
 - **In this browser**: the layout last switched to, tile size, filters and sort, the interface
-  language, the thumbnail cache, and the text read from files for **Inside files** (with whether it is on).
+  language, the thumbnail cache, the text read from files for **Inside files** (with whether it is on) and the dates
+  read from photos for **Date taken**.
 
 ## Building
 

@@ -9,6 +9,8 @@ import { icon } from '../core/assets/icons.js';
 import { showFile } from './stage.js';
 import { renderFace, durationText } from './face.js';
 import { typeLabel, sizeText } from '../model/kinds.js';
+import { SPEEDS, speedFrom, dwell, nextIndex, nearestImage } from '../model/viewing.js';
+import { cameraName, mapLink, placeText } from '../media/exif.js';
 import { trapFocus, openMenu } from '../ui/dialog.js';
 import { placesList, placesSummary } from '../ui/rowcard.js';
 import { t, uiLang, dateLocale } from '../i18n/index.js';
@@ -17,7 +19,7 @@ const btn = (name, label, onclick, extra = {}) => el('button', { type: 'button',
 
 /**
  * @param o {files, index, source, thumbs, culture, canEdit(file) -> bool, onRecord(file), onDownload(file), onOpenTab(file),
- *           onRename(file), onCover(file), onRemove(file), onClose(), onShow(file)}
+ *           onRename(file), onCover(file), onRemove(file), onClose(), onShow(file), onCompare(file, other)}
  */
 export function openLightbox(host, o) {
   let files = o.files.slice();
@@ -25,6 +27,10 @@ export function openLightbox(host, o) {
   let view = null;
   let showInfo = false;
   const stripReleases = [];
+  // The slideshow: on to the next file after a while (a picture 3, 5 or 8 seconds, a document twice that, video and audio when they end).
+  let playing = false, timer = 0, ended = null;
+  let speed = SPEEDS[1];
+  try { speed = speedFrom(localStorage.getItem('file-studio-slide-speed')); } catch { /* private window */ }
 
   const name = el('span', { class: 'gs-lb__name' });
   const meta = el('span', { class: 'gs-lb__meta' });
@@ -36,6 +42,7 @@ export function openLightbox(host, o) {
     rotateBtn,
     el('span', { class: 'gs-lb__sep' }),
   ]);
+  const playBtn = btn('play2', t('Slideshow (S)'), () => toggleShow(), { 'aria-pressed': 'false' });
   const infoBtn = btn('info', t('Details (I)'), () => toggleInfo());
   // Edit: pictures and text files open in an editor; the button is there only for those.
   const editBtn = el('button', { type: 'button', class: 'gs-btn gs-lb__edit', title: t('Edit this file (E)'), onclick: () => o.onEdit(files[i]) }, [icon('edit'), t('Edit')]);
@@ -47,7 +54,7 @@ export function openLightbox(host, o) {
       zoomTools,
       btn('download2', t('Download (D)'), () => o.onDownload(files[i])),
       btn('external', t('Open in a new tab'), () => o.onOpenTab(files[i]), { class: 'gs-lb__btn gs-lb__tab' }),
-      infoBtn, moreBtn,
+      playBtn, infoBtn, moreBtn,
       el('span', { class: 'gs-lb__sep' }),
       btn('close', t('Close (Esc)'), () => close()),
     ]),
@@ -55,8 +62,9 @@ export function openLightbox(host, o) {
   const stage = el('div', { class: 'gs-lb__stage' });
   const prev = el('button', { type: 'button', class: 'gs-lb__arrow gs-lb__arrow--prev', 'aria-label': t('Previous (←)'), onclick: () => go(i - 1) }, [icon('arrowLeft')]);
   const next = el('button', { type: 'button', class: 'gs-lb__arrow gs-lb__arrow--next', 'aria-label': t('Next (→)'), onclick: () => go(i + 1) }, [icon('arrowRight')]);
+  const tick = el('div', { class: 'gs-lb__tick', hidden: true, 'aria-hidden': 'true' });
   const info = el('aside', { class: 'gs-lb__info', 'aria-label': t('Details'), hidden: true });
-  const body = el('div', { class: 'gs-lb__body' }, [el('div', { class: 'gs-lb__stage-wrap', style: { flex: '1', minWidth: '0', position: 'relative', display: 'flex' } }, [stage, prev, next]), info]);
+  const body = el('div', { class: 'gs-lb__body' }, [el('div', { class: 'gs-lb__stage-wrap', style: { flex: '1', minWidth: '0', position: 'relative', display: 'flex' } }, [stage, prev, next, tick]), info]);
   stage.style.flex = '1';
   const strip = el('div', { class: 'gs-lb__strip', role: 'listbox', 'aria-label': t('All files') });
   // After a search inside files: where the words were found, with a way through the pages that hold them.
@@ -81,13 +89,26 @@ export function openLightbox(host, o) {
       th?.extra?.duration ? [t('Length'), durationText(th.extra.duration)] : null,
       f.uploaded ? [t('Uploaded'), fmtDate(f.uploaded)] : null,
     ].filter(Boolean);
+    const fileList = el('dl', {}, rows.flatMap(([k, v]) => [el('dt', { text: k }), el('dd', { text: v })]));
     clear(info).append(
       el('h3', { text: t('File') }),
-      el('dl', {}, rows.flatMap(([k, v]) => [el('dt', { text: k }), el('dd', { text: v })])),
+      fileList,
       el('h3', { text: t('Record') }),
       el('dl', {}, [el('dt', { text: t('Title') }), el('dd', { text: f.recordTitle || '—' }), el('dt', { text: t('Column') }), el('dd', { text: f.colLabel || f.col })]),
       el('button', { type: 'button', class: 'gs-btn gs-lb__go', text: t('Select this record'), onclick: () => o.onRecord(f) }),
     );
+    // What the photo says about itself, once it has been read (the start of the file only).
+    if (o.exifOf && f.kind === 'image') {
+      o.exifOf(f).then((x) => {
+        if (!x || files[i] !== f || !showInfo) return;
+        const more = [];
+        if (x.taken != null) more.push([t('Taken'), new Intl.DateTimeFormat(dateLocale(o.culture), { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' }).format(new Date(x.taken))]);
+        const cam = cameraName(x.make, x.model);
+        if (cam) more.push([t('Camera'), cam]);
+        if (x.lat != null && x.lon != null) more.push([t('Place'), el('a', { href: mapLink(x.lat, x.lon), target: '_blank', rel: 'noopener noreferrer', text: placeText(x.lat, x.lon), title: t('Open the place on a map') })]);
+        for (const [k, v] of more) fileList.append(el('dt', { text: k }), el('dd', {}, [v]));
+      }).catch(() => {});
+    }
     // Where it is: every cell in the document holding this file. Read on demand, it can take a moment.
     if (o.whereIs) {
       const head = el('h3', { text: t('Where it is') });
@@ -103,7 +124,58 @@ export function openLightbox(host, o) {
   function toggleInfo() { showInfo = !showInfo; info.hidden = !showInfo; infoBtn.classList.toggle('is-on', showInfo); if (showInfo) renderInfo(); }
 
   function more() {
-    openMenu(box, moreBtn, o.menuItems(files[i], { inLightbox: true }));
+    const here = files[i];
+    const after = nearestImage(files, i, 1), before = nearestImage(files, i, -1);
+    const extra = [
+      ...(here.kind === 'image' && o.onCompare ? [
+        null,
+        [t('Compare with the next picture'), () => o.onCompare(here, files[after]), { disabled: after < 0, hint: t('Drag a divider between them') }],
+        [t('Compare with the previous picture'), () => o.onCompare(here, files[before]), { disabled: before < 0 }],
+      ] : []),
+      ...(files.length > 1 ? [null, ...SPEEDS.map((n) => [(n === speed ? '✓ ' : '') + t('Slideshow: {n} seconds a picture', { n }), () => setSpeed(n)])] : []),
+    ];
+    openMenu(box, moreBtn, [...o.menuItems(here, { inLightbox: true }), ...extra]);
+  }
+
+  // ---- the slideshow ----
+  function stopTimer() {
+    clearTimeout(timer); timer = 0;
+    if (ended) { ended.media.removeEventListener('ended', ended.fn); ended = null; }
+    tick.hidden = true; tick.style.animation = 'none';
+  }
+  function advance() { go(nextIndex(i, files.length)); }
+  function schedule() {
+    stopTimer();
+    if (!playing || files.length < 2) return;
+    const sec = dwell(files[i].kind, speed);
+    if (sec == null) {   // video and audio play to their end
+      const m = view && view.media;
+      if (m) {
+        if (m.play) m.play().catch(() => {});
+        const fn = () => advance();
+        m.addEventListener('ended', fn, { once: true });
+        ended = { media: m, fn };
+        timer = setTimeout(advance, 10 * 60e3);
+      } else timer = setTimeout(advance, speed * 1000);
+      return;
+    }
+    tick.hidden = false; tick.style.animation = 'none'; void tick.offsetWidth;
+    tick.style.animation = `gs-tick ${sec}s linear forwards`;
+    timer = setTimeout(advance, sec * 1000);
+  }
+  function toggleShow() {
+    if (files.length < 2) return;
+    playing = !playing;
+    playBtn.classList.toggle('is-on', playing);
+    playBtn.setAttribute('aria-pressed', playing ? 'true' : 'false');
+    const label = playing ? t('Stop the slideshow (S)') : t('Slideshow (S)');
+    playBtn.title = label; playBtn.setAttribute('aria-label', label);
+    schedule();
+  }
+  function setSpeed(n) {
+    speed = n;
+    try { localStorage.setItem('file-studio-slide-speed', String(n)); } catch { /* private window: not kept */ }
+    if (playing) schedule();
   }
 
   function renderStrip() {
@@ -167,6 +239,8 @@ export function openLightbox(host, o) {
     rotateBtn.hidden = !view.rotate;
     if (showInfo) renderInfo();
     renderStrip();
+    playBtn.hidden = files.length < 2;
+    if (playing && files.length < 2) toggleShow(); else schedule();
     o.onShow?.(f);
   }
   function go(k) {
@@ -175,6 +249,7 @@ export function openLightbox(host, o) {
     show();
   }
   function close() {
+    stopTimer();
     view?.destroy();
     stripReleases.splice(0).forEach((r) => r());
     box.removeEventListener('keydown', onKey);
@@ -196,6 +271,7 @@ export function openLightbox(host, o) {
     else if (k === '1' && view?.zoomable) { handled(); view.actual(); }
     else if ((k === 'r' || k === 'R') && view?.rotate) { handled(); view.rotate(e.shiftKey ? -1 : 1); }
     else if (k === 'i' || k === 'I') { handled(); toggleInfo(); }
+    else if ((k === 's' || k === 'S') && files.length > 1) { handled(); toggleShow(); }
     else if (k === 'd' || k === 'D') { handled(); o.onDownload(files[i]); }
     else if ((k === 'e' || k === 'E') && o.canEditContent(files[i])) { handled(); o.onEdit(files[i]); }
     else if ((k === 'Delete') && o.canEdit(files[i])) { handled(); o.onRemove(files[i]); }

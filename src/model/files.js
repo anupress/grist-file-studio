@@ -105,17 +105,32 @@ export function groupCounts(files) {
   return out;
 }
 
-export const SORTS = ['cell', 'name', 'newest', 'oldest', 'largest', 'type'];
+export const SORTS = ['cell', 'name', 'newest', 'oldest', 'taken-asc', 'taken-desc', 'largest', 'type'];
 const collator = typeof Intl !== 'undefined' ? new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' }) : null;
 const byName = (a, b) => (collator ? collator.compare(a.name, b.name) : a.name.localeCompare(b.name));
 
-/** Sort a list of files (a copy). 'cell' keeps the records' order and each cell's order. */
-export function sortFiles(files, sort) {
+/**
+ * Sort a list of files (a copy). 'cell' keeps the records' order and each cell's order.
+ * 'taken-asc' and 'taken-desc' go by the date a photo says it was taken (opts.taken(file) -> milliseconds or null); photos with no date come last.
+ */
+export function sortFiles(files, sort, opts = {}) {
   const list = files.slice();
   switch (sort) {
     case 'name': return list.sort(byName);
     case 'newest': return list.sort((a, b) => (b.uploaded || 0) - (a.uploaded || 0) || byName(a, b));
     case 'oldest': return list.sort((a, b) => (a.uploaded || 0) - (b.uploaded || 0) || byName(a, b));
+    case 'taken-asc':
+    case 'taken-desc': {
+      const dir = sort === 'taken-asc' ? 1 : -1;
+      const when = (f) => (opts.taken ? opts.taken(f) : null);
+      return list.sort((a, b) => {
+        const x = when(a), y = when(b);
+        if (x == null && y == null) return (a.uploaded || 0) - (b.uploaded || 0) || byName(a, b);
+        if (x == null) return 1;
+        if (y == null) return -1;
+        return (x - y) * dir || byName(a, b);
+      });
+    }
     case 'largest': return list.sort((a, b) => b.size - a.size || byName(a, b));
     case 'type': return list.sort((a, b) => a.ext.localeCompare(b.ext) || byName(a, b));
     default: return list;
@@ -127,7 +142,7 @@ export function sortFiles(files, sort) {
  * chosen group, each record's files sorted. Records left with no file are dropped.
  * @returns {{groups: [{rec, files}], files: [file]}} files = the flat order the lightbox steps through
  */
-export function visibleFiles(gallery, { query = '', group = 'all', sort = 'cell', inside = null } = {}) {
+export function visibleFiles(gallery, { query = '', group = 'all', sort = 'cell', inside = null, taken = null } = {}) {
   const match = matcher(query);
   const groups = [];
   const flat = [];
@@ -140,7 +155,7 @@ export function visibleFiles(gallery, { query = '', group = 'all', sort = 'cell'
       return entry ? match.within(entry.all, f.name, ...recText) : match(f.name, ...recText);
     });
     if (!keep.length) continue;
-    const sorted = sortFiles(keep, sort);
+    const sorted = sortFiles(keep, sort, { taken });
     groups.push({ rec, files: sorted });
     flat.push(...sorted);
   }

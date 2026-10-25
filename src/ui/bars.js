@@ -8,17 +8,18 @@
 //
 // Built once and updated in place, so the search box keeps its focus while someone types.
 
-import { el, clear, debounce } from '../core/util.js';
+import { el, clear, debounce, fromHTML } from '../core/util.js';
 import { openPopover } from './dialog.js';
 import { icon } from '../core/assets/icons.js';
 import { ANUPRESS_LOGO } from '../core/assets/brand-logo.js';
 import { VERSION } from '../version.js';
 import { t, tn } from '../i18n/index.js';
 
+const compareIcon = () => fromHTML('<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16"/><path d="M7.5 9.5 5.5 12l2 2.5M16.5 9.5l2 2.5-2 2.5"/></svg>');
 const LAYOUT_LABELS = { cards: 'Cards', files: 'Files', viewer: 'Viewer' };
 const LAYOUT_ICONS = { cards: 'grid2', files: 'gallery', viewer: 'image2' };
 const GROUP_LABELS = { all: 'All', image: 'Pictures', pdf: 'PDFs', video: 'Videos', audio: 'Audio', other: 'Other' };
-const SORT_LABELS = { cell: 'As in the table', name: 'Name', newest: 'Newest first', oldest: 'Oldest first', largest: 'Largest first', type: 'Type' };
+const SORT_LABELS = { cell: 'As in the table', name: 'Name', newest: 'Newest first', oldest: 'Oldest first', 'taken-asc': 'Date taken, oldest first', 'taken-desc': 'Date taken, newest first', largest: 'Largest first', type: 'Type' };
 
 const seg = (label, items, onPick) => {
   // A segment with icons may drop its words on a narrow widget (the icon and the tooltip remain);
@@ -79,7 +80,11 @@ export function createBars(chrome, filters, on) {
   let last = null;
   const display = el('button', { type: 'button', class: 'gs-btn', 'aria-haspopup': 'dialog', 'aria-expanded': 'false', title: t('Size and layout of the tiles'), 'aria-label': t('Display'),
     onclick: () => openPopover(filters.parentElement, display, () => displayPanel(), { label: t('Display') }) }, [icon('sliders'), el('span', { class: 'gs-btn__label', text: t('Display') })]);
-  const end = el('div', { class: 'gs-filters__end' }, [sortBox, display]);
+  // Sorting by date taken reads the dates out of the photos: a line says how far it is, and can be stopped.
+  const datesNote = el('span', { class: 'gs-inside__note', role: 'status' });
+  const datesAct = el('button', { type: 'button', class: 'gs-linkbtn', hidden: true });
+  const datesBox = el('div', { class: 'gs-inside', hidden: true }, [datesNote, datesAct]);
+  const end = el('div', { class: 'gs-filters__end' }, [datesBox, sortBox, display]);
   function displayPanel() {
     const s = last;
     const files = s.layout === 'files';
@@ -111,6 +116,7 @@ export function createBars(chrome, filters, on) {
     el('button', { type: 'button', class: 'gs-btn gs-btn--primary', onclick: () => on.onMarkedZip() }, [icon('archive2'), t('Download as zip')]),
     el('button', { type: 'button', class: 'gs-btn', dataset: { role: 'rename' }, title: t('Give the marked files names built from their columns'), onclick: () => on.onMarkedRename() }, [icon('edit'), t('Rename…')]),
     el('button', { type: 'button', class: 'gs-btn', dataset: { role: 'merge' }, title: t('Put the marked PDFs and pictures into one new PDF'), onclick: () => on.onMarkedMerge() }, [icon('copy'), t('Merge into PDF…')]),
+    el('button', { type: 'button', class: 'gs-btn', dataset: { role: 'compare' }, title: t('Two marked pictures with a divider to drag between them'), onclick: () => on.onMarkedCompare() }, [compareIcon(), t('Compare')]),
     el('button', { type: 'button', class: 'gs-btn', dataset: { role: 'report' }, title: t('The marked photos on pages, as a PDF'), onclick: () => on.onMarkedReport() }, [icon('file2'), t('Photo report…')]),
     el('button', { type: 'button', class: 'gs-btn', dataset: { role: 'remove' }, onclick: () => on.onMarkedRemove() }, [icon('trash'), t('Remove from records')]),
     el('span', { class: 'gs-spacer' }),
@@ -149,6 +155,7 @@ export function createBars(chrome, filters, on) {
       marked.querySelector('[data-role=rename]').hidden = !s.editable;
       marked.querySelector('[data-role=merge]').hidden = !s.editable || s.markedCount < 2;
       marked.querySelector('[data-role=report]').hidden = !s.markedPictures;
+      marked.querySelector('[data-role=compare]').hidden = !s.markedPair;
 
       if (document.activeElement !== search && search.value !== s.query) search.value = s.query || '';
       search.setAttribute('aria-label', s.layout === 'cards' ? t('Search records') : t('Search files and records'));
@@ -164,6 +171,16 @@ export function createBars(chrome, filters, on) {
       }
       sortBox.hidden = !filesLayout;
       sort.value = s.sort;
+      const dt = s.dates;
+      let dnote = '', dact = null;
+      if (dt && filesLayout) {
+        if (dt.reading) { dnote = t('Reading dates {done} of {total}…', { done: dt.done, total: dt.total }); dact = [t('Stop'), on.onDatesStop]; }
+        else if (dt.unread) { dnote = tn(dt.unread, '{n} photo without its date read yet', '{n} photos without their dates read yet'); dact = [t('Read'), on.onDatesRead]; }
+      }
+      datesNote.textContent = dnote;
+      datesBox.hidden = !dnote;
+      datesAct.hidden = !dact;
+      if (dact) { datesAct.textContent = dact[0]; datesAct.onclick = dact[1]; }
 
       const ins = s.inside;
       const avail = !!ins && ins.available > 0;

@@ -11,6 +11,7 @@
 //   - Grist ignores Range, so a video can only seek once it is a Blob.
 //   - Upload: one multipart POST, X-Requested-With set (Grist's CSRF guard), progress through XHR.
 
+import { readHead } from '../media/head.js';
 import { isLive } from './connect.js';
 import { docUrlFromBase } from '../model/locations.js';
 
@@ -96,6 +97,22 @@ export async function fileUrl(attId, { inline = false, name = null, fresh = fals
  * The file's bytes as a Blob of the given type.
  * @param o {type, signal, onProgress(loaded, total)}
  */
+/** The first n bytes of an attachment; the rest of the download is cancelled. */
+export async function fileHead(attId, n, { signal = null } = {}) {
+  const attempt = async (fresh) => {
+    const ctrl = new AbortController();
+    if (signal) signal.addEventListener('abort', () => ctrl.abort(), { once: true });
+    const res = await fetch(await fileUrl(attId, { fresh }), { signal: ctrl.signal });
+    if (!res.ok) throw Object.assign(new Error(`Grist answered ${res.status}`), { status: res.status });
+    return readHead(res, n, () => ctrl.abort());
+  };
+  try { return await attempt(false); }
+  catch (e) {
+    if (e.name === 'AbortError' || e.status === 404) throw e;
+    return attempt(true);   // a stale token, most likely: once more with a new one
+  }
+}
+
 export async function fileBlob(attId, { type = '', signal = null, onProgress = null } = {}) {
   const attempt = async (fresh) => {
     const res = await fetch(await fileUrl(attId, { fresh }), { signal });

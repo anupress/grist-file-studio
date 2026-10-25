@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.7.0
+
+Slideshow, a before/after slider and the date a photo was taken. Checked in the demo with real mouse and keys, and in Grist 1.7.20 (the date, camera and place of a photo read through the attachment endpoint).
+
+### Photos
+- **Slideshow** in the lightbox: play button or **S**; 3, 5 or 8 seconds a picture (More menu, kept), twice as long for documents,
+  video and audio play to their end; a thin line shows the time left (hidden when the system asks for less motion).
+- **Compare**: two marked pictures, or the current one with the next or previous in the lightbox, laid over each other with a
+  divider to drag or move with the arrow keys; the frame has the first picture's shape; Swap.
+- **Sort by date taken** (oldest or newest first, photos without a date last): the dates are read from the first 128 kB of each JPEG
+  (the rest of the download is cancelled), four at a time, and kept in this browser under the photo's content hash. A line
+  beside the sort shows the progress and Stop.
+- A photo's **Details** show Taken, Camera and Place (a link that opens a map only when clicked) for JPEGs with EXIF.
+- The demo's photos carry EXIF (a time, a phone and a place near each address) so all of this has something to show.
+
+### Fixed
+- The group chip and the sort that were chosen last time were never restored when the widget opened again (the README
+  said they were); now they are.
+
 ## 1.6.0
 
 Previews of Word, Excel and PowerPoint files. Checked in Grist 1.7.20 (a guest document: the Word and Excel demo files through the attachment endpoint) and in the demo with a presentation added through the

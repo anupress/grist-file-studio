@@ -7,12 +7,13 @@
 
 import { kindOf, extOf } from '../model/kinds.js';
 import { columnsFromFixture } from '../model/schema.js';
+import { readHead } from '../media/head.js';
 
 // [file, bytes, width, height]
 const FILES = [
-  ['living-room.jpg', 95879, 1248, 832], ['kitchen.jpg', 78582, 1248, 832], ['damp-corner.jpg', 85330, 1152, 864],
-  ['bathroom.jpg', 64006, 832, 1248], ['facade.jpg', 156979, 832, 1248], ['bedroom.jpg', 55817, 1248, 832],
-  ['balcony.jpg', 180004, 1280, 720], ['floor-plan.png', 26539, 1400, 1000], ['inspection-report.pdf', 110005, 0, 0],
+  ['living-room.jpg', 96151, 1248, 832], ['kitchen.jpg', 78854, 1248, 832], ['damp-corner.jpg', 85602, 1152, 864],
+  ['bathroom.jpg', 64278, 832, 1248], ['facade.jpg', 157250, 832, 1248], ['bedroom.jpg', 56088, 1248, 832],
+  ['balcony.jpg', 180277, 1280, 720], ['floor-plan.png', 26539, 1400, 1000], ['inspection-report.pdf', 110005, 0, 0],
   ['notes.txt', 386, 0, 0], ['walkthrough.mp4', 379592, 0, 0], ['meter-readings.csv', 252, 0, 0],
   ['handover-protocol.docx', 36946, 0, 0], ['smoke-alarm-test.mp3', 32617, 0, 0],
   ['handover-checklist.md', 570, 0, 0], ['listing.html', 769, 0, 0], ['move-in-form.pdf', 11099, 0, 0], ['inspection-costs.xlsx', 6302, 0, 0],
@@ -85,6 +86,11 @@ export function demoSource(meta, openPdf) {
       const b = await res.blob();
       onProgress?.(b.size, b.size);
       return type && b.type !== type ? new Blob([b], { type }) : b;
+    },
+    async head(file, n, { signal = null } = {}) {
+      const ctrl = new AbortController();
+      if (signal) signal.addEventListener('abort', () => ctrl.abort(), { once: true });
+      return readHead(await fetch(url(file), { signal: ctrl.signal }), n, () => ctrl.abort());
     },
     openPdf,
     async upload(files, { onProgress = null } = {}) {
