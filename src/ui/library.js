@@ -103,6 +103,16 @@ export function openLibrary(host, o) {
           el('button', { type: 'button', class: 'gs-btn', disabled: !sum.unused.rows || !isOwner || busy, onclick: () => free() }, [icon('trash'), t('Free up space…')]),
         ]),
       ]),
+      o.onArchive ? el('section', { class: 'gs-lib__section', 'aria-labelledby': 'gs-lib-keep' }, [
+        el('h3', { id: 'gs-lib-keep', text: t('Keep a copy') }),
+        el('div', { class: 'gs-lib__row' }, [
+          el('div', { class: 'gs-lib__what' }, [
+            el('strong', { text: t('Download every file') }),
+            el('p', { class: 'gs-hint', text: t('One zip of all the files in the document, made by Grist. Each file is named by its content code and its name.') }),
+          ]),
+          el('button', { type: 'button', class: 'gs-btn', disabled: busy, onclick: () => o.onArchive() }, [icon('archive2'), t('Download as zip')]),
+        ]),
+      ]) : null,
       biggestBlock(),
     );
   }

@@ -19,6 +19,8 @@ const keys = () => [
     [['← → ↑ ↓'], t('Move')],
     [['Enter'], t('Open the file, or show the record in the Viewer')],
     [[t('Space')], t('Mark a file (with Shift: everything up to it)')],
+    [[t('Ctrl'), 'A'], t('Mark all the files shown (Files layout)')],
+    [['F2'], t('Rename the file')],
     [[t('Delete')], t('Remove the file from its record')],
     [['Esc'], t('Unmark all')],
   ]],

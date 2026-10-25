@@ -10,7 +10,7 @@
 
 import { el, clear } from '../core/util.js';
 import { icon } from '../core/assets/icons.js';
-import { layoutFiles, layoutCards, visibleBlocks, locate, neighbour, listColumns, LIST_HEAD_H } from '../model/layout.js';
+import { layoutFiles, layoutCards, visibleBlocks, locate, neighbour, listColumns, LIST_HEAD_H, tilesInRect } from '../model/layout.js';
 import { flippable, coverOf, listSortState } from '../model/files.js';
 import { shorten } from '../model/textsearch.js';
 import { renderFace, fileLabel } from './face.js';
@@ -30,7 +30,7 @@ export function hitWhere(hit) {
 
 /**
  * @param on {onOpen(file), onSelect(rowId), onMark(file, mode: 'toggle'|'range'), onMenu(file, anchor), onDrop(rowId|null, files),
- *            onSort(column) (a list heading was clicked), culture (for the dates), onRecordMenu(rowId, anchor), onSpaceMenu(anchor) (anchor: an element, or {x, y} where the right click was),
+ *            onMarkSet(keys: Set) (a box was dragged), onSort(column) (a list heading was clicked), culture (for the dates), onRecordMenu(rowId, anchor), onSpaceMenu(anchor) (anchor: an element, or {x, y} where the right click was),
  *            onAdd(rowId), onView(rowId), onRemove(file), onFocusFile(file)}
  */
 export function createWall(host, thumbs, on) {
@@ -418,6 +418,46 @@ export function createWall(host, thumbs, on) {
     for (const g of S.data?.groups || []) { const f = g.files.find((x) => x.key === key); if (f) return f; }
     return null;
   }
+
+  // ---- a box dragged over the wall marks the files it touches ------------------------------------------------------------
+  // Start on empty ground (between tiles, beside a short row, below the last one), drag, let go. Ctrl or Shift adds to the marks that were
+  // there; without them the box marks only what it touches, and a click on empty ground unmarks. The files are found from the layout, not
+  // from the page, so tiles that are not drawn at the moment count too.
+  let lasso = null;
+  scroll.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || e.pointerType !== 'mouse' || S.mode !== 'files') return;
+    if (e.target.closest?.('.gs-tile, .gs-row, .gs-head, .gs-emptyrow, .gs-caption, button, input, select, a, .gs-listhead')) return;
+    if (e.offsetX > scroll.clientWidth) return;   // the scroll bar
+    const at = canvas.getBoundingClientRect();
+    lasso = { id: e.pointerId, x: e.clientX - at.left, y: e.clientY - at.top, add: e.ctrlKey || e.metaKey || e.shiftKey, base: new Set(S.marked), moved: false, band: null };
+    scroll.setPointerCapture(e.pointerId);
+  });
+  scroll.addEventListener('pointermove', (e) => {
+    if (!lasso || e.pointerId !== lasso.id) return;
+    const at = canvas.getBoundingClientRect();
+    const x = e.clientX - at.left, y = e.clientY - at.top;
+    if (!lasso.moved && Math.hypot(x - lasso.x, y - lasso.y) < 5) return;
+    if (!lasso.moved) { lasso.moved = true; lasso.band = el('div', { class: 'gs-lasso', 'aria-hidden': 'true' }); canvas.append(lasso.band); scroll.classList.add('is-lassoing'); }
+    // near the top or bottom edge: scroll on
+    const sb = scroll.getBoundingClientRect();
+    if (e.clientY < sb.top + 24) scroll.scrollTop -= 14; else if (e.clientY > sb.bottom - 24) scroll.scrollTop += 14;
+    const rect = { x1: lasso.x, y1: lasso.y, x2: x, y2: y };
+    Object.assign(lasso.band.style, { left: Math.min(rect.x1, rect.x2) + 'px', top: Math.min(rect.y1, rect.y2) + 'px', width: Math.abs(rect.x2 - rect.x1) + 'px', height: Math.abs(rect.y2 - rect.y1) + 'px' });
+    const keys = tilesInRect(S.layout.blocks, rect);
+    on.onMarkSet?.(lasso.add ? new Set([...lasso.base, ...keys]) : new Set(keys));
+  });
+  const endLasso = (e) => {
+    if (!lasso || e.pointerId !== lasso.id) return;
+    const l = lasso;
+    lasso = null;
+    l.band?.remove();
+    scroll.classList.remove('is-lassoing');
+    try { scroll.releasePointerCapture(e.pointerId); } catch { /* already released */ }
+    // a click on empty ground (no box) unmarks, as on a computer
+    if (!l.moved && !l.add && S.marked.size) on.onMarkSet?.(new Set());
+  };
+  scroll.addEventListener('pointerup', endLasso);
+  scroll.addEventListener('pointercancel', endLasso);
 
   // ---- dropping files ------------------------------------------------------------------------------------
   let dropOver = null;

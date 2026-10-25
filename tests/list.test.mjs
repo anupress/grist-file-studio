@@ -1,6 +1,6 @@
 // The list layout (a Details view): one row per file, the columns that fit, and the sorts a column heading switches between.
 
-import { layoutFiles, listColumns, ROW_H, HEAD_H } from '../src/model/layout.js';
+import { layoutFiles, listColumns, tilesInRect, ROW_H, HEAD_H } from '../src/model/layout.js';
 import { sortFiles, listSortFor, listSortState, LIST_SORTS, SORTS } from '../src/model/files.js';
 
 let pass = 0, fail = 0;
@@ -34,6 +34,17 @@ eq('every sort a heading uses is a known sort', Object.values(LIST_SORTS).flat()
 const all = groups[0].files.concat(groups[1].files);
 const keys = (sort) => sortFiles(all, sort).map((x) => x.key).join('');
 eq('sorts: name both ways, size both ways, type both ways', [keys('name'), keys('name-desc'), keys('largest'), keys('smallest'), keys('type'), keys('type-desc')], ['bacd', 'dcab', 'acbd', 'dbca', 'adbc', 'cbad']);
+
+// A box dragged over the wall
+const tiles = layoutFiles([{ rec: { rowId: 1 }, files: Array.from({ length: 8 }, (_, i) => ({ key: 'k' + i, name: 'f' + i, ext: 'jpg', size: 1, w: 100, h: 100 })) }], { width: 700, size: 100, fit: 'square', grouped: false });
+const firstRow = tiles.blocks.find((b) => b.kind === 'row');
+const t0 = firstRow.tiles[0], t1 = firstRow.tiles[1];
+eq('a box over one tile takes that tile', tilesInRect(tiles.blocks, { x1: t0.x + 5, y1: firstRow.y + 5, x2: t0.x + 20, y2: firstRow.y + 20 }), ['k0']);
+eq('a box over two neighbours takes both, whichever corner it starts from', tilesInRect(tiles.blocks, { x1: t1.x + t1.w - 3, y1: firstRow.y + 60, x2: t0.x + 3, y2: firstRow.y + 3 }), ['k0', 'k1']);
+eq('a box in the gap or past the last row takes nothing', [tilesInRect(tiles.blocks, { x1: 0, y1: 0, x2: 4, y2: 4 }), tilesInRect(tiles.blocks, { x1: 0, y1: tiles.height + 50, x2: 300, y2: tiles.height + 90 })], [[], []]);
+eq('a tall box takes every row it crosses', tilesInRect(tiles.blocks, { x1: t0.x + 1, y1: 0, x2: t0.x + 2, y2: tiles.height }).length, tiles.blocks.filter((b) => b.kind === 'row').length);
+const rowsOnly = layoutFiles(groups, { width: 800, fit: 'list' });
+eq('in the list a box takes the rows it crosses', tilesInRect(rowsOnly.blocks, { x1: 50, y1: rowsOnly.blocks.find((b) => b.kind === 'row').y + 2, x2: 60, y2: rowsOnly.blocks.filter((b) => b.kind === 'row')[1].y + 2 }), ['a', 'b']);
 
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

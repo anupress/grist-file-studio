@@ -149,6 +149,11 @@ columns, formulas and links work on it. **Rename folder…** changes the name ce
 else it holds, so delete it in Grist. Undo takes back a new folder and a rename. There are no folders inside folders; for another way
 to group files (one file in several groups) use tags.
 
+**Mark with a box.** In the Files layout (tiles or list), press on empty ground between the tiles, beside a short row or below the last
+one, drag, and let go: the files the box touches are marked as it grows, and the wall scrolls when the pointer reaches its top or bottom.
+Hold **Ctrl** or **Shift** to add to the marks that are there; a click on empty ground unmarks. **Ctrl+A** marks every file shown and
+**F2** renames the file with the keyboard focus.
+
 **Cut, copy and paste** work between folders as on a computer. In the Files layout, **Ctrl+X** or **Ctrl+C** takes the marked files (or
 the one with the keyboard focus), or choose **Cut** or **Copy** in a file's menu or the menu of the marked files. Select a record (click
 its heading, or just focus one of its files) and press **Ctrl+V**, or right-click a folder and choose **Paste n files here**: a cut moves the
@@ -384,6 +389,9 @@ button shows where the space goes and helps make room.
   this step. After it, Undo cannot restore them. Only an **owner** of the document can do it.
 - The **biggest files** list each file's size and in how many places it is used, with **Where it is…**, **Download** and
   **Remove from every place…**.
+- **Keep a copy**: **Download as zip** asks Grist for one zip of every file in the document (each named by its content code and its
+  name), whether a cell uses it or not, which is the quickest way to back up the files. Grist makes it, so a large document takes a
+  moment before the download starts.
 
 ## Getting files out
 

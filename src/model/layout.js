@@ -154,6 +154,21 @@ export function visibleBlocks(blocks, top, bottom) {
   return out;
 }
 
+/**
+ * The files whose tile (or row) a rectangle touches, for dragging a box over the wall. The rectangle is in the canvas's own pixels, any two
+ * opposite corners.
+ * @returns [file key]
+ */
+export function tilesInRect(blocks, a) {
+  const x1 = Math.min(a.x1, a.x2), x2 = Math.max(a.x1, a.x2), y1 = Math.min(a.y1, a.y2), y2 = Math.max(a.y1, a.y2);
+  const out = [];
+  for (const b of visibleBlocks(blocks, y1, y2)) {
+    if (b.kind !== 'row') continue;
+    for (const tile of b.tiles) if (tile.x < x2 && tile.x + tile.w > x1 && b.y < y2 && b.y + tile.h > y1) out.push(tile.f.key);
+  }
+  return out;
+}
+
 /** Where a file sits: its block and tile, for scrolling it into view and for arrow keys. */
 export function locate(blocks, key) {
   for (let b = 0; b < blocks.length; b++) {

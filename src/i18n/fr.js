@@ -1002,4 +1002,11 @@ export const FR = {
   'Type to find a file, a folder or a command.': 'Saisissez pour trouver un fichier, un dossier ou une commande.',
   // command palette footer
   'Arrows to choose, Enter to run, Esc to close': 'Flèches pour choisir, Entrée pour lancer, Échap pour fermer',
+  // box selection, archive, keys
+  'Download every file': 'Télécharger tous les fichiers',
+  'Grist is making the zip. The download starts when it is ready.': 'Grist prépare le zip. Le téléchargement démarre dès qu’il est prêt.',
+  'Keep a copy': 'Garder une copie',
+  'Mark all the files shown (Files layout)': `Marquer tous les fichiers affichés (disposition ${q('Fichiers')})`,
+  'One zip of all the files in the document, made by Grist. Each file is named by its content code and its name.': 'Un zip de tous les fichiers du document, préparé par Grist. Chaque fichier porte son code de contenu puis son nom.',
+  'Rename the file': 'Renommer le fichier',
 };

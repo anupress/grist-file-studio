@@ -93,6 +93,12 @@ export async function fileUrl(attId, { inline = false, name = null, fresh = fals
   return url;
 }
 
+/** A URL for one zip (or tar) of every file in the document, made by Grist; good for the next 12 minutes at least. Build it when it is used. */
+export async function archiveUrl(format = 'zip', { fresh = false } = {}) {
+  const t = await token('ro', fresh);
+  return `${t.baseUrl}/attachments/archive?format=${format}&auth=${encodeURIComponent(t.token)}`;
+}
+
 /**
  * The file's bytes as a Blob of the given type.
  * @param o {type, signal, onProgress(loaded, total)}

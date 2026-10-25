@@ -8,7 +8,7 @@
 import { el, clear } from './core/util.js';
 import { VERSION } from './version.js';
 import { start, accessLevel, selectedTableId, gristCulture, setOptions, moveCursor, apply, undo as gristUndo, redo as gristRedo, linkingInfo, fetchRows } from './grist/connect.js';
-import { fileUrl, fileBlob, fileHead, uploadFiles, dropTokens, docUrl, storageInfo, freeUnusedFiles } from './grist/files.js';
+import { fileUrl, archiveUrl, fileBlob, fileHead, uploadFiles, dropTokens, docUrl, storageInfo, freeUnusedFiles } from './grist/files.js';
 import { loadColumns, loadFileMeta, loadAttachmentRows, loadLabels, loadOwnSection, forgetMeta, loadLocations } from './data/live.js';
 import { resolveRoles, toStored, detectRoles } from './model/roles.js';
 import { buildGallery, metaFromRows, visibleFiles, visibleRecords, groupCounts, sortFiles, matcher, listSortFor } from './model/files.js';
@@ -279,6 +279,7 @@ function render() {
         onMark: (f, mode) => mark(f, mode),
         onMenu: (f, anchor) => fileMenu(f, anchor),
         culture: gristCulture(),
+        onMarkSet: (keys) => { S.marked = keys; S.lastMark = null; renderState(); },
         onSort: (column) => { setView({ sort: listSortFor(column, V().sort) }); if (byDate(V().sort)) readDatesFor(); render(); },
         onRecordMenu: (rowId, anchor) => recordMenu(rowId, anchor),
         onSpaceMenu: (anchor) => spaceMenu(anchor),
@@ -812,6 +813,7 @@ async function openStorage() {
       return { rows, usesOf: (id) => L.index.get(id) || [], info };
     },
     onShrink: shrinkPhotosInDocument,
+    onArchive: () => downloadEverything(),
     onFree: async () => {
       if (S.demo) { demoUnused = []; return { ok: true }; }
       const r = await freeUnusedFiles();
@@ -1036,6 +1038,15 @@ async function downloadFile(f) {
     document.body.append(a); a.click(); a.remove();
   } catch (e) { toast(t('The download did not start: {why}', { why: errText(e) })); }
 }
+/** One zip of every file in the document: made by Grist, fetched by the browser as a download (the demo zips its own files here). */
+async function downloadEverything() {
+  try {
+    if (S.demo) { await zipFiles(S.gallery.files, S.tableId || DEMO_TABLE); return; }
+    const a = el('a', { href: await archiveUrl('zip'), rel: 'noopener' });
+    document.body.append(a); a.click(); a.remove();
+    toast(t('Grist is making the zip. The download starts when it is ready.'), null, 7000);
+  } catch (e) { toast(t('The download did not start: {why}', { why: errText(e) })); }
+}
 async function openInTab(f) {
   try {
     const w = window.open(await source.url(f, { inline: true }), '_blank', 'noopener');
@@ -1138,6 +1149,8 @@ document.addEventListener('keydown', (e) => {
   if (mod && !e.shiftKey && !e.altKey && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); openFinder(); return; }
   if (mod && !typing && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
   if (mod && !typing && e.key === 'y') { e.preventDefault(); redo(); return; }
+  if (mod && !typing && !e.shiftKey && !e.altKey && V().layout === 'files' && (e.key === 'a' || e.key === 'A')) { e.preventDefault(); for (const f of shownFiles()) S.marked.add(f.key); renderState(); return; }
+  if (!mod && !typing && e.key === 'F2' && V().layout === 'files') { const f = wall?.focusedFile?.(); if (f) { e.preventDefault(); renameOne(f); } return; }
   if (mod && !typing && !e.shiftKey && !e.altKey && V().layout === 'files' && (e.key === 'x' || e.key === 'X' || e.key === 'c' || e.key === 'C')) {
     const list = focusedFiles();
     if (list.length) { e.preventDefault(); setClip(list, e.key.toLowerCase() === 'x' ? 'cut' : 'copy'); }

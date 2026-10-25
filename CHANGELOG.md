@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.15.0
+
+Marking with a box, more keys, and a copy of everything. Checked in the demo with the real mouse and keys and in Grist 1.7.20 (a box over
+tiles, Ctrl+K, copy and paste, and Grist's zip answering 200 with a zip).
+
+### Files
+- **Drag a box** over the wall (tiles or list) to mark the files it touches; Ctrl or Shift adds to the marks, a click on empty ground
+  unmarks, the wall scrolls near its edges. The files are found from the layout, so tiles not drawn at the moment count.
+- **Ctrl+A** marks all files shown; **F2** renames the file with the focus.
+
+### Storage
+- **Keep a copy → Download as zip**: one zip of every file in the document, made by Grist (`attachments/archive`).
+
 ## 1.14.0
 
 The command palette. Checked in the demo with the real keys (Ctrl+K, typing, arrows, Enter, Esc) at 1366 and 390 px and in the audit.
