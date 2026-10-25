@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.17.0
+
+Text recognition for scans and pictures. Checked in the demo (the choice, the progress with the page number, search hits on recognised
+words, accent folding, pictures) and in Grist 1.7.20 (a scanned PDF from the attachment endpoint, kept after a reload).
+
+### Search
+- **Inside files** can now read **scanned PDF pages** and, if you choose, **pictures**: Tesseract (tesseract.js, vendored in vendor/tesseract,
+  Apache 2.0) recognises the words in the browser, in the interface language and English, at about half a second a page. The first
+  question has three answers (the text in the files; also scanned pages; also pictures), a note beside the search offers **Read scans**
+  later, and the progress says which page it is on. A page counts only when the engine is at least half sure of it.
+- The demo has a scanned PDF (English and French) to try it on.
+
 ## 1.16.0
 
 The menus on touch screens. Checked in the demo with touch emulation (a 390 px wall: press and hold on a file, a folder heading and empty

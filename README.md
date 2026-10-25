@@ -106,8 +106,15 @@ Markdown, CSV and HTML files.
   record shows when one of its files matches.
 - **Accents and capitals do not matter** (`muller` finds Müller, `fenetre` finds Fenêtre). Every word you type must be
   somewhere in the file's name, the record or the file's own text.
-- **What it cannot do.** A scanned PDF without a text layer has no words to read (there is no text recognition). A file
-  that cannot be read (damaged, password-protected, too big) is counted next to the box and left out.
+- **Scans and pictures (text recognition).** A scanned PDF page is a picture of text and has no words of its own. The first question
+  offers to **also read scanned pages**, and a note beside the search ("2 scanned pages have no text yet", **Read scans**) offers it later;
+  **also read pictures** takes photos of pages, signs and labels too (most photos have no words, and are left empty). The words are
+  recognised by [Tesseract](https://github.com/tesseract-ocr/tesseract) running in your browser (tesseract.js, about 13 MB that load the first
+  time and stay cached; the languages are the interface language and English), at about half a second a page, with the page it is on
+  beside the search and **Stop**. Nothing is sent anywhere, and the words are kept in this browser like the rest. A page counts as
+  read only when the engine is at least half sure of it, so a photo of a building adds no nonsense to the search.
+- **What it cannot do.** Handwriting and very poor scans read badly. A file that cannot be read (damaged, password-protected, too
+  big) is counted next to the box and left out.
 
 ## Tags and notes
 

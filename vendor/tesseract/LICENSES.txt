@@ -1,0 +1,34 @@
+Text recognition (OCR): tesseract.js and its data, vendored as built
+====================================================================
+
+tesseract.js 7.0.0           Apache License 2.0   https://github.com/naptha/tesseract.js
+tesseract.js-core 7.0.0      Apache License 2.0   the Tesseract OCR engine and Leptonica compiled to WebAssembly
+                                                  (Tesseract: Apache 2.0, Google and contributors; Leptonica: BSD-2-Clause, Dan Bloomberg)
+@tesseract.js-data/eng, deu, fra 1.0.0 (4.0.0_best_int)
+                             Apache License 2.0   the "best" LSTM models of tessdata_best, https://github.com/tesseract-ocr/tessdata_best
+
+Files here:
+  tesseract.esm.min.js      tesseract.js dist/tesseract.esm.min.js
+  worker.min.js             tesseract.js dist/worker.min.js
+  core/tesseract-core-lstm.wasm.js, core/tesseract-core-simd-lstm.wasm.js   tesseract.js-core (the other builds are left out)
+  lang/eng|deu|fra.traineddata.gz   the model files
+
+The Apache License 2.0 is in ../LICENSE-Apache-2.0.txt. Nothing is changed. Bundled inside tesseract.js's files are
+small parts under their own licences (notices below).
+
+----- notices bundled in worker.min.js -----
+/*!
+ * The buffer module from node.js, for the browser.
+ *
+ * @author   Feross Aboukhadijeh <https://feross.org>
+ * @license  MIT
+ */
+
+/*! ieee754. BSD-3-Clause License. Feross Aboukhadijeh <https://feross.org/opensource> */
+
+/*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/facebook/regenerator/blob/main/LICENSE */
+
+/** @license zlib.js 2012 - imaya [ https://github.com/imaya/zlib.js ] The MIT License */
+
+----- notices bundled in tesseract.min.js (tesseract.esm.min.js) -----
+/*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/facebook/regenerator/blob/main/LICENSE */

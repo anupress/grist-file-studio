@@ -26,6 +26,7 @@ import { openPdf } from './media/pdf.js';
 import { makeZip, manifestCsv, ZIP_LIMIT } from './media/zip.js';
 import { shrinkPhoto } from './media/shrink.js';
 import { TextIndex, canRead } from './media/textindex.js';
+import { createReader } from './media/ocr.js';
 import { ExifIndex, hasExif } from './media/exifindex.js';
 import { createWall } from './views/wall.js';
 import { createViewer } from './views/viewer.js';
@@ -57,7 +58,7 @@ const S = {
   current: null, selfCursor: null, marked: new Set(), lastMark: null, fresh: new Set(), clip: null,
   lb: null,   // {box, scope: 'wall' | rowId}
   // Searching inside files: on/off is this browser's choice; the text itself is read on request (see "inside files" below).
-  inside: { on: false, reading: false, done: 0, total: 0 }, readable: new Map(),
+  inside: { on: false, reading: false, done: 0, total: 0, ocr: 'none', page: null }, readable: new Map(),
 };
 const demoHistory = { undo: [], redo: [] };
 // The language first: everything below builds its labels once, in the language set now.
@@ -143,7 +144,7 @@ function rebuild() {
   // The files whose text can be read, one per content (the same file in two records is read once).
   annotateNotes();
   S.readable = new Map();
-  for (const f of S.gallery.files) if (canRead(f)) { const id = identOf(f); if (!S.readable.has(id)) S.readable.set(id, f); }
+  for (const f of S.gallery.files) if (canRead(f, { pictures: S.inside.ocr === 'all' })) { const id = identOf(f); if (!S.readable.has(id)) S.readable.set(id, f); }
   if (S.inside.on) loadKnownText();
 }
 const recordOf = (rowId) => S.gallery?.records.find((r) => r.rowId === rowId) || null;
@@ -185,6 +186,7 @@ const bars = createBars(chrome, filters, {
   onMarkedTag: () => tagMarked(),
   onInside: () => toggleInside(),
   onInsideRead: () => startReading(),
+  onOcr: () => chooseOcr(),
   onInsideStop: () => insideRun?.abort(),
   onGroup: (g) => { setView({ group: g }); render(); },
   onSort: (s) => { setView({ sort: s }); if (byDate(s)) readDatesFor(); render(); },
@@ -1615,12 +1617,13 @@ const openFinder = () => { if (S.ready && !S.problem) openPalette(shell, { items
 // The search can look at the words in PDFs, Word, Excel, PowerPoint and text files. Reading them means downloading each
 // file once, so it starts only when asked (the switch in the filter bar, with a one-time question), can be stopped, and
 // keeps its result in this browser (media/textindex.js), under the file's content hash.
-const INSIDE_KEY = 'file-studio-inside', INSIDE_OK_KEY = 'file-studio-inside-ok';
+const INSIDE_KEY = 'file-studio-inside', INSIDE_OK_KEY = 'file-studio-inside-ok', OCR_KEY = 'file-studio-ocr';
 const mem = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
   set(k, v) { try { localStorage.setItem(k, v); } catch { /* private window: asked again next time */ } },
 };
 S.inside.on = mem.get(INSIDE_KEY) === '1';
+S.inside.ocr = ['scans', 'all'].includes(mem.get(OCR_KEY)) ? mem.get(OCR_KEY) : 'none';
 const fileText = new TextIndex();
 let insideRun = null;
 
@@ -1628,9 +1631,9 @@ function identOf(f) { return f.ident || 'att' + f.attId; }
 /** The lookup the search uses for a file's own text, or null while the switch is off. */
 const insideFn = () => (S.inside.on ? (f) => fileText.get(identOf(f)) || null : null);
 function insideInfo() {
-  let read = 0, failed = 0, unread = 0;
-  for (const id of S.readable.keys()) { const st = fileText.state(id); if (st === 'ready') read++; else if (st === 'failed') failed++; else unread++; }
-  return { available: S.readable.size, on: S.inside.on, reading: S.inside.reading, done: S.inside.done, total: S.inside.total, read, failed, unread };
+  let read = 0, failed = 0, unread = 0, scanned = 0;
+  for (const id of S.readable.keys()) { const st = fileText.state(id); if (st === 'ready') { read++; scanned += fileText.scansLeft(id); } else if (st === 'failed') failed++; else unread++; }
+  return { available: S.readable.size, on: S.inside.on, reading: S.inside.reading, done: S.inside.done, total: S.inside.total, read, failed, unread, scanned, ocr: S.inside.ocr, page: S.inside.page };
 }
 /** Where the query's words are in the shown files, kept on the files for the tiles and the lightbox. */
 function setHits(files, query, inside) {
@@ -1647,6 +1650,30 @@ async function loadKnownText() {
   if (n) textChanged();
 }
 
+const ocrChoices = () => [
+  [t('Read the text in the files'), 'none', t('Text that is in the files. Scanned pages and pictures are left alone.')],
+  [t('Also read scanned pages'), 'scans', t('Pages that are pictures of text are recognised too. This loads a reader of about 13 MB once and takes about half a second a page.')],
+  [t('Also read pictures'), 'all', t('Photos of pages, signs and labels as well. The slowest: most photos have no words in them.')],
+];
+/** Choose how far the reading goes (text only, scanned pages too, pictures too) and read what that adds. */
+async function chooseOcr() {
+  const level = await choiceBox(shell, {
+    title: t('Read the words in scans and pictures?'),
+    body: t('Text recognition runs in this browser and keeps the words here, not in the document.'),
+    choices: ocrChoices().slice(1),
+  });
+  if (!level) return;
+  setOcrLevel(level);
+  if (!S.inside.on) { S.inside.on = true; mem.set(INSIDE_KEY, '1'); }
+  startReading();
+}
+function setOcrLevel(level) {
+  S.inside.ocr = level;
+  mem.set(OCR_KEY, level);
+  rebuild();   // pictures join (or leave) the files that can be read
+  render();
+}
+
 async function toggleInside() {
   if (S.inside.on) {
     insideRun?.abort();
@@ -1659,13 +1686,14 @@ async function toggleInside() {
   const todo = [...S.readable].filter(([id]) => fileText.state(id) === 'none');
   if (todo.length && mem.get(INSIDE_OK_KEY) !== '1') {
     const bytes = todo.reduce((n, [, f]) => n + f.size, 0);
-    const ok = await confirmBox(shell, {
+    const level = await choiceBox(shell, {
       title: tn(todo.length, 'Read the text of {n} file?', 'Read the text of {n} files?'),
       body: t('File Studio downloads each PDF, Word, Excel and text file once ({size} in all), reads the words in it and keeps them in this browser, not in the document. After that the search can look inside the files.', { size: sizeText(bytes, uiLang()) }),
-      ok: t('Read the files'),
+      choices: ocrChoices(),
     });
-    if (!ok) return;
+    if (!level) return;
     mem.set(INSIDE_OK_KEY, '1');
+    if (level !== S.inside.ocr) setOcrLevel(level);
   }
   S.inside.on = true;
   mem.set(INSIDE_KEY, '1');
@@ -1675,25 +1703,34 @@ async function toggleInside() {
 
 async function startReading() {
   if (S.inside.reading) return;
-  const list = [...S.readable].filter(([id]) => fileText.state(id) === 'none').map(([ident, file]) => ({ ident, file }));
+  // With text recognition allowed, the files with scanned pages it has not read are read again, for those pages.
+  const ocrOn = S.inside.ocr !== 'none';
+  const list = [...S.readable].filter(([id]) => fileText.state(id) === 'none' || (ocrOn && fileText.scansLeft(id))).map(([ident, file]) => ({ ident, file }));
   if (!list.length) { updateBars(); return; }
   const ctrl = new AbortController();
   insideRun = ctrl;
-  Object.assign(S.inside, { reading: true, done: 0, total: list.length });
+  Object.assign(S.inside, { reading: true, done: 0, total: list.length, page: null });
   updateBars();
   let drawn = 0;
+  const reader = ocrOn ? createReader({ signal: ctrl.signal }) : null;
   try {
     const res = await fileText.read(list, {
-      source, signal: ctrl.signal,
-      onProgress: (done) => { S.inside.done = done; if (Date.now() - drawn > 500) { drawn = Date.now(); textChanged(); } },
+      source, signal: ctrl.signal, ocr: reader,
+      onProgress: (done) => { S.inside.done = done; S.inside.page = null; if (Date.now() - drawn > 500) { drawn = Date.now(); textChanged(); } },
+      onPage: (n, count) => { S.inside.page = { n, count }; if (Date.now() - drawn > 400) { drawn = Date.now(); updateBars(); } },
     });
     if (!res.stopped && res.failed) toast(tn(res.failed, '{n} file could not be read and is left out of the search.', '{n} files could not be read and are left out of the search.'));
-    else if (!res.stopped && res.read) toast(tn(res.read, 'Read the text of {n} file. The search now looks inside it.', 'Read the text of {n} files. The search now looks inside them.'));
+    else if (!res.stopped && res.read) {
+      const words = res.recognised ? ' ' + tn(res.recognised, 'Recognised the words on {n} scanned page.', 'Recognised the words on {n} scanned pages.') : '';
+      toast(tn(res.read, 'Read the text of {n} file. The search now looks inside it.', 'Read the text of {n} files. The search now looks inside them.') + words);
+    }
   } catch (e) {
-    toast(t('Reading the files stopped: {why}', { why: errText(e) }));
+    if (e?.name !== 'AbortError') toast(t('Reading the files stopped: {why}', { why: errText(e) }));
   } finally {
     S.inside.reading = false;
+    S.inside.page = null;
     insideRun = null;
+    reader?.stop();
   }
   textChanged();
 }

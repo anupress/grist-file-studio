@@ -206,8 +206,9 @@ export function createBars(chrome, filters, on) {
         insideBtn.title = ins.on && !ins.unread && !ins.reading ? tn(ins.read, 'Looking inside {n} file', 'Looking inside {n} files') : t('Also search the text inside PDFs, Word, Excel and text files');
         if (ins.on) {
           const parts = [];
-          if (ins.reading) { parts.push(t('Reading {done} of {total}…', { done: ins.done, total: ins.total })); act = [t('Stop'), on.onInsideStop]; }
+          if (ins.reading) { parts.push(t('Reading {done} of {total}…', { done: ins.done, total: ins.total }) + (ins.page ? ' · ' + t('page {n} of {count}', ins.page) : '')); act = [t('Stop'), on.onInsideStop]; }
           else if (ins.unread) { parts.push(tn(ins.unread, '{n} file not read yet', '{n} files not read yet')); act = [t('Read'), on.onInsideRead]; }
+          else if (ins.scanned && ins.ocr === 'none') { parts.push(tn(ins.scanned, '{n} scanned page has no text yet', '{n} scanned pages have no text yet')); act = [t('Read scans'), on.onOcr]; }
           if (ins.failed) parts.push(tn(ins.failed, '{n} file could not be read', '{n} files could not be read'));
           note = parts.join(' · ');
         }
