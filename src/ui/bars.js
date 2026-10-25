@@ -111,6 +111,7 @@ export function createBars(chrome, filters, on) {
     el('button', { type: 'button', class: 'gs-btn gs-btn--primary', onclick: () => on.onMarkedZip() }, [icon('archive2'), t('Download as zip')]),
     el('button', { type: 'button', class: 'gs-btn', dataset: { role: 'rename' }, title: t('Give the marked files names built from their columns'), onclick: () => on.onMarkedRename() }, [icon('edit'), t('Rename…')]),
     el('button', { type: 'button', class: 'gs-btn', dataset: { role: 'merge' }, title: t('Put the marked PDFs and pictures into one new PDF'), onclick: () => on.onMarkedMerge() }, [icon('copy'), t('Merge into PDF…')]),
+    el('button', { type: 'button', class: 'gs-btn', dataset: { role: 'report' }, title: t('The marked photos on pages, as a PDF'), onclick: () => on.onMarkedReport() }, [icon('file2'), t('Photo report…')]),
     el('button', { type: 'button', class: 'gs-btn', dataset: { role: 'remove' }, onclick: () => on.onMarkedRemove() }, [icon('trash'), t('Remove from records')]),
     el('span', { class: 'gs-spacer' }),
     el('button', { type: 'button', class: 'gs-btn', onclick: () => on.onMarkedClear(), title: t('Unmark all (Esc)') }, [icon('close'), t('Clear')]),
@@ -147,6 +148,7 @@ export function createBars(chrome, filters, on) {
       marked.querySelector('[data-role=remove]').hidden = !s.editable;
       marked.querySelector('[data-role=rename]').hidden = !s.editable;
       marked.querySelector('[data-role=merge]').hidden = !s.editable || s.markedCount < 2;
+      marked.querySelector('[data-role=report]').hidden = !s.markedPictures;
 
       if (document.activeElement !== search && search.value !== s.query) search.value = s.query || '';
       search.setAttribute('aria-label', s.layout === 'cards' ? t('Search records') : t('Search files and records'));

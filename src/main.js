@@ -17,7 +17,7 @@ import { attachmentIds, cellText } from './model/values.js';
 import { addFiles as addFilesActions, removeFile, removeFiles, moveFile, newRecords, renameFiles, sharedValue, replaceFile, replaceEverywhere, removeEverywhere, removeManyEverywhere, replaceMany, insertAfter, insertManyAfter, mergeResult, copyFilesTo, moveFilesTo } from './model/edits.js';
 import { buildIndex, cellLink } from './model/locations.js';
 import { exportPaths, safeName } from './model/names.js';
-import { extOf, baseOf, sizeText } from './model/kinds.js';
+import { extOf, baseOf, sizeText, typeLabel } from './model/kinds.js';
 import { readOptions, writeOptions, readView, writeView } from './model/settings.js';
 import { createThumbs } from './media/thumbs.js';
 import { openPdf } from './media/pdf.js';
@@ -30,6 +30,8 @@ import { openLightbox } from './views/lightbox.js';
 import { createBars } from './ui/bars.js';
 import { openColumns } from './ui/columns.js';
 import { openLibrary } from './ui/library.js';
+import { reportBox } from './ui/reportbox.js';
+import { REPORT_PICTURE } from './media/reportimages.js';
 import { createTray } from './ui/tray.js';
 import { openKeys } from './ui/keys.js';
 import { renameBox } from './ui/renamebox.js';
@@ -185,6 +187,7 @@ const bars = createBars(chrome, filters, {
   onMarkedRemove: () => removeMany(markedFiles()),
   onMarkedRename: () => renameMany(markedFiles()),
   onMarkedMerge: () => mergeFiles(markedFiles()),
+  onMarkedReport: () => photoReport(markedFiles(), null),
   onMarkedClear: () => clearMarks(),
 });
 
@@ -194,7 +197,7 @@ function updateBars(level = 'full') {
   bars.update({
     level, mode: S.demo ? 'demo' : canEdit() ? 'live' : 'ro', readOnlyWhy: readOnlyWhy(), layout: v.layout, editable: canEdit() && !!fileColumn(),
     records: S.gallery?.records.length || 0, files: files.length, query: v.query, group: v.group, groupCounts: groupCounts(files), sort: v.sort,
-    size: v.layout === 'cards' ? v.cardSize : v.fileSize, fit: v.fit, grouped: v.grouped, captions: v.captions, cover: v.cover, markedCount: S.marked.size,
+    size: v.layout === 'cards' ? v.cardSize : v.fileSize, fit: v.fit, grouped: v.grouped, captions: v.captions, cover: v.cover, markedCount: S.marked.size, markedPictures: markedFiles().some((f) => REPORT_PICTURE.test(f.ext)),
     inside: insideInfo(),
   });
 }
@@ -244,6 +247,7 @@ function render() {
         onMenu: (f, anchor) => fileMenu(f, anchor),
         onDownload: (f) => downloadFile(f),
         onZip: (rowId) => zipRecord(rowId),
+        onReport: (rowId) => photoReport(recordOf(rowId)?.files || [], recordOf(rowId)),
       });
     }
     const recs = S.gallery.records;
@@ -988,6 +992,9 @@ function downloadMenu(anchor) {
     [tn(shown.length, 'The {n} file shown, as zip', 'All {n} files shown, as zip'), () => zipFiles(shown, S.tableId || DEMO_TABLE), { disabled: !shown.length }],
     S.marked.size ? [tn(S.marked.size, 'The {n} marked file, as zip', 'The {n} marked files, as zip'), () => zipFiles(markedFiles(), t('Marked files'))] : null,
     null,
+    [rec ? t('Photo report of “{name}”…', { name: rec.title || t('this record') }) : t('Photo report of the selected record…'), () => photoReport(rec.files, rec), { disabled: !rec?.files.some((f) => REPORT_PICTURE.test(f.ext)), hint: t('The photos on pages with the record’s details, as a PDF') }],
+    S.marked.size && markedFiles().some((f) => REPORT_PICTURE.test(f.ext)) ? [t('Photo report of the marked files…'), () => photoReport(markedFiles(), null)] : null,
+    null,
     [t('How zip files are named…'), () => openColumnsPanel()],
   ].filter((x, i, a) => !(x === null && a[i - 1] === null)));
 }
@@ -1095,6 +1102,72 @@ shell.addEventListener('drop', (e) => {
   e.preventDefault();
   addFiles([...e.dataTransfer.files], null);
 });
+
+// ---- the photo report ------------------------------------------------------------------------------------------------
+// A record's photos on pages, with its title and details, as a PDF: added to the record or downloaded. The marked photos
+// work the same, without a record's details. The pictures are redrawn smaller as JPEGs first, so a report of forty phone photos
+// is a few MB, not a few hundred.
+let reporting = false;
+async function photoReport(files, rec) {
+  if (reporting) return;
+  const pictures = files.filter((f) => REPORT_PICTURE.test(f.ext));
+  const others = files.filter((f) => !REPORT_PICTURE.test(f.ext));
+  if (!pictures.length) { toast(t('There are no photos to put in a report.')); return; }
+  const fields = rec ? rec.fields.filter((f) => f.text).map((f) => ({ label: f.label, text: f.text })) : [];
+  const otherList = others.map((f) => ({ name: f.name, info: `${typeLabel(f.ext)} · ${sizeText(f.size, uiLang())}` }));
+  const oneRecord = rec || (new Set(files.map((f) => f.rowId)).size === 1 ? recordOf(files[0].rowId) : null);
+  const choice = await reportBox(shell, {
+    title: oneRecord?.title || t('Photo report'), recordName: rec ? (rec.title || t('this record')) : null,
+    photos: pictures.map((f) => ({ name: f.name, w: f.w, h: f.h })), fields, others: otherList,
+    canSave: canEdit() && !!fileColumn(), culture: gristCulture(),
+  });
+  if (!choice) return;
+
+  reporting = true;
+  const ctrl = new AbortController();
+  const stop = { label: t('Stop'), run: () => ctrl.abort() };
+  try {
+    toast(t('Preparing the photos…'), stop, 0);
+    const [{ loadPdfLib }, { prepareImages }, { buildReport }] = await Promise.all([import('./media/pdfsession.js'), import('./media/reportimages.js'), import('./media/report.js')]);
+    const lib = await loadPdfLib();
+    const { images } = await prepareImages(pictures, {
+      source, maxSide: choice.perPage <= 2 ? 2000 : 1500, signal: ctrl.signal,
+      onProgress: (done, total) => toast(t('Preparing photo {done} of {total}…', { done, total }), stop, 0),
+    });
+    const use = pictures.map((f, i) => ({ f, img: images[i] })).filter((x) => x.img);
+    if (!use.length) throw new Error(t('None of the photos could be read.'));
+    toast(t('Making the PDF…'), null, 0);
+    const now = new Date();
+    const day = new Intl.DateTimeFormat(dateLocale(gristCulture()), { dateStyle: 'medium' }).format(now);
+    const spec = {
+      page: choice.page, perPage: choice.perPage, title: choice.title, footerTitle: choice.title,
+      subtitle: `${day} · ${tn(use.length, '{n} photo', '{n} photos')}`,
+      captions: choice.captions, fields: choice.fields ? fields : [],
+      photos: use.map((x) => ({ name: baseOf(x.f.name), w: x.img.w, h: x.img.h })),
+      others: choice.others ? otherList : [], othersTitle: t('Other files'),
+      footer: (page, count) => t('Page {n} of {count}', { n: page, count }),
+    };
+    const { bytes, dropped } = await buildReport(lib, spec, use.map((x) => x.img), { title: choice.title, author: 'ANUPRESS File Studio' });
+    const stamp = now.toISOString().slice(0, 10);
+    const name = `${t('Photo report')} ${safeName(choice.title)} ${stamp}.pdf`;
+    const file = new File([bytes], name, { type: 'application/pdf' });
+    const note = [
+      use.length < pictures.length ? tn(pictures.length - use.length, '{n} photo could not be read and is left out.', '{n} photos could not be read and are left out.') : '',
+      dropped.length ? t('Letters the PDF’s standard fonts do not have are drawn as “?”: {chars}', { chars: dropped.slice(0, 12).join(' ') }) : '',
+    ].filter(Boolean).join(' ');
+    if (choice.action === 'download') {
+      saveBlob(file, name);
+      toast(t('The report is made: {size}.', { size: sizeText(file.size, uiLang()) }) + (note ? ' ' + note : ''), null, 9000);
+    } else {
+      toastBox.hidden = true;
+      await addFiles([file], rec?.rowId ?? (oneRecord?.rowId ?? null));
+      if (note) toast(note, null, 9000);
+    }
+  } catch (e) {
+    if (e?.name === 'AbortError') toast(t('Stopped. Nothing was made.'));
+    else toast(t('The report could not be made: {why}', { why: errText(e) }));
+  } finally { reporting = false; }
+}
 
 // ---- inside files ---------------------------------------------------------------------------------------------------
 // The search can look at the words in PDFs, Word, Excel, PowerPoint and text files. Reading them means downloading each

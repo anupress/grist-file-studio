@@ -1,7 +1,7 @@
 # File Studio — a custom widget for Grist (by ANUPRESS)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-2563EB.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.3.0-0F1B2D.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.4.0-0F1B2D.svg)](CHANGELOG.md)
 
 File Studio is a gallery, viewer, editor and file manager for the files in your Grist
 **Attachments** columns. It shows them the way people look at files:
@@ -183,6 +183,26 @@ pixels on its long side.
   well. Either way it is one Grist action, which one Undo takes back.
 - **Save as copy:** a new file next to the original, named "… (edited)".
 - **Download:** to your computer only; the document stays as it is.
+
+## Photo report
+
+A record's photos on pages, as a PDF: the title, the record's details, the photos with their names under them, and a list
+of the other files. Open it from the Viewer (**Report**), from **Download → Photo report of …**, or from the marked bar
+(**Photo report…**) for the photos you marked, from any records.
+
+![Two pages of a report: the title and the record's details, six photos with their names, the floor plan and the list of other files](docs/images/photo-report.png)
+
+- **The options:** 1, 2, 4 or 6 photos per page, A4 or Letter (Letter where the Grist language is en-US or en-CA), the
+  record's details, the file names, the list of other files. The dialog says how many pages that makes before anything
+  is made. The choices are kept in this browser.
+- **Where it goes:** **Add to the record** uploads it next to the photos (one Grist action, Undo takes it out of the cell);
+  **Download** keeps it off the document.
+- **The photos** are drawn the way they were held (the camera's turn is applied), made at most 1,500 px (2,000 at one or
+  two per page) and stored as JPEG, so a report of forty phone photos is a few MB. Camera data is not copied.
+- **Layout:** photos sit at the top of their place with their name right under them. A row that does not fit under what is
+  already on the page goes to the next one, or is drawn a little smaller if most of it fits. Nothing is cut off.
+- **Text** uses the PDF standard fonts: Western European letters are fine, Greek, Chinese and other scripts are drawn as
+  "?" and reported when the report is made.
 
 ## The file manager
 

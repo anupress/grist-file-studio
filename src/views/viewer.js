@@ -12,7 +12,7 @@ import { t, tn } from '../i18n/index.js';
 
 /**
  * @param on {onStep(dir), onOpen(file, list), onAdd(rowId), onDrop(rowId, files), onReorder(file, toIndex),
- *            onMenu(file, anchor), onDownload(file), onZip(rowId), onSelect(rowId)}
+ *            onMenu(file, anchor), onDownload(file), onZip(rowId), onReport(rowId), onSelect(rowId)}
  */
 export function createViewer(host, { source, thumbs }, on) {
   const title = el('span', { class: 'gs-viewer__title' });
@@ -88,6 +88,7 @@ export function createViewer(host, { source, thumbs }, on) {
       );
     }
     if (S.files.length > 1) actions.append(el('button', { type: 'button', class: 'gs-btn', title: t('All files of this record as one zip'), onclick: () => on.onZip(S.rec.rowId) }, [icon('archive2'), t('Zip')]));
+    if (on.onReport && S.files.some((x) => x.kind === 'image')) actions.append(el('button', { type: 'button', class: 'gs-btn', dataset: { role: 'report' }, title: t('The photos of this record on pages, as a PDF'), onclick: () => on.onReport(S.rec.rowId) }, [icon('file2'), t('Report')]));
     // No Add files here: the bar's own adds to this record, and the filmstrip ends in an Add tile.
   }
 

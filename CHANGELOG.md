@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.4.0
+
+Photo report. Checked in Grist 1.7.20 on docs.getgrist.com (a guest document, headless Chrome) and in the demo.
+
+### Photo report
+- A record's photos on pages as a PDF: title, the record's details in two columns, the photos with their names under
+  them, the other files listed. From the Viewer's **Report** button, **Download → Photo report of …**, or the marked
+  bar's **Photo report…** (the marked photos, from any records, without a record's details).
+- Options: 1, 2, 4 or 6 photos per page, A4 or Letter, the details, the file names, the list of other files; the dialog
+  says how many pages that makes. Kept in this browser.
+- Add to the record (one Grist action; Undo takes it out) or Download. Photos are redrawn upright, at most 1,500 px (2,000
+  at one or two per page), as JPEG; photos the browser cannot read are left out and counted.
+- Pages are laid out by `model/report.js` (pure, 54 tests): a fixed rhythm of rows, no page with more rows than the grid,
+  a row that does not fit goes to the next page or is drawn smaller when four fifths of it fit; every page has the title
+  and "Page n of N" at the foot.
+
+### Smaller
+- Dialog buttons wrap on a narrow widget instead of running off the edge.
+
 ## 1.3.0
 
 Search inside files. Checked in Grist 1.7.20 on docs.getgrist.com (a guest document, headless Chrome) and in the demo.

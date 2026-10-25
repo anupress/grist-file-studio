@@ -483,7 +483,7 @@ a.gs-btn { color: inherit; text-decoration: none; }   /* a link that looks like 
 .gs-dialog p { margin: 0 0 14px; color: var(--gs-muted); }
 .gs-dialog__list { margin: -6px 0 14px; padding-left: 18px; color: var(--gs-ink); font-size: var(--gs-fs-2); line-height: 1.5; max-height: 160px; overflow: auto; }
 .gs-dialog .gs-dialog__problem { color: var(--gs-danger); margin-top: -6px; }
-.gs-dialog__foot { display: flex; justify-content: flex-end; gap: 8px; }
+.gs-dialog__foot { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 
 .gs-menu {
   position: absolute; z-index: 60; min-width: 190px; max-width: 300px; background: var(--gs-surface); border: 1px solid var(--gs-line-strong);
@@ -844,3 +844,9 @@ a.gs-btn { color: inherit; text-decoration: none; }   /* a link that looks like 
   .gs-lib__row { flex-direction: column; }
   .gs-lib__used { display: none; }
 }
+
+/* ---- the photo report's options ---- */
+.gs-report__row { display: flex; flex-wrap: wrap; gap: 6px 28px; }
+.gs-report__checks { display: flex; flex-direction: column; gap: 8px; margin: 14px 0 6px; }
+.gs-report__check input { margin: 0; }
+.gs-dialog .gs-report__sum { margin: 10px 0 16px; font-size: var(--gs-fs-2); font-variant-numeric: tabular-nums; }
