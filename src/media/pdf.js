@@ -22,12 +22,18 @@ export function pdfjs() {
   return lib;
 }
 
-/** Open a PDF from its bytes. Remember to destroy() the document when done. */
-export async function openPdf(blob) {
+/**
+ * Open a PDF from a Blob or its bytes. Remember to destroy() the document when done. A password-protected
+ * file rejects with an error whose `name` is 'PasswordException' (code 1 needs one, 2 was wrong); call again
+ * with `{password}`.
+ */
+export async function openPdf(blob, { password } = {}) {
   const m = await pdfjs();
-  const data = new Uint8Array(await blob.arrayBuffer());
+  // pdf.js may hand the buffer to its worker, which empties it: always give it a copy.
+  const data = blob instanceof Uint8Array ? blob.slice() : new Uint8Array(await blob.arrayBuffer());
   const task = m.getDocument({
     data,
+    password: password || undefined,
     cMapUrl: base() + 'cmaps/',
     cMapPacked: true,
     standardFontDataUrl: base() + 'standard_fonts/',
@@ -46,7 +52,7 @@ export async function openPdf(blob) {
  * Draw one page (1-based) into a canvas so that its width is `cssWidth` CSS pixels, sharp on this
  * screen. Returns the page's size in CSS pixels.
  */
-export async function renderPage(doc, n, canvas, cssWidth, { dpr = (typeof devicePixelRatio === 'number' ? devicePixelRatio : 1), rotation = 0, signal = null } = {}) {
+export async function renderPage(doc, n, canvas, cssWidth, { dpr = (typeof devicePixelRatio === 'number' ? devicePixelRatio : 1), rotation = 0, signal = null, intent = 'display' } = {}) {
   const page = await doc.getPage(n);
   const unit = page.getViewport({ scale: 1, rotation: (page.rotate + rotation) % 360 });
   const scale = cssWidth / unit.width;
@@ -55,7 +61,7 @@ export async function renderPage(doc, n, canvas, cssWidth, { dpr = (typeof devic
   canvas.height = Math.round(vp.height);
   canvas.style.width = Math.round(vp.width / dpr) + 'px';
   canvas.style.height = Math.round(vp.height / dpr) + 'px';
-  const task = page.render({ canvas, canvasContext: canvas.getContext('2d'), viewport: vp, background: '#ffffff' });
+  const task = page.render({ canvas, canvasContext: canvas.getContext('2d'), viewport: vp, background: '#ffffff', intent });
   if (signal) signal.addEventListener('abort', () => task.cancel(), { once: true });
   await task.promise;
   page.cleanup();

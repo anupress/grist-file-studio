@@ -13,7 +13,7 @@ import { loadColumns, loadFileMeta, loadLabels, loadOwnSection, forgetMeta, load
 import { resolveRoles, toStored, detectRoles } from './model/roles.js';
 import { buildGallery, metaFromRows, visibleFiles, visibleRecords, groupCounts, sortFiles } from './model/files.js';
 import { attachmentIds, cellText } from './model/values.js';
-import { addFiles as addFilesActions, removeFile, removeFiles, moveFile, newRecords, renameFiles, sharedValue, replaceFile, replaceEverywhere, removeEverywhere, insertAfter, copyFilesTo, moveFilesTo } from './model/edits.js';
+import { addFiles as addFilesActions, removeFile, removeFiles, moveFile, newRecords, renameFiles, sharedValue, replaceFile, replaceEverywhere, removeEverywhere, insertAfter, insertManyAfter, mergeResult, copyFilesTo, moveFilesTo } from './model/edits.js';
 import { buildIndex, cellLink } from './model/locations.js';
 import { exportPaths, safeName } from './model/names.js';
 import { extOf, baseOf, sizeText } from './model/kinds.js';
@@ -32,6 +32,7 @@ import { openKeys } from './ui/keys.js';
 import { renameBox } from './ui/renamebox.js';
 import { openRowCard, placesDialog } from './ui/rowcard.js';
 import { pickRecord } from './ui/recordpicker.js';
+import { chooseFiles } from './ui/filechooser.js';
 import { confirmBox, textBox, choiceBox, openMenu } from './ui/dialog.js';
 import { t, tn, setLanguage, storedLanguage, dateLocale, uiLang } from './i18n/index.js';
 import { DEMO_TABLE, DEMO_COLUMNS, DEMO_FIELDS, demoMeta, demoRows, demoSource, speedData } from './demo/sample.js';
@@ -170,6 +171,7 @@ const bars = createBars(chrome, filters, {
   onMarkedZip: () => zipFiles(markedFiles(), t('Marked files')),
   onMarkedRemove: () => removeMany(markedFiles()),
   onMarkedRename: () => renameMany(markedFiles()),
+  onMarkedMerge: () => mergeFiles(markedFiles()),
   onMarkedClear: () => clearMarks(),
 });
 
@@ -344,6 +346,7 @@ function menuItems(f, { inLightbox = false } = {}) {
     null,
     [t('Rename…'), () => renameOne(f), { disabled: !canRename(f) }],
     [t('Duplicate'), () => duplicate(f), { disabled: !can, hint: t('A separate copy next to this file') }],
+    ...(mergeable(f) ? [[t('Merge with…'), () => mergeWith(f), { disabled: !canEdit(), hint: t('Put pages of several PDFs and pictures into one new PDF') }]] : []),
     [t('Copy to…'), () => sendTo([f], 'copy'), { disabled: !canEdit() || !fileColumn(), hint: t('The same file, also in another record') }],
     [t('Move to…'), () => sendTo([f], 'move'), { disabled: !can }],
     [t('Replace with…'), () => replaceWith(f), { disabled: !can, hint: t('Put a file from your computer in its place') }],
@@ -361,10 +364,13 @@ function menuItems(f, { inLightbox = false } = {}) {
 function fileMenu(f, anchor) { openMenu(shell, anchor, menuItems(f)); }
 
 // ---- what can be edited -------------------------------------------------------------------------------------------
-// Pictures the browser can decode and re-encode, and text. Video, audio, PDF and office files are not edited.
+// Pictures the browser can decode and re-encode, text, and PDFs. Video, audio and office files are not edited.
 const IMAGE_EDITABLE = /^(jpe?g|jfif|pjpeg|png|webp|bmp|gif|avif)$/;
-const editorKind = (f) => (IMAGE_EDITABLE.test(f.ext) ? 'image' : f.kind === 'text' || f.ext === 'svg' ? 'text' : null);
-const canEditContent = (f) => { const k = editorKind(f); return k === 'image' ? f.size <= 60e6 : k === 'text' ? f.size <= 2e6 : false; };
+const editorKind = (f) => (IMAGE_EDITABLE.test(f.ext) ? 'image' : f.ext === 'pdf' ? 'pdf' : f.kind === 'text' || f.ext === 'svg' ? 'text' : null);
+const canEditContent = (f) => { const k = editorKind(f); return k === 'image' ? f.size <= 60e6 : k === 'pdf' ? f.size <= 80e6 : k === 'text' ? f.size <= 2e6 : false; };
+// What can be merged into one PDF: PDFs and the pictures the browser can read.
+const MERGEABLE = /^(pdf|jpe?g|jfif|pjpeg|png|webp|gif|bmp|avif)$/;
+const mergeable = (f) => MERGEABLE.test(f.ext) && f.size <= 80e6;
 
 async function editFile(f) {
   const kind = editorKind(f);
@@ -373,9 +379,12 @@ async function editFile(f) {
     file: f, source, culture: gristCulture(),
     canSave: canEditFile(f), canCopy: canEdit() && (!f.readOnly || !!fileColumn()),
     onSave: (blob, o) => saveEdited(f, blob, o),
+    onSaveMany: (parts, o) => saveMany(f, parts, o),
+    pickFiles: (host) => pickMore(f, host),
   };
   try {
     if (kind === 'image') (await import('./views/imageeditor.js')).openImageEditor(shell, opts);
+    else if (kind === 'pdf') (await import('./views/pdfeditor.js')).openPdfEditor(shell, opts);
     else (await import('./views/texteditor.js')).openTextEditor(shell, opts);
   } catch (e) { toast(t('The editor did not open: {why}', { why: errText(e) })); }
 }
@@ -391,12 +400,72 @@ async function uploadOne(blob, name) {
   } catch (e) { h.fail(uploadWhy(e)); return null; }
 }
 
+/** Upload several files at once, a line each in the tray. Resolves the new ids in order, or null. */
+async function uploadAll(items) {
+  const hs = tray.start(items.map((i) => ({ name: i.name, size: i.blob.size })));
+  try {
+    const ids = await source.upload(items, { onProgress: (a, b) => hs.forEach((h) => h.progress(b ? a / b : 0)) });
+    hs.forEach((h) => h.done());
+    if (!S.demo) S.meta = await loadFileMeta().catch(() => S.meta);
+    return ids;
+  } catch (e) { hs.forEach((h) => h.fail(uploadWhy(e))); return null; }
+}
+
+/** Several new files (the parts of a split PDF) next to the original, in one step. */
+async function saveMany(f, parts) {
+  const ids = await uploadAll(parts.map((p) => ({ blob: p.blob, name: p.name })));
+  if (!ids) return false;
+  const col = f.readOnly ? fileColumn() : null;
+  const target = col ? { ...f, col: col.id, index: attachmentIds(cellOf(f.rowId, col.id)).length - 1 } : f;
+  return write(insertManyAfter(S.tableId, target, cellOf(f.rowId, target.col), ids), tn(ids.length, 'Saved {n} new file next to the original.', 'Saved {n} new files next to the original.'));
+}
+
+/** PDFs and pictures to add pages from: the ones in this document, or from the computer. */
+async function pickMore(exclude, host = shell) {
+  const seen = new Set([exclude?.attId]);
+  const candidates = (S.gallery?.files || []).filter((x) => mergeable(x) && !seen.has(x.attId) && seen.add(x.attId))
+    .map((x) => ({ key: x.key, name: x.name, ext: x.ext, size: x.size, where: x.recordTitle, file: x }));
+  const r = await chooseFiles(host, { title: t('Add pages from other files'), body: t('PDFs and pictures. Every page of each file is added.'), candidates });
+  if (!r) return null;
+  const out = [];
+  for (const c of r.picked) out.push({ name: c.name, blob: await source.blob(c.file) });
+  for (const file of r.files) out.push({ name: file.name, blob: file });
+  return out;
+}
+
+/** The PDF editor over a set of files: every page of them in order, to reorder or drop, then saved as one new PDF. */
+async function openMergeEditor(first, entries) {
+  const opts = {
+    file: first, source, culture: gristCulture(),
+    canSave: false, canCopy: canEdit() && (!first.readOnly || !!fileColumn()),
+    merge: { files: entries, name: `${baseOf(first.name)} (${t('merged')}).pdf` },
+    onSave: (blob, o) => saveEdited(first, blob, o),
+    onSaveMany: (parts, o) => saveMany(first, parts, o),
+    pickFiles: (host) => pickMore(null, host),
+  };
+  try { (await import('./views/pdfeditor.js')).openPdfEditor(shell, opts); }
+  catch (e) { toast(t('The editor did not open: {why}', { why: errText(e) })); }
+}
+/** The marked PDFs and pictures, merged. */
+async function mergeFiles(files) {
+  const list = files.filter(mergeable);
+  if (list.length < 2) { toast(t('Merging needs at least two PDFs or pictures.')); return; }
+  if (list.length < files.length) toast(tn(files.length - list.length, '{n} other file is left out: only PDFs and pictures merge.', '{n} other files are left out: only PDFs and pictures merge.'));
+  await openMergeEditor(list[0], list.map((x) => ({ name: x.name, file: x })));
+}
+/** "Merge with…" on one file: choose the others, then the same editor. */
+async function mergeWith(f) {
+  const more = await pickMore(f);
+  if (!more?.length) return;
+  await openMergeEditor(f, [{ name: f.name, file: f }, ...more.map((m) => ({ name: m.name, blob: m.blob }))]);
+}
+
 /**
  * Save an edited file. mode 'replace': the new version takes the original's place (and, if the person
  * says so, every other place the original is in); 'copy': next to the original; 'download': only to
  * the computer. Resolves true when it was saved.
  */
-async function saveEdited(f, blob, { mode, name, pause }) {
+async function saveEdited(f, blob, { mode, name, pause, removeOriginals = null }) {
   if (mode === 'download') { saveBlob(blob, name || f.name); return true; }
   // Ask about the other places before uploading, so a cancelled save leaves no stray attachment.
   let places = [], everywhere = false;
@@ -421,7 +490,10 @@ async function saveEdited(f, blob, { mode, name, pause }) {
   if (mode === 'copy') {
     const col = f.readOnly ? fileColumn() : null;
     const target = col ? { ...f, col: col.id, index: attachmentIds(cellOf(f.rowId, col.id)).length - 1 } : f;
-    return write(insertAfter(S.tableId, target, cellOf(f.rowId, target.col), id), t('Saved “{name}” as a copy.', { name: name || f.name }));
+    // A merged file may also take the files it was made from out of their records, in the same step.
+    const gone = (removeOriginals || []).map((x) => x.file).filter((x) => x && canEditFile(x));
+    const actions = gone.length ? mergeResult(S.tableId, target, id, gone, cellOf) : insertAfter(S.tableId, target, cellOf(f.rowId, target.col), id);
+    return write(actions, t('Saved “{name}” as a copy.', { name: name || f.name }));
   }
   let actions = replaceFile(S.tableId, f, cellOf(f.rowId, f.col), id);
   if (everywhere) {

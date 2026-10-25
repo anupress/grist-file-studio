@@ -189,7 +189,7 @@ function pictureView(host, file, { source, thumbs, onZoom, onSwipe, signal }) {
 // Electron (Grist Desktop), and inside the lightbox it would swallow the arrow keys. Search and print
 // are one click away in a new tab, where the browser's viewer has room.
 function pdfView(host, file, { source, signal, onDownload, onZoom }) {
-  const pages = el('div', { class: 'gs-media__pages', tabindex: '0' });
+  const pages = el('div', { class: 'gs-media__pages', tabindex: '0', role: 'region', 'aria-label': t('Pages') });
   host.append(pages);
   const wait = loading(host, t('Loading'));
   let doc = null, io = null, ratio = 1.414, pageW = 595, zoom = 1, fitted = true, count = 0;

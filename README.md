@@ -1,13 +1,13 @@
 # File Studio — a custom widget for Grist (by ANUPRESS)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-2563EB.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.0-0F1B2D.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.1.0-0F1B2D.svg)](CHANGELOG.md)
 
 File Studio is a gallery, viewer, editor and file manager for the files in your Grist
 **Attachments** columns. It shows them the way people look at files:
 as **cards** with a cover picture, as a **wall of files**, or one record at a time in a **viewer**.
 Any file opens large, whether a photo, a PDF, a video, a voice note, a CSV or a text file. Pictures
-and text files can be edited and saved back in place. Drop files in, paste a screenshot, copy or move
+text files and PDFs can be edited and saved back in place; PDFs and photos can be merged. Drop files in, paste a screenshot, copy or move
 them between records, see every cell a file sits in, rename them by a pattern, and download them as
 one zip named after your columns. It runs entirely in the viewer's browser: there is no server, and your
 files go only between the browser and your own Grist.
@@ -51,6 +51,7 @@ The lightbox shows the file as big as the widget allows and steps through everyt
   viewer for search and printing.
 - **Video and audio:** played in the browser, with skipping ahead.
 - **Text, CSV, JSON, Markdown, HTML:** shown as text, CSV as a table. Never run as a web page.
+
 - **Anything else** (Word, Excel, ZIP, HEIC on Chrome): its type, size and a Download button.
 
 Arrow keys, swipes and the filmstrip move between files; **I** shows the details (size, picture size,
@@ -75,8 +76,8 @@ filtered by a link, new records get the linked value, so they stay in view.
 
 ## Editing files
 
-Pictures and text files open in an editor: **E** in the lightbox, or **Edit…** in a file's menu.
-Videos, audio, PDFs and office files are shown, not edited.
+Pictures, text files and PDFs open in an editor: **E** in the lightbox, or **Edit…** in a file's menu.
+Videos, audio and office files are shown, not edited.
 
 ![The picture editor, marking up a damp patch with a box and an arrow](docs/images/edit-picture.png)
 
@@ -105,6 +106,53 @@ wrapping of long lines.
 - **JSON** has a Format button. A file that is not UTF-8 opens as Windows text and is saved as UTF-8;
   the editor says so.
 
+## PDF files
+
+A PDF opens in an editor with three tabs. It reads and writes the file in your browser; nothing is uploaded
+anywhere but back to your Grist.
+
+![Three files merged into one PDF: the pages as thumbnails, the files in their order, the name of the new file](docs/images/pdf-merge.png)
+
+**Pages** shows every page as a thumbnail.
+
+- Drag a page to move it (or use **Earlier** and **Later**), **turn** it, **remove** it (it stays listed as
+  "Removed" until you save, and can be restored) or **duplicate** it.
+- **Pages from other files…** adds the pages of other PDFs and photos, from this document or your computer.
+- **Save the selected pages as a new file** takes pages out; **Split into several files…** cuts the document
+  up: every page on its own, every few pages, or by ranges such as `1-3, 5, 8-`. The new files land right
+  after the original, in one step that Undo takes back.
+
+**Fill and sign** puts marks on the pages: text, today's date, a tick, a cross, a **cover** (a box that hides
+what is under it from view and print), a highlighter, a pen, and a **signature** you draw with the mouse, a
+finger or a pen. Marks can be moved, resized by their corners and recoloured, and they stay on the same spot of
+the paper when a page is turned.
+
+![A page of an inspection report with ticks, a cross, a highlighted word, a note and a drawn signature](docs/images/pdf-sign.png)
+
+**Numbers** adds page numbers (six positions, four looks, a start number, the first page left out) and a
+watermark such as DRAFT, diagonal or straight. Both go on every page of the saved file, and on every file you
+split off.
+
+**Merging.** Mark PDFs and photos in the Files layout and press **Merge into PDF…**, or choose **Merge with…**
+in one file's menu. The editor opens with all their pages: put the files in order, drop or reorder pages, name
+the new file, and save it next to the first one. Tick **Take the originals out of their records** to replace
+them with the merged file in one step. A photo becomes a page of its own, turned upright and at most 2,600
+pixels on its long side.
+
+**What it does not do**
+
+- It does not rewrite the text that is already in a PDF: marks sit on top of the page, which is how filling in
+  and signing work. A **cover** hides, it does not redact: the text under it is still inside the file.
+- Marks use the PDF's standard fonts (sans, serif and mono, bold and italic): German, French and other Western
+  European text is fine. Other scripts, such as Greek or Chinese, would turn into "?", and the editor warns you
+  as you type.
+- A password-protected PDF asks for its password; the file you save is not protected. A digitally signed PDF
+  loses its signature when it is changed, so the editor says so and **Save as copy** is the safer choice.
+- When pages are left out or files are joined, the result is built fresh from the pages you keep, so a split-off
+  page carries nothing of the others. Turning, reordering and marking edit the file where it stands, which keeps
+  its bookmarks, form fields and information.
+- PDFs up to 80 MB; 300 pages open in under half a second.
+
 **Save** offers three ways:
 
 - **Save:** the edited file takes the original's place in the cell, under the same name. If the same
@@ -121,6 +169,7 @@ A file's menu (**⋯** on its tile, or the menu in the lightbox) has:
 |---|---|
 | **Rename…** | changes the name everywhere in the document |
 | **Duplicate** | a separate copy right after it, named "… (copy)" |
+| **Merge with…** | PDFs and photos into one new PDF (see PDF files) |
 | **Copy to…** | the same file also in another record, picked from a searchable list |
 | **Move to…** | out of this record and into another |
 | **Replace with…** | a file from your computer takes its place |
@@ -216,9 +265,10 @@ npm run build   # obfuscated bundle in dist/
 `src/` runs as native modules for development (`scripts/serve.ps1` serves the folder). The files in
 `src/core/` are shared with Advanced Charts and copied by `scripts/sync-core.mjs`; edit them there.
 The text editor's libraries are one committed bundle, `vendor/codemirror/editor.mjs`; after changing
-a CodeMirror or marked version, `node scripts/build-editor.mjs` rebuilds it with their licences.
+a CodeMirror or marked version, `node scripts/build-editor.mjs` rebuilds it with their licences. The PDF
+library is the same kind of bundle, `vendor/pdflib/pdflib.mjs` (`node scripts/build-pdflib.mjs`).
 
 ## Licence
 
 MIT, see [LICENSE](LICENSE). Bundled third-party code (Grist's plugin API, pdf.js, Sortable,
-CodeMirror, marked) is listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+CodeMirror, marked, pdf-lib) is listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).

@@ -72,6 +72,26 @@ The exact version of each package is in the bundle's first lines, and each one's
 word for word, is in `vendor/codemirror/LICENSES.txt`, which `scripts/build-editor.mjs` writes from
 the packages themselves.
 
+## pdf-lib (the PDF tools)
+
+`vendor/pdflib/pdflib.mjs` — the @cantoo fork of pdf-lib, <https://github.com/cantoo-scribe/pdf-lib>
+(original by Andrew Dillon, <https://github.com/Hopding/pdf-lib>). One bundle, loaded only when a PDF is
+opened for editing. It carries 14 packages, all under permissive licences:
+
+- **MIT License**, each with its own copyright line: `@cantoo/pdf-lib` (2019 Andrew Dillon),
+  `@pdf-lib/standard-fonts` (2018 Andrew Dillon), `@pdf-lib/upng` (2017 Photopea), `color` (2012 Heather Arthur),
+  `color-convert` (2011-2016 Heather Arthur), `color-string` (2011 Heather Arthur), `color-name` (2015 Dmitry
+  Ivanov), `crypto-js` (2009-2013 Jeff Mott, 2013-2016 Evan Vosberg), `html-entities` (2021 Dulin Marat),
+  `is-arrayish` (2015 JD Ballard), `simple-swizzle` (2015 Josh Junon), `node-html-better-parser` (2019 Tao
+  Qiufeng).
+- `pako` (Copyright (C) 2014-2017 Vitaly Puzrin and Andrei Tuputcyn): **MIT License** with the zlib licence
+  for the parts derived from zlib.
+- `tslib` (Copyright (c) Microsoft Corporation): **0BSD**.
+
+The exact version of each package is in the bundle's first lines, and each one's own licence text, word for
+word, is in `vendor/pdflib/LICENSES.txt`, which `scripts/build-pdflib.mjs` writes from the packages themselves
+(and refuses to build if a licence outside its short list of permissive ones appears).
+
 ---
 
 Nothing else is fetched at view time. The widget makes no network requests of its own: it talks only

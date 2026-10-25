@@ -1,7 +1,7 @@
 // The file manager's edits and "where it is": replace in place and everywhere, copies after the
 // original, copy and move to another record; the document-wide index and the links to cells.
 
-import { replaceFile, replaceEverywhere, removeEverywhere, insertAfter, copyFilesTo, moveFilesTo } from '../src/model/edits.js';
+import { replaceFile, replaceEverywhere, removeEverywhere, insertAfter, insertManyAfter, mergeResult, copyFilesTo, moveFilesTo } from '../src/model/edits.js';
 import { attachmentColumns, buildIndex, placeFor, cellLink, docUrlFromBase } from '../src/model/locations.js';
 
 let pass = 0, fail = 0;
@@ -36,6 +36,14 @@ eq('remove everywhere skips formula cells', removeEverywhere(withFormula, 2, (t,
   ['UpdateRecord', 'Sites', 4, { Photos: ['L', 1] }],
 ]);
 eq('a copy goes right after the original', insertAfter('Sites', f, ['L', 1, 2, 3], 9), [['UpdateRecord', 'Sites', 4, { Photos: ['L', 1, 2, 9, 3] }]]);
+eq('the parts of a split go right after the original, in order', insertManyAfter('Sites', f, ['L', 1, 2, 3], [9, 10, 11]), [['UpdateRecord', 'Sites', 4, { Photos: ['L', 1, 2, 9, 10, 11, 3] }]]);
+const mcur = (r, c) => ({ '4Photos': ['L', 1, 2, 3], '5Photos': ['L', 6, 7], '5Docs': ['L', 8] })[r + c];
+eq('a merged file after the first one, the originals left alone', mergeResult('Sites', { rowId: 4, col: 'Photos', index: 0, attId: 1 }, 9, null, mcur), [['UpdateRecord', 'Sites', 4, { Photos: ['L', 1, 9, 2, 3] }]]);
+eq('a merged file with the originals taken out: one action per cell', mergeResult('Sites', { rowId: 4, col: 'Photos', index: 0, attId: 1 }, 9, [{ rowId: 4, col: 'Photos', attId: 1 }, { rowId: 4, col: 'Photos', attId: 3 }, { rowId: 5, col: 'Photos', attId: 7 }, { rowId: 5, col: 'Docs', attId: 8 }], mcur), [
+  ['UpdateRecord', 'Sites', 4, { Photos: ['L', 9, 2] }],
+  ['UpdateRecord', 'Sites', 5, { Photos: ['L', 6] }],
+  ['UpdateRecord', 'Sites', 5, { Docs: null }],
+]);
 eq('copy to another record, no doubles', copyFilesTo('Sites', [{ attId: 2 }, { attId: 3 }, { attId: 2 }], 8, 'Photos', ['L', 3]), [['UpdateRecord', 'Sites', 8, { Photos: ['L', 3, 2] }]]);
 eq('copy of files already there does nothing', copyFilesTo('Sites', [{ attId: 3 }], 8, 'Photos', ['L', 3]), []);
 const cur = (r, c) => ({ '4Photos': ['L', 1, 2, 3], '8Photos': ['L', 7], '4Docs': ['L', 5] })[r + c];

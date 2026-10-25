@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.1.0
+
+PDF tools: a PDF now opens in an editor of its own, and PDFs and photos can be merged. Checked in Grist 1.7.20
+on docs.getgrist.com (a guest document, headless Chrome) and in the demo.
+
+### PDF files
+- **Pages**: every page as a thumbnail. Drag to reorder (or Earlier and Later), turn, remove and restore,
+  duplicate, add pages from other PDFs and photos (from this document or your computer). Take pages out as a
+  new file, or split into several files: every page, every few pages, or by ranges such as `1-3, 5, 8-`. New
+  files land right after the original.
+- **Fill and sign**: text, today's date, ticks, crosses, a cover box, a highlighter, a pen and a drawn
+  signature (kept in this browser only if you ask). Marks can be moved, resized and recoloured, and keep their
+  place when the page is turned. Standard PDF fonts, so Western European text; other letters are reported
+  before they turn into "?".
+- **Numbers**: page numbers (six positions, four looks, a start number, skip the cover) and a watermark.
+- **Merge**: mark PDFs and photos and press Merge into PDF…, or use Merge with… in a file's menu. Reorder the
+  files and the pages, name the result, and optionally take the originals out of their records in the same step.
+- Saved like the other editors: Save in place (asking about other places, one Undo), Save as copy, Download.
+- Password-protected PDFs ask for the password (the saved file is not protected). A digitally signed PDF says
+  that a changed copy loses its signature.
+- A page you take out carries nothing of the others: when pages are left out or files are joined, a new
+  document is built from the kept pages. Turning, reordering and marking keep bookmarks, form fields and the
+  file's information.
+
+### Smaller
+- The marked-files bar takes a second row on a narrow widget instead of scrolling sideways; the mark button
+  on a tile is 24 px; the PDF page area in the lightbox has a name for screen readers; the danger button is
+  readable in dark mode.
+
 ## 1.0.0
 
 The first release. Tested in Grist 1.7.20 on docs.getgrist.com (a guest document, headless Chrome)

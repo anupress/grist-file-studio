@@ -22,7 +22,7 @@ for (const f of files) {
   for (const m of s.matchAll(new RegExp('\\btn\\([^,]+,\\s*' + Q + ',\\s*' + Q, 'g'))) { set.add(m[1]); set.add(m[2]); }
   // tables of strings that reach t() through a variable: ['Label', 'Hint'] pairs and *_LABELS objects
   // (identifiers and class names in such pairs are code, not text: 'parent', ' is-late', 'ps-head')
-  const textual = (x) => x && !/^\s/.test(x) && !/^[a-z][\w-]*$/.test(x);
+  const textual = (x) => x && !/^\s/.test(x) && !/^[a-z][\w-]*$/.test(x) && !/^#[0-9a-f]{3,8}$/i.test(x);   // ids, class names and colours are code
   for (const m of s.matchAll(new RegExp('\\[' + Q + ',\\s*(?:' + Q + '|null)\\]', 'g'))) { if (textual(m[1])) set.add(m[1]); if (textual(m[2])) set.add(m[2]); }
   // objects of interface text: const LAYOUT_LABELS = {...}, GROUP_LABELS, SORT_LABELS
   for (const block of s.matchAll(/const [A-Z_]+_(?:LABELS|MESSAGES) = \{([\s\S]*?)\};/g)) {

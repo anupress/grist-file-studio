@@ -1,7 +1,7 @@
 {
   "name": "grist-file-studio",
-  "version": "1.0.0",
-  "description": "File Studio — a Grist custom widget by ANUPRESS. A gallery, viewer, editor and file manager for the files in your Attachments columns: photos, PDFs, video and audio open large, pictures and text files can be edited and saved in place, files can be copied and moved between records, and zips are named after your columns. No server anywhere.",
+  "version": "1.1.0",
+  "description": "File Studio — a Grist custom widget by ANUPRESS. A gallery, viewer, editor and file manager for the files in your Attachments columns: photos, PDFs, video and audio open large, pictures, text files and PDFs can be edited and saved in place (PDF pages reordered, split, merged, filled and signed), files can be copied and moved between records, and zips are named after your columns. No server anywhere.",
   "type": "module",
   "private": true,
   "author": "ANUPRESS",
@@ -15,6 +15,7 @@
     "clean": "node -e \"import('node:fs').then(fs=>fs.rmSync('dist',{recursive:true,force:true}))\""
   },
   "devDependencies": {
+    "@cantoo/pdf-lib": "2.6.1",
     "@codemirror/commands": "6.11.1",
     "@codemirror/lang-css": "6.3.1",
     "@codemirror/lang-html": "6.4.12",

@@ -213,7 +213,7 @@ a.gs-btn { color: inherit; text-decoration: none; }   /* a link that looks like 
 }
 .gs-tile__tag svg { width: 11px; height: 11px; }
 .gs-tile__mark {
-  position: absolute; top: 6px; left: 6px; width: 22px; height: 22px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.9);
+  position: absolute; top: 6px; left: 6px; width: 24px; height: 24px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.9);
   background: rgba(11, 17, 23, 0.35); color: transparent; cursor: pointer; padding: 0; opacity: 0; transition: opacity 0.12s;
   display: grid; place-items: center;
 }
@@ -619,7 +619,7 @@ a.gs-btn { color: inherit; text-decoration: none; }   /* a link that looks like 
 .gs-ed__flipv svg { transform: rotate(90deg); }   /* the Flip arrows, turned: top and bottom swap */
 .gs-ed__slider { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: center; }
 /* a neutral track: a slider at rest is not "on"; the thumb and number turn accent once it moves */
-.gs-ed__slider input { grid-column: 1 / -1; width: 100%; height: 18px; margin: 2px 0; appearance: none; -webkit-appearance: none; background: transparent; cursor: pointer; }
+.gs-ed__slider input { grid-column: 1 / -1; width: 100%; height: 24px; margin: 0; appearance: none; -webkit-appearance: none; background: transparent; cursor: pointer; }
 .gs-ed__slider input::-webkit-slider-runnable-track { height: 4px; border-radius: var(--gs-r-pill); background: var(--gs-line-strong); }
 .gs-ed__slider input::-moz-range-track { height: 4px; border-radius: var(--gs-r-pill); background: var(--gs-line-strong); }
 .gs-ed__slider input::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; margin-top: -6px; border-radius: 50%; background: var(--gs-ink); border: 2px solid var(--gs-surface); box-sizing: border-box; }
@@ -691,3 +691,84 @@ a.gs-btn { color: inherit; text-decoration: none; }   /* a link that looks like 
 @media (max-width: 480px) {
   .gs-te__word { display: none; }   /* the Preview button keeps its eye and its name for screen readers */
 }
+
+/* ---- the PDF editor: pages as a grid, pages as sheets to fill and sign ---- */
+.gs-ed .gs-field { display: flex; flex-direction: column; gap: 4px; margin: 0; }
+.gs-pe__stage { overflow: auto; background: #080c10; padding: 16px; box-sizing: border-box; }
+.gs-pe__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(156px, 1fr)); gap: 12px; align-content: start; }
+.gs-pe__tile {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 8px 8px; min-width: 0;
+  border: 1px solid var(--gs-line); border-radius: var(--gs-r-2); background: var(--gs-surface); cursor: grab; user-select: none;
+}
+.gs-pe__tile:hover { border-color: var(--gs-line-strong); }
+.gs-pe__tile.is-sel { border-color: var(--gs-accent); background: var(--gs-accent-soft); }
+.gs-pe__tile:focus-visible { outline: 2px solid var(--gs-focus); outline-offset: 2px; }
+.gs-pe__tile.is-removed .gs-pe__thumb { opacity: 0.35; }
+.gs-pe__tile.is-ghost { opacity: 0.4; }
+.gs-pe__tile.is-chosen { cursor: grabbing; }
+.gs-pe__paper { position: relative; display: grid; place-items: center; width: 100%; height: 176px; }
+.gs-pe__thumb { display: block; background: #fff; box-shadow: 0 0 0 1px var(--gs-line-strong); }
+.gs-pe__badge { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 3px 9px; border-radius: var(--gs-r-1); background: var(--gs-surface-2); color: var(--gs-ink); border: 1px solid var(--gs-line-strong); font-size: var(--gs-fs-2); font-weight: 600; }
+.gs-pe__cap { display: flex; justify-content: space-between; gap: 8px; width: 100%; font-size: var(--gs-fs-2); color: var(--gs-muted); min-width: 0; }
+.gs-pe__num { font-weight: 600; color: var(--gs-ink); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.gs-pe__from { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.gs-pe__tools { position: absolute; top: 6px; right: 6px; display: flex; gap: 2px; opacity: 0; transition: opacity 0.12s; }
+.gs-pe__tile:hover .gs-pe__tools, .gs-pe__tile:focus-within .gs-pe__tools, .gs-pe__tile.is-sel .gs-pe__tools { opacity: 1; }
+.gs-pe__tbtn { width: 28px; height: 28px; display: grid; place-items: center; padding: 0; border: 1px solid var(--gs-line-strong); border-radius: var(--gs-r-1); background: var(--gs-surface-2); color: var(--gs-ink); cursor: pointer; }
+.gs-pe__tbtn:hover { background: var(--gs-surface); border-color: var(--gs-accent); }
+.gs-pe__tbtn svg { width: 14px; height: 14px; }
+.gs-pe__count { margin: 0; color: var(--gs-muted); font-size: var(--gs-fs-2); font-variant-numeric: tabular-nums; }
+.gs-pe__note { margin: 0; padding: 8px 10px; border: 1px solid var(--gs-line-strong); border-radius: var(--gs-r-2); background: var(--gs-surface-2); font-size: var(--gs-fs-2); }
+.gs-pe__files { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.gs-pe__file { display: grid; grid-template-columns: 1fr auto auto auto; gap: 6px; align-items: center; padding: 3px 0; font-size: var(--gs-fs-2); }
+.gs-pe__filename { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.gs-pe__filen { color: var(--gs-muted); font-size: var(--gs-fs-1); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.gs-pe__flash { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 7; max-width: min(620px, calc(100% - 24px)); background: var(--gs-tip-bg); color: var(--gs-tip-ink); font-size: var(--gs-fs-2); padding: 7px 12px; border-radius: var(--gs-r-2); box-shadow: var(--gs-float); }
+
+/* sheets: one column of pages, with the marks on them */
+.gs-pe__stage--sheets { padding: 18px 28px 40px; }
+.gs-pe__sheets { display: flex; flex-direction: column; align-items: center; gap: 22px; min-width: min-content; }
+.gs-pe__sheetwrap { display: block; }
+.gs-pe__label { font-size: var(--gs-fs-1); color: var(--gs-muted); margin: 0 0 6px; font-variant-numeric: tabular-nums; }
+.gs-pe__sheet { position: relative; background: #fff; box-shadow: 0 0 0 1px var(--gs-line-strong); }
+.gs-pe__page { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; }
+.gs-pe__layer { position: absolute; inset: 0; touch-action: pan-y; cursor: default; }
+.gs-pe__stage[data-tool]:not([data-tool="select"]) .gs-pe__layer { cursor: crosshair; touch-action: none; }
+.gs-pe__mark { position: absolute; user-select: none; touch-action: none; cursor: move; }
+.gs-pe__mark.is-locked { pointer-events: none; }
+.gs-pe__text { white-space: pre; }
+.gs-pe__draw { pointer-events: none; }
+.gs-pe__draw svg { display: block; overflow: visible; }
+.gs-pe__draw path { pointer-events: stroke; cursor: move; }
+.gs-pe__hilite { opacity: 0.38; }
+.gs-pe__image img { width: 100%; height: 100%; display: block; pointer-events: none; }
+.gs-pe__check svg, .gs-pe__cross svg { display: block; overflow: visible; }
+.gs-pe__frame { position: absolute; border: 2px solid var(--gs-accent); border-radius: 2px; pointer-events: none; }
+.gs-pe__handle { position: absolute; width: 11px; height: 11px; background: #fff; border: 2px solid var(--gs-accent); border-radius: 2px; pointer-events: auto; box-sizing: border-box; }
+.gs-pe__handle::after { content: ''; position: absolute; inset: -8px; }
+.gs-pe__handle--nw { left: -7px; top: -7px; cursor: nwse-resize; }
+.gs-pe__handle--ne { right: -7px; top: -7px; cursor: nesw-resize; }
+.gs-pe__handle--sw { left: -7px; bottom: -7px; cursor: nesw-resize; }
+.gs-pe__handle--se { right: -7px; bottom: -7px; cursor: nwse-resize; }
+.gs-pe__edit { position: absolute; z-index: 3; margin: 0; padding: 0; border: 1px dashed var(--gs-accent); background: rgba(255, 255, 255, 0.92); resize: none; overflow: hidden; white-space: pre; outline: none; box-sizing: content-box; }
+.gs-pe__sigpreview { max-width: 100%; max-height: 90px; background: #fff; border: 1px solid var(--gs-line-strong); border-radius: var(--gs-r-2); padding: 6px; box-sizing: border-box; align-self: flex-start; }
+
+/* the signature pad and the "add files" list */
+.gs-dialog--wide { width: min(520px, calc(100% - 32px)); }
+.gs-sign__wrap { position: relative; margin: 6px 0 10px; }
+.gs-sign__pad { display: block; max-width: 100%; background: #fff; border: 1px solid var(--gs-line-strong); border-radius: var(--gs-r-2); touch-action: none; cursor: crosshair; }
+.gs-sign__hint { position: absolute; inset: 1px; display: grid; place-items: center; background: #fff; border-radius: var(--gs-r-2); color: #4b5563; font-size: var(--gs-fs-2); pointer-events: none; }
+.gs-sign__keep { margin: 10px 0 0; }
+.gs-sign__old { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--gs-line); }
+.gs-sign__old img { background: #fff; border-radius: var(--gs-r-1); padding: 3px 6px; }
+.gs-fc__list { max-height: 260px; }
+.gs-fc__item { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; padding: 7px 10px; cursor: pointer; border-bottom: 1px solid var(--gs-line); }
+.gs-fc__item:last-child { border-bottom: 0; }
+.gs-fc__item:hover { background: var(--gs-surface-2); }
+.gs-fc__item input { accent-color: var(--gs-accent); margin: 0; }
+.gs-fc__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.gs-fc__meta { color: var(--gs-muted); font-size: var(--gs-fs-1); white-space: nowrap; }
+.gs-dialog__list li { overflow-wrap: anywhere; }
+
+/* the marked-files bar has six buttons: on a narrow widget it takes a second row rather than scrolling sideways */
+.gs-filters.gs-marked { flex-wrap: wrap; row-gap: 6px; }

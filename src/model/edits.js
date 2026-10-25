@@ -147,6 +147,37 @@ export function insertAfter(table, file, current, newId) {
   return [['UpdateRecord', table, file.rowId, { [file.col]: cellOf(ids) }]];
 }
 
+/** Several new files (the parts of a split) right after the original, in order. */
+export function insertManyAfter(table, file, current, newIds) {
+  const ids = attachmentIds(current);
+  const at = ids[file.index] === file.attId ? file.index : ids.indexOf(file.attId);
+  ids.splice(at < 0 ? ids.length : at + 1, 0, ...newIds);
+  return [['UpdateRecord', table, file.rowId, { [file.col]: cellOf(ids) }]];
+}
+
+/**
+ * A merged file right after `anchor`, and, when `removed` is given, the files it was made from out of their cells,
+ * all in one bundle. Cells are changed once each, whatever mixture of them the files came from.
+ * currentOf(rowId, colId) -> the cell as it is now.
+ */
+export function mergeResult(table, anchor, newId, removed, currentOf) {
+  const cells = new Map();
+  const idsOf = (rowId, col) => {
+    const k = rowId + ' ' + col;
+    if (!cells.has(k)) cells.set(k, { rowId, col, ids: attachmentIds(currentOf(rowId, col)) });
+    return cells.get(k).ids;
+  };
+  const a = idsOf(anchor.rowId, anchor.col);
+  const at = a[anchor.index] === anchor.attId ? anchor.index : a.indexOf(anchor.attId);
+  a.splice(at < 0 ? a.length : at + 1, 0, newId);
+  for (const f of removed || []) {
+    const ids = idsOf(f.rowId, f.col);
+    const i = ids.indexOf(f.attId);
+    if (i >= 0) ids.splice(i, 1);
+  }
+  return [...cells.values()].map((c) => ['UpdateRecord', table, c.rowId, { [c.col]: cellOf(c.ids) }]);
+}
+
 /**
  * Copy files to another record: the same files (one file, now in two places), after the ones the
  * target already has. Files already in the target cell are not added twice.
