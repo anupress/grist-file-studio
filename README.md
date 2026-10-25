@@ -239,11 +239,14 @@ The **Folders** button (or Ctrl+K → "Show the folder list") opens a list of ev
 - The keyboard works as in a file manager: arrows move, Right opens, Left closes or goes up, Enter chooses, F2 renames, the menu key opens the menu.
   On a narrow widget the list slides over the files and closes after a choice.
 
+![A folder dropped from the computer: Customer Brown, with 2024, Invoices, 2025, Q1 and Photos inside it, in the folder list; the wall shows the first folders; the bar says 6 folders with 7 files were imported](docs/images/import-folder.png)
+
 ## Adding and arranging files
 
 - **Drop** files on a card, a record's heading or the Viewer to add them to that record. Drop them
   anywhere else, or press **Add files**, and choose: add them to the selected record, or make **one
   new record per file**, named after the file (handy for importing a folder of photos).
+- **Drop a folder** from your computer and its folders become folders here, with their files (see *Folders inside folders*).
 - **Paste** a screenshot with Ctrl+V. On a phone, **Add files** offers the camera.
 - **Shrink large photos before uploading** (an option in Columns) keeps the document small and also
   removes the location and camera data photos carry.
