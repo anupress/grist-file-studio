@@ -29,7 +29,7 @@ const SIZES = { s: 0.0035, m: 0.006, l: 0.011 };
 const ASPECTS = [['free', 'Free', null], ['orig', 'Original', 'orig'], ['1:1', '1:1', 1], ['4:3', '4:3', 4 / 3], ['3:2', '3:2', 3 / 2], ['16:9', '16:9', 16 / 9]];
 const SLIDERS = [['exposure', -2, 2, 0.05], ['contrast', -100, 100, 1], ['highlights', -100, 100, 1], ['shadows', -100, 100, 1], ['saturation', -100, 100, 1], ['warmth', -100, 100, 1], ['sharpness', 0, 100, 1]];
 const SLIDER_LABELS = { exposure: 'Exposure', contrast: 'Contrast', highlights: 'Highlights', shadows: 'Shadows', saturation: 'Saturation', warmth: 'Warmth', sharpness: 'Sharpness' };
-const LOOK_LABELS = { none: 'None', bw: 'Black & white', warm: 'Warm', cool: 'Cool', vivid: 'Vivid', soft: 'Soft' };
+const LOOK_LABELS = { none: 'None', doc: 'Document', docColour: 'Document, colour', bw: 'Black & white', warm: 'Warm', cool: 'Cool', vivid: 'Vivid', soft: 'Soft' };
 const TAB_LABELS = { crop: 'Crop', adjust: 'Adjust', mark: 'Mark up', hide: 'Hide', size: 'Size' };
 
 const canvas = (w, h) => { const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(w)); c.height = Math.max(1, Math.round(h)); return c; };

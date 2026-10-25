@@ -1,7 +1,7 @@
 // The picture editor's arithmetic: identity, tone direction, colour, auto levels, sharpening,
 // pixelation, straightening and crop geometry.
 
-import { toneLuts, applyAdjust, isIdentity, autoLevels, sharpen, pixelate, straightenScale, cropToAspect, dragCrop, resizeTo, outputFormat, turnedSize, ADJUST_DEFAULTS } from '../src/media/imaging.js';
+import { toneLuts, applyAdjust, isIdentity, autoLevels, sharpen, pixelate, straightenScale, cropToAspect, dragCrop, resizeTo, outputFormat, turnedSize, ADJUST_DEFAULTS, LOOKS } from '../src/media/imaging.js';
 
 let pass = 0, fail = 0;
 const eq = (n, got, want) => { if (JSON.stringify(got) === JSON.stringify(want)) pass++; else { fail++; console.log(`  FAIL ${n}\n    got  ${JSON.stringify(got)}\n    want ${JSON.stringify(want)}`); } };
@@ -74,6 +74,39 @@ eq('resize by width keeps the shape', resizeTo(4000, 3000, { width: 2000 }), [20
 eq('resize by percent', resizeTo(4000, 3000, { percent: 25 }), [1000, 750]);
 eq('formats', [outputFormat('same', 'JPG'), outputFormat('same', 'gif'), outputFormat('same', 'avif'), outputFormat('webp', 'png')],
   [['image/jpeg', 'jpg'], ['image/png', 'png'], ['image/jpeg', 'jpg'], ['image/webp', 'webp']]);
+
+// ---- the document look ----
+{
+  const { documentLook } = await import('../src/media/imaging.js');
+  // a page lit from the left: the paper goes from 110 (dark side) to 235 (bright side), with print (a third of the paper's brightness)
+  const W = 240, H = 160;
+  const data = new Uint8ClampedArray(W * H * 4);
+  const paperAt = (x) => 110 + (125 * x) / (W - 1);
+  const isPrint = (x, y) => y >= 30 && y < 130 && ((x >= 20 && x < 26) || (x >= 100 && x < 106) || (x >= 200 && x < 206));
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const v = paperAt(x) * (isPrint(x, y) ? 0.33 : 1); const i = (y * W + x) * 4; data[i] = v; data[i + 1] = v; data[i + 2] = v * 0.97; data[i + 3] = 255; }
+  const img = { width: W, height: H, data: new Uint8ClampedArray(data) };
+  documentLook(img, { amount: 100 });
+  const at = (x, y) => img.data[(y * W + x) * 4];
+  eq('the paper is white on the dark side and on the bright side', [at(60, 10) >= 245, at(180, 10) >= 245, at(60, 150) >= 245], [true, true, true]);
+  eq('the print is dark on the dark side, in the middle and on the bright side', [at(22, 80) <= 40, at(103, 80) <= 40, at(203, 80) <= 40], [true, true, true]);
+  eq('black and white: red, green and blue agree', [img.data[(80 * W + 22) * 4] === img.data[(80 * W + 22) * 4 + 2], img.data[(10 * W + 60) * 4 + 3]], [true, 255]);
+  const half = { width: W, height: H, data: new Uint8ClampedArray(data) };
+  documentLook(half, { amount: 50 });
+  eq('half the effect lands between the picture and the full effect', [half.data[(10 * W + 60) * 4] > data[(10 * W + 60) * 4] && half.data[(10 * W + 60) * 4] < 255, half.data[(80 * W + 22) * 4] > img.data[(80 * W + 22) * 4]], [true, true]);
+  // colour: a blue pen on the same page stays blue
+  const pen = new Uint8ClampedArray(data);
+  for (let y = 30; y < 130; y++) for (let x = 100; x < 106; x++) { const i = (y * W + x) * 4; const v = paperAt(x); pen[i] = v * 0.2; pen[i + 1] = v * 0.3; pen[i + 2] = v * 0.9; }
+  const col = { width: W, height: H, data: pen };
+  documentLook(col, { amount: 100, colour: true });
+  const ci = (80 * W + 103) * 4;
+  eq('colour: the paper is white and the blue pen is still blue', [col.data[(10 * W + 60) * 4] >= 240, col.data[ci + 2] > col.data[ci] + 40], [true, true]);
+  const none = { width: W, height: H, data: new Uint8ClampedArray(data) };
+  documentLook(none, { amount: 0 });
+  eq('amount 0 changes nothing, and a tiny picture is left alone', [none.data.every((v, i) => v === data[i]), documentLook({ width: 4, height: 4, data: new Uint8ClampedArray(64).fill(9) }, { amount: 100 }).data[0]], [true, 9]);
+  const viaAdjust = { width: W, height: H, data: new Uint8ClampedArray(data) };
+  applyAdjust(viaAdjust, { ...ADJUST_DEFAULTS, ...LOOKS.doc });
+  eq('the Document look goes through the adjustments like the other looks', [viaAdjust.data[(10 * W + 60) * 4] >= 245, isIdentity({ ...ADJUST_DEFAULTS, scan: 100 }), isIdentity(ADJUST_DEFAULTS)], [true, false, true]);
+}
 
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

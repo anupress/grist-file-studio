@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.8.0
+
+The Document look for photos of pages. Checked in the demo with a synthetic photo (a page lit from one side, a shadow in a corner,
+noise) in the picture editor.
+
+### Picture editor
+- **Look → Document** and **Document, colour**: the paper is made white and even and the print dark. The paper's brightness is
+  estimated block by block (the 85th percentile of each block, so print does not count), smoothed and interpolated; each pixel is
+  measured against it. Resolution independent, so the preview and the saved picture agree. The colour variant keeps a blue pen blue.
+- It goes through the same adjustments as the other looks: the sliders still tune it, Reset and the eye button work, and the
+  result is saved like any edit.
+
 ## 1.7.0
 
 Slideshow, a before/after slider and the date a photo was taken. Checked in the demo with real mouse and keys, and in Grist 1.7.20 (the date, camera and place of a photo read through the attachment endpoint).

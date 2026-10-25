@@ -5,10 +5,10 @@
 // Every slider runs from -100 to 100 with 0 meaning "unchanged", except exposure (-2 to +2 stops) and
 // sharpness (0 to 100). A picture with every value at 0 comes out byte for byte the same.
 
-export const ADJUST_DEFAULTS = Object.freeze({ exposure: 0, contrast: 0, highlights: 0, shadows: 0, saturation: 0, warmth: 0, sharpness: 0, levels: null });
+export const ADJUST_DEFAULTS = Object.freeze({ exposure: 0, contrast: 0, highlights: 0, shadows: 0, saturation: 0, warmth: 0, sharpness: 0, levels: null, scan: 0, scanColour: false });
 
 /** True when the adjustments change nothing (so the pixel pass can be skipped). */
-export const isIdentity = (a) => !a || (!a.exposure && !a.contrast && !a.highlights && !a.shadows && !a.saturation && !a.warmth && !a.sharpness && !a.levels);
+export const isIdentity = (a) => !a || (!a.exposure && !a.contrast && !a.highlights && !a.shadows && !a.saturation && !a.warmth && !a.sharpness && !a.levels && !a.scan);
 
 const clamp255 = (v) => (v < 0 ? 0 : v > 255 ? 255 : v);
 
@@ -42,11 +42,12 @@ export function toneLuts(a) {
 }
 
 /**
- * Apply the adjustments to pixels, in place. Tone by lookup table, then saturation and warmth per
- * pixel, then sharpening. Alpha is left alone.
+ * Apply the adjustments to pixels, in place. The document look first (it levels the paper), then tone by lookup table,
+ * then saturation and warmth per pixel, then sharpening. Alpha is left alone.
  */
 export function applyAdjust(img, a) {
   if (isIdentity(a)) return img;
+  if (a.scan) documentLook(img, { amount: a.scan, colour: !!a.scanColour });
   const d = img.data;
   const [lr, lg, lb] = toneLuts(a);
   const sat = 1 + (a.saturation || 0) / 100;
@@ -89,6 +90,62 @@ export function sharpen(img, amount) {
   return img;
 }
 
+/**
+ * The look of a scanned page from a photo of one: the paper made white and even (the shadow across it, the grey of a phone's exposure,
+ * a lamp on one side), the print made dark. The paper's brightness is estimated block by block (the 85th percentile of each block, so
+ * print does not count), smoothed and interpolated, and every pixel is measured against it. In place; alpha is left alone.
+ * @param o {amount: 0..100 (how much of the effect), colour: keep the colours (a blue pen stays blue) instead of black and white}
+ */
+export function documentLook(img, { amount = 100, colour = false } = {}) {
+  const { width: w, height: h, data: d } = img;
+  if (!amount || w < 8 || h < 8) return img;
+  const B = Math.max(8, Math.round(Math.max(w, h) / 48));
+  const gw = Math.ceil(w / B), gh = Math.ceil(h / B);
+  let grid = new Float32Array(gw * gh);
+  const hist = new Uint32Array(256);
+  for (let gy = 0; gy < gh; gy++) {
+    for (let gx = 0; gx < gw; gx++) {
+      hist.fill(0);
+      let n = 0;
+      const x1 = Math.min(w, (gx + 1) * B), y1 = Math.min(h, (gy + 1) * B);
+      for (let y = gy * B; y < y1; y++) for (let x = gx * B; x < x1; x++) { const i = (y * w + x) * 4; hist[(d[i] * 54 + d[i + 1] * 183 + d[i + 2] * 19) >> 8]++; n++; }
+      let acc = 0, v = 255;
+      for (let k = 0; k < 256; k++) { acc += hist[k]; if (acc >= n * 0.85) { v = k; break; } }
+      grid[gy * gw + gx] = Math.max(v, 8);
+    }
+  }
+  for (let pass = 0; pass < 2; pass++) {   // a 3 x 3 average, twice: no blocks in the result
+    const next = new Float32Array(grid.length);
+    for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) {
+      let sum = 0, cnt = 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = x + dx, yy = y + dy; if (xx >= 0 && yy >= 0 && xx < gw && yy < gh) { sum += grid[yy * gw + xx]; cnt++; } }
+      next[y * gw + x] = sum / cnt;
+    }
+    grid = next;
+  }
+  const k = Math.min(1, Math.max(0, amount / 100));
+  for (let y = 0; y < h; y++) {
+    const fy = Math.min(gh - 1, Math.max(0, (y + 0.5) / B - 0.5)), y0 = Math.floor(fy), y1 = Math.min(gh - 1, y0 + 1), ty = fy - y0;
+    for (let x = 0; x < w; x++) {
+      const fx = Math.min(gw - 1, Math.max(0, (x + 0.5) / B - 0.5)), x0 = Math.floor(fx), x1 = Math.min(gw - 1, x0 + 1), tx = fx - x0;
+      const bg = (grid[y0 * gw + x0] * (1 - tx) + grid[y0 * gw + x1] * tx) * (1 - ty) + (grid[y1 * gw + x0] * (1 - tx) + grid[y1 * gw + x1] * tx) * ty;
+      const i = (y * w + x) * 4;
+      if (colour) {
+        const gain = 255 / bg;
+        for (let c = 0; c < 3; c++) {
+          const out = Math.min(255, Math.max(0, (d[i + c] * gain - 28) * (255 / 207)));
+          d[i + c] = d[i + c] + (out - d[i + c]) * k;
+        }
+      } else {
+        const lum = (d[i] * 54 + d[i + 1] * 183 + d[i + 2] * 19) / 256;
+        const m = Math.min(1, Math.max(0, (lum / bg - 0.5) / 0.3)) * 255;
+        for (let c = 0; c < 3; c++) d[i + c] = d[i + c] + (m - d[i + c]) * k;
+      }
+    }
+  }
+  return img;
+}
+
 /** Histogram of each channel: three Uint32Array(256). */
 export function histogram(img) {
   const h = [new Uint32Array(256), new Uint32Array(256), new Uint32Array(256)];
@@ -118,6 +175,8 @@ export function autoLevels(img, clip = 0.005) {
 
 export const LOOKS = Object.freeze({
   none: {},
+  doc: { scan: 100 },
+  docColour: { scan: 100, scanColour: true },
   bw: { saturation: -100, contrast: 12 },
   warm: { warmth: 35, saturation: 8 },
   cool: { warmth: -35 },

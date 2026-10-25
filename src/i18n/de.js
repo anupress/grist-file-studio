@@ -889,4 +889,7 @@ export const DE = {
   'Taken': 'Aufgenommen',
   '{n} photo without its date read yet': '{n} Foto, dessen Datum noch nicht gelesen ist',
   '{n} photos without their dates read yet': '{n} Fotos, deren Datum noch nicht gelesen ist',
+  // document look
+  'Document': 'Dokument',
+  'Document, colour': 'Dokument, farbig',
 };

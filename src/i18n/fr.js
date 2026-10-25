@@ -896,4 +896,7 @@ export const FR = {
   'Taken': 'Prise le',
   '{n} photo without its date read yet': '{n} photo dont la date n’est pas encore lue',
   '{n} photos without their dates read yet': '{n} photos dont la date n’est pas encore lue',
+  // document look
+  'Document': 'Document',
+  'Document, colour': 'Document, en couleur',
 };

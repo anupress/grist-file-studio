@@ -1,7 +1,7 @@
 # File Studio — a custom widget for Grist (by ANUPRESS)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-2563EB.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.7.0-0F1B2D.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.8.0-0F1B2D.svg)](CHANGELOG.md)
 
 File Studio is a gallery, viewer, editor and file manager for the files in your Grist
 **Attachments** columns. It shows them the way people look at files:
@@ -121,7 +121,7 @@ filtered by a link, new records get the linked value, so they stay in view.
 ## Editing files
 
 Pictures, text files and PDFs open in an editor: **E** in the lightbox, or **Edit…** in a file's menu.
-Videos, audio and office files are shown, not edited.
+Videos, audio and Word, Excel and PowerPoint files are shown, not edited.
 
 ![The picture editor, marking up a damp patch with a box and an arrow](docs/images/edit-picture.png)
 
@@ -130,11 +130,17 @@ Videos, audio and office files are shown, not edited.
 - **Crop** freely or to 1:1, 4:3, 3:2, 16:9 or the original shape, upright or across; turn left or
   right, flip either way, straighten by up to 45°.
 - **Adjust** exposure, contrast, highlights, shadows, saturation, warmth and sharpness, or press
-  **Auto** to stretch the light and take out a colour cast. Five looks (black and white, warm, cool,
-  vivid, soft). Hold the eye button to see the original.
+  **Auto** to stretch the light and take out a colour cast. Seven looks (**Document**, Document in colour, black
+  and white, warm, cool, vivid, soft). Hold the eye button to see the original.
 - **Mark up** with arrows, boxes, circles, a pen and text, in five colours and three line weights.
 - **Hide** faces, number plates or names under blur, pixels or a black box before a picture goes out.
 - **Size** sets the width in pixels, the format (as the original, JPEG, PNG or WebP) and the quality.
+
+**Document** is for a photo of a page: it makes the paper white and even (the shadow across it, a lamp on one side,
+the grey of a phone's exposure) and the print dark, like a scan. It measures every pixel against the paper's brightness
+around it, so it works at any size. **Document, colour** does the same but keeps colours, so a blue pen stays blue.
+
+![A badly lit photo of a page, and the same page with the Document look](docs/images/document-look.png)
 
 Saving writes a new picture, so camera data such as the place a photo was taken is not carried over.
 
