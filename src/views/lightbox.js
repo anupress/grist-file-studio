@@ -59,7 +59,9 @@ export function openLightbox(host, o) {
   const body = el('div', { class: 'gs-lb__body' }, [el('div', { class: 'gs-lb__stage-wrap', style: { flex: '1', minWidth: '0', position: 'relative', display: 'flex' } }, [stage, prev, next]), info]);
   stage.style.flex = '1';
   const strip = el('div', { class: 'gs-lb__strip', role: 'listbox', 'aria-label': t('All files') });
-  const box = el('div', { class: 'gs-lightbox', role: 'dialog', 'aria-modal': 'true', 'aria-label': t('File viewer'), tabindex: '-1' }, [bar, body, strip]);
+  // After a search inside files: where the words were found, with a way through the pages that hold them.
+  const found = el('div', { class: 'gs-lb__found', hidden: true });
+  const box = el('div', { class: 'gs-lightbox', role: 'dialog', 'aria-modal': 'true', 'aria-label': t('File viewer'), tabindex: '-1' }, [bar, found, body, strip]);
   host.append(box);
   const release = trapFocus(box, () => close());
 
@@ -121,9 +123,32 @@ export function openLightbox(host, o) {
     strip.querySelector('.is-on')?.scrollIntoView({ block: 'nearest', inline: 'center' });
   }
 
+  function renderFound(hit) {
+    found.hidden = !hit;
+    clear(found);
+    if (!hit) return;
+    const pages = hit.paged ? hit.pages : [];
+    let at = 0;
+    const where = el('span', { class: 'gs-lb__where' });
+    const label = () => { where.textContent = pages.length ? t('Found on page {n}', { n: pages[at] }) : t('Found in the text'); };
+    label();
+    found.append(where, el('span', { class: 'gs-lb__snippet', title: hit.snippet }, [hit.parts[0], el('mark', { text: hit.parts[1] }), hit.parts[2]]));
+    if (pages.length > 1) {
+      const count = el('span', { class: 'gs-lb__count', text: t('{k} of {m}', { k: 1, m: pages.length }) });
+      found.append(count, el('button', { type: 'button', class: 'gs-btn gs-lb__nextmatch', text: t('Next match'), onclick: () => {
+        at = (at + 1) % pages.length;
+        label();
+        count.textContent = t('{k} of {m}', { k: at + 1, m: pages.length });
+        view?.goTo?.(pages[at]);
+      } }));
+    }
+  }
+
   function show() {
     view?.destroy();
     const f = files[i];
+    const hit = o.hitOf?.(f) || null;
+    renderFound(hit);
     name.textContent = f.name;
     name.title = f.name;
     meta.textContent = `${i + 1} / ${files.length} · ${typeLabel(f.ext)} · ${sizeText(f.size, uiLang())}`;
@@ -132,7 +157,7 @@ export function openLightbox(host, o) {
     prev.hidden = i <= 0;
     next.hidden = i >= files.length - 1;
     view = showFile(stage, f, {
-      source: o.source, thumbs: o.thumbs,
+      source: o.source, thumbs: o.thumbs, page: hit?.paged ? hit.pages[0] : 1,
       onZoom: (z) => { view && (view.fitted = z.fitted); zoomText.textContent = Math.round(z.level * 100) + ' %'; },
       onSwipe: (d) => go(i + d),
       onDownload: () => o.onDownload(f),

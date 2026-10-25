@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.3.0
+
+Search inside files. Checked in Grist 1.7.20 on docs.getgrist.com (a guest document, headless Chrome) and in the demo.
+
+### Search inside files
+- **Inside files**, a box at the end of the search field: the search also looks at the words in PDFs (page by page),
+  Word, Excel, PowerPoint and OpenDocument files, and text, Markdown, CSV and HTML files. Accents and capitals are
+  ignored, and every word typed must be somewhere in the file's name, the record or the file's own text.
+- The text is read when asked: a one-time question says how many files and how many bytes; it reads two files at a time,
+  shows its progress beside the box, can be stopped, and carries on from where it stopped. It is kept in this browser
+  under each file's content hash (IndexedDB), never in the document, so the same file in two records is read once and a
+  changed file is read again.
+- A tile says where the words are: the page (Page 3, Pages 3, 7) or In the text, with the words around the match, the
+  match underlined. The lightbox opens a PDF at its first matching page, shows the same words, and has Next match.
+  In Cards, a record shows when one of its files matches.
+- Files that cannot be read (damaged, password-protected, too large) are counted next to the box and left out. A scanned
+  PDF without a text layer has no words to find.
+- Zip files are read with the browser's own inflate (no library), so nothing new is bundled.
+
+### Smaller
+- The PDF viewer can scroll to a page (used by the search; `goTo` on the view).
+
 ## 1.2.0
 
 Storage: where the document's attachment space goes, and two ways to make room. Checked in Grist 1.7.20 on

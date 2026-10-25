@@ -12,12 +12,20 @@ import { el, clear } from '../core/util.js';
 import { icon } from '../core/assets/icons.js';
 import { layoutFiles, layoutCards, visibleBlocks, locate, neighbour } from '../model/layout.js';
 import { flippable, coverOf } from '../model/files.js';
+import { shorten } from '../model/textsearch.js';
 import { renderFace, fileLabel } from './face.js';
 import { t, tn } from '../i18n/index.js';
 
 const OVERSCAN = 700;
 /** The drag type of tiles dragged inside the widget (files from the desktop come as 'Files'). */
 const INTERNAL = 'application/x-file-studio-files';
+
+/** Where a search found its words in a file: "Page 3", "Pages 3, 7, 9…" or "In the text". */
+export function hitWhere(hit) {
+  if (!hit.paged) return t('In the text');
+  if (hit.pages.length === 1) return t('Page {n}', { n: hit.pages[0] });
+  return t('Pages {list}', { list: hit.pages.slice(0, 3).join(', ') + (hit.pages.length > 3 ? '…' : '') });
+}
 
 /**
  * @param on {onOpen(file), onSelect(rowId), onMark(file, mode: 'toggle'|'range'), onMenu(file, anchor), onDrop(rowId|null, files),
@@ -115,9 +123,10 @@ export function createWall(host, thumbs, on) {
 
   // ---- a tile (Files) ----------------------------------------------------------------------------------
   function buildTile(f, tile) {
+    const where = f.hit ? hitWhere(f.hit) : '';
     const node = el('div', {
-      class: 'gs-tile', role: 'listitem', tabindex: '-1', 'aria-label': fileLabel(f), dataset: { key: f.key, row: String(f.rowId) },
-      title: f.name,
+      class: 'gs-tile' + (f.hit ? ' has-hit' : ''), role: 'listitem', tabindex: '-1', 'aria-label': fileLabel(f) + (where ? ', ' + where : ''), dataset: { key: f.key, row: String(f.rowId) },
+      title: f.hit ? `${f.name}\n${f.hit.snippet}` : f.name,
     });
     const release = renderFace(node, f, { thumbs, cssPx: Math.max(tile.w, tile.h) });
     const mark = el('button', { type: 'button', class: 'gs-tile__mark', 'aria-label': t('Mark'), tabindex: '-1',
@@ -125,6 +134,13 @@ export function createWall(host, thumbs, on) {
     const more = el('button', { type: 'button', class: 'gs-tile__more', 'aria-label': t('More for {name}', { name: f.name }), tabindex: '-1',
       onclick: (e) => { e.stopPropagation(); on.onMenu(f, more); } }, [icon('menu')]);
     node.append(mark, more);
+    // After a search inside files: the page (or "in the text") and a few words around the match.
+    if (f.hit) {
+      // A small tile has room for the page only; the words around the match are in its tooltip.
+      const [head, word, tail] = shorten(f.hit, 14);
+      node.style.setProperty('--gs-hit-h', (tile.h >= 110 ? 50 : 22) + 'px');   // a document's paper stops above the band
+      node.append(el('div', { class: 'gs-tile__hit' }, [el('b', { text: where }), tile.h >= 110 ? el('span', {}, [head, el('mark', { text: word }), tail]) : null]));
+    }
     node.addEventListener('click', (e) => {
       S.focusKey = f.key;
       if (e.shiftKey) { on.onMark(f, 'range'); return; }

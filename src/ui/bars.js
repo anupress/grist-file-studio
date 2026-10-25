@@ -60,7 +60,16 @@ export function createBars(chrome, filters, on) {
   // ---- filters ----
   const search = el('input', { type: 'search', class: 'gs-input', placeholder: t('Search'), 'aria-label': t('Search files and records'),
     oninput: debounce(() => on.onQuery(search.value), 120), onkeydown: (e) => { if (e.key === 'Escape' && search.value) { e.stopPropagation(); search.value = ''; on.onQuery(''); } } });
-  const searchBox = el('div', { class: 'gs-search' }, [icon('filter'), search]);
+  // Searching the text inside files: a checkbox at the end of the search field (it widens what the search looks at; it does not
+  // filter by type like the chips), and a line beside it that speaks only when something is going on or needs doing.
+  // The click is cancelled and the box redrawn from the state, so a "no" to the question leaves it unticked; the change is
+  // handed on after the click has finished, because a cancelled click puts the box back as it was when it ends.
+  const insideBox0 = el('input', { type: 'checkbox', onclick: (e) => { e.preventDefault(); setTimeout(() => on.onInside(), 0); } });
+  const insideBtn = el('label', { class: 'gs-check gs-inside__switch', title: t('Also search the text inside PDFs, Word, Excel and text files'), hidden: true }, [insideBox0, t('Inside files')]);
+  const searchBox = el('div', { class: 'gs-search' }, [icon('filter'), search, insideBtn]);
+  const insideNote = el('span', { class: 'gs-inside__note', role: 'status' });
+  const insideAct = el('button', { type: 'button', class: 'gs-linkbtn', hidden: true });
+  const insideBox = el('div', { class: 'gs-inside', hidden: true }, [insideNote, insideAct]);
   const chips = el('div', { class: 'gs-chips', role: 'group', 'aria-label': t('Show only') });
   const sort = el('select', { class: 'gs-input gs-input--inline', 'aria-label': t('Sort files'), onchange: () => on.onSort(sort.value) },
     Object.entries(SORT_LABELS).map(([id, label]) => el('option', { value: id, text: t(label) })));
@@ -93,7 +102,7 @@ export function createBars(chrome, filters, on) {
     }
     return el('div', { class: 'gs-pop__body' }, rows);
   }
-  const normal = el('div', { style: { display: 'contents' } }, [searchBox, chips, end]);
+  const normal = el('div', { style: { display: 'contents' } }, [searchBox, insideBox, chips, end]);
 
   const markedN = el('span', { class: 'gs-marked__n' });
   const marked = el('div', { style: { display: 'contents' } }, [
@@ -153,6 +162,27 @@ export function createBars(chrome, filters, on) {
       }
       sortBox.hidden = !filesLayout;
       sort.value = s.sort;
+
+      const ins = s.inside;
+      const avail = !!ins && ins.available > 0;
+      insideBtn.hidden = !avail;
+      searchBox.classList.toggle('has-inside', avail);
+      let note = '', act = null;
+      if (avail) {
+        insideBox0.checked = ins.on;
+        insideBtn.title = ins.on && !ins.unread && !ins.reading ? tn(ins.read, 'Looking inside {n} file', 'Looking inside {n} files') : t('Also search the text inside PDFs, Word, Excel and text files');
+        if (ins.on) {
+          const parts = [];
+          if (ins.reading) { parts.push(t('Reading {done} of {total}…', { done: ins.done, total: ins.total })); act = [t('Stop'), on.onInsideStop]; }
+          else if (ins.unread) { parts.push(tn(ins.unread, '{n} file not read yet', '{n} files not read yet')); act = [t('Read'), on.onInsideRead]; }
+          if (ins.failed) parts.push(tn(ins.failed, '{n} file could not be read', '{n} files could not be read'));
+          note = parts.join(' · ');
+        }
+      }
+      insideNote.textContent = note;
+      insideBox.hidden = !note;
+      insideAct.hidden = !act;
+      if (act) { insideAct.textContent = act[0]; insideAct.onclick = act[1]; }
       last = s;
     },
   };

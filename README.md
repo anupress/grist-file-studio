@@ -1,7 +1,7 @@
 # File Studio — a custom widget for Grist (by ANUPRESS)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-2563EB.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.2.0-0F1B2D.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.3.0-0F1B2D.svg)](CHANGELOG.md)
 
 File Studio is a gallery, viewer, editor and file manager for the files in your Grist
 **Attachments** columns. It shows them the way people look at files:
@@ -58,6 +58,29 @@ Arrow keys, swipes and the filmstrip move between files; **I** shows the details
 pages, length, upload date, record and column).
 
 ![The inspection report, a PDF, in the lightbox](docs/images/lightbox.png)
+
+## Search inside files
+
+The search box looks at file names, the record's title and its fields. Tick **Inside files** at the end of the box and
+it also looks at the words *in* the files: PDFs (page by page), Word, Excel, PowerPoint and OpenDocument files, and text,
+Markdown, CSV and HTML files.
+
+![Searching "meter" with Inside files ticked: a page of the inspection report, a checklist and a spreadsheet, each with the words around the match](docs/images/search-inside.png)
+
+- **Reading is asked for.** The first time, File Studio says how many files it will read and how much that downloads
+  (each file once) and waits for a yes. It then reads two at a time, says how far it is next to the box, and **Stop**
+  halts it; **Read** carries on with what is left. Pictures, video and audio have no text, and a PDF over 80 MB, an Office
+  file over 30 MB or a text file over 5 MB is skipped.
+- **Kept in this browser, not in the document.** The text is stored in this browser under each file's content hash, like
+  the thumbnails: the same file in two records is read once, a changed file is read again, and nothing is written to the
+  document or sent anywhere. Clearing the browser's site data clears it.
+- **Where the words are.** A tile says the page (**Page 3**, **Pages 3, 7**) or **In the text**, with the words around
+  the match. The lightbox opens a PDF at its first page with a match and has **Next match** for the others. In Cards, a
+  record shows when one of its files matches.
+- **Accents and capitals do not matter** (`muller` finds Müller, `fenetre` finds Fenêtre). Every word you type must be
+  somewhere in the file's name, the record or the file's own text.
+- **What it cannot do.** A scanned PDF without a text layer has no words to read (there is no text recognition). A file
+  that cannot be read (damaged, password-protected, too big) is counted next to the box and left out.
 
 ## Adding and arranging files
 
@@ -273,7 +296,7 @@ Enter opens, Space marks, Delete removes, **?** lists the rest.
   someone presses Save in Columns: the columns, the layout it opens in, card and tile options, zip
   naming and the upload option.
 - **In this browser**: the layout last switched to, tile size, filters and sort, the interface
-  language, and the thumbnail cache.
+  language, the thumbnail cache, and the text read from files for **Inside files** (with whether it is on).
 
 ## Building
 

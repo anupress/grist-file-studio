@@ -188,7 +188,7 @@ function pictureView(host, file, { source, thumbs, onZoom, onSwipe, signal }) {
 // pdf.js everywhere, not the browser's own viewer: that one is missing on phones and stays blank in
 // Electron (Grist Desktop), and inside the lightbox it would swallow the arrow keys. Search and print
 // are one click away in a new tab, where the browser's viewer has room.
-function pdfView(host, file, { source, signal, onDownload, onZoom }) {
+function pdfView(host, file, { source, signal, onDownload, onZoom, page = 1 }) {
   const pages = el('div', { class: 'gs-media__pages', tabindex: '0', role: 'region', 'aria-label': t('Pages') });
   host.append(pages);
   const wait = loading(host, t('Loading'));
@@ -219,6 +219,11 @@ function pdfView(host, file, { source, signal, onDownload, onZoom }) {
     layout();
     pages.scrollTop = before * pages.scrollHeight;
   }
+  /** Scroll so that page n (1-based) is at the top. */
+  function goTo(n) {
+    const c = pages.children[Math.max(1, Math.min(count, n)) - 1];
+    if (c) pages.scrollTop = c.getBoundingClientRect().top - pages.getBoundingClientRect().top + pages.scrollTop - 8;
+  }
   (async () => {
     try {
       const blob = await source.blob(file, { signal, onProgress: (a, b) => wait.progress(a, b) });
@@ -231,6 +236,7 @@ function pdfView(host, file, { source, signal, onDownload, onZoom }) {
       count = doc.numPages;
       for (let n = 1; n <= count; n++) pages.append(el('canvas', { class: 'gs-media__page', dataset: { n: String(n) }, role: 'img', 'aria-label': t('Page {n} of {count}', { n, count }) }));
       layout();
+      if (page > 1) goTo(page);
     } catch (e) {
       if (signal.aborted) return;
       wait.remove();
@@ -247,6 +253,7 @@ function pdfView(host, file, { source, signal, onDownload, onZoom }) {
     fit: () => setZoom(1, true),
     actual: () => setZoom(((pageW * 96) / 72) / fitWidth()),
     rotate: null,
+    goTo,
     destroy() { ro.disconnect(); io?.disconnect(); doc?.destroy(); },
   };
 }

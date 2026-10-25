@@ -29,7 +29,7 @@
   --gs-paper: #fbfcfd;
   --gs-paper-ink: #3a4756;
   --gs-tip-bg: #14202b;
-  --gs-tip-ink: #f0f5fa;
+  --gs-tip-ink: #f0f5fa; --gs-scrim-ink: #f0f5fa;
   --gs-note: #f8efdc;
   --gs-chrome: #101c29;
   --gs-chrome-ink: #f0f5fa;
@@ -149,6 +149,15 @@ a.gs-btn { color: inherit; text-decoration: none; }   /* a link that looks like 
 .gs-search { position: relative; flex: 0 1 240px; min-width: 140px; }
 .gs-search svg { position: absolute; left: 8px; top: 50%; width: 14px; height: 14px; margin-top: -7px; color: var(--gs-muted); pointer-events: none; }
 .gs-search .gs-input { padding-left: 28px; }
+.gs-inside { display: inline-flex; align-items: center; gap: 8px; flex: none; }
+.gs-inside__note { color: var(--gs-muted); font-size: var(--gs-fs-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.gs-linkbtn { border: 0; background: none; padding: 2px 0; font: inherit; font-size: var(--gs-fs-2); color: var(--gs-ink); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.gs-linkbtn:hover { color: var(--gs-focus); }
+/* the "Inside files" box sits at the end of the search field, which grows to hold it */
+.gs-search.has-inside { flex-basis: 340px; }
+.gs-search.has-inside .gs-input { padding-right: 126px; }
+.gs-inside__switch { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); color: var(--gs-muted); font-size: var(--gs-fs-2); gap: 5px; }
+.gs-inside__switch[hidden] { display: none; }
 .gs-chips { display: flex; flex-wrap: wrap; gap: 4px; }
 .gs-chip {
   border: 1px solid var(--gs-line-strong); background: var(--gs-surface); border-radius: var(--gs-r-pill); padding: 3px 10px; cursor: pointer;
@@ -208,10 +217,22 @@ a.gs-btn { color: inherit; text-decoration: none; }   /* a link that looks like 
 .gs-tile.is-marked::after { content: ""; position: absolute; inset: 0; box-shadow: inset 0 0 0 3px var(--gs-accent); border-radius: var(--gs-r-1); pointer-events: none; }
 .gs-tile__tag {
   position: absolute; left: 6px; bottom: 6px; display: inline-flex; align-items: center; gap: 5px; max-width: calc(100% - 12px);
-  padding: 2px 7px; border-radius: var(--gs-r-1); background: rgba(11, 17, 23, 0.72); color: #f0f5fa; font-size: var(--gs-fs-1); font-weight: 600;
+  padding: 2px 7px; border-radius: var(--gs-r-1); background: rgba(11, 17, 23, 0.72); color: var(--gs-scrim-ink); font-size: var(--gs-fs-1); font-weight: 600;
   letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none;
 }
 .gs-tile__tag svg { width: 11px; height: 11px; }
+/* where a search inside files found its words: the page, then a few words around the match */
+.gs-tile__hit {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 4px 7px 5px; background: rgba(11, 17, 23, 0.82); color: var(--gs-scrim-ink);
+  font-size: var(--gs-fs-1); line-height: 1.3; pointer-events: none;
+}
+.gs-tile__hit b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.gs-tile__hit span { display: block; max-height: 2.6em; overflow: hidden; overflow-wrap: anywhere; }
+/* the word itself: brighter and underlined, not a colour */
+.gs-tile__hit mark, .gs-lb__snippet mark { background: none; color: var(--gs-scrim-ink); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.gs-tile.has-hit .gs-tile__tag { display: none; }
+.gs-tile.has-hit .gs-paper { inset: 8% 8% calc(var(--gs-hit-h) + 4px) 8%; padding-top: 30px; }
+.gs-tile.has-hit .gs-paper__text { display: none; }
 .gs-tile__mark {
   position: absolute; top: 6px; left: 6px; width: 24px; height: 24px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.9);
   background: rgba(11, 17, 23, 0.35); color: transparent; cursor: pointer; padding: 0; opacity: 0; transition: opacity 0.12s;
@@ -278,7 +299,7 @@ a.gs-btn { color: inherit; text-decoration: none; }   /* a link that looks like 
 }
 .gs-card__none svg { width: 22px; height: 22px; opacity: 0.7; }
 .gs-card__count {
-  position: absolute; right: 8px; bottom: 8px; padding: 2px 8px; border-radius: var(--gs-r-pill); background: rgba(11, 17, 23, 0.72); color: #f0f5fa;
+  position: absolute; right: 8px; bottom: 8px; padding: 2px 8px; border-radius: var(--gs-r-pill); background: rgba(11, 17, 23, 0.72); color: var(--gs-scrim-ink);
   font-size: var(--gs-fs-1); font-weight: 600; pointer-events: none; font-variant-numeric: tabular-nums;
 }
 .gs-card__dots { position: absolute; left: 8px; right: 70px; bottom: 11px; display: flex; gap: 3px; pointer-events: none; opacity: 0; transition: opacity 0.15s; }
@@ -385,6 +406,13 @@ a.gs-btn { color: inherit; text-decoration: none; }   /* a link that looks like 
 .gs-lb__name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gs-lb__meta { color: var(--gs-muted); font-size: var(--gs-fs-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .gs-lb__tools { margin-left: auto; display: flex; align-items: center; gap: 2px; }
+/* after a search inside files: where the words are, one quiet line under the bar */
+.gs-lb__found { flex: none; display: flex; align-items: baseline; gap: 10px; padding: 0 14px 8px; font-size: var(--gs-fs-2); min-width: 0; }
+.gs-lb__found[hidden] { display: none; }
+.gs-lb__where { font-weight: 600; white-space: nowrap; }
+.gs-lb__snippet { color: var(--gs-muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gs-lb__count { color: var(--gs-muted); white-space: nowrap; font-variant-numeric: tabular-nums; margin-left: auto; }
+.gs-lb__nextmatch { flex: none; align-self: center; padding: 2px 10px; min-height: 26px; }
 .gs-lb__zoomtools { display: contents; }
 .gs-lb__btn {
   flex: none; border: 0; background: transparent; color: #c9d5e1; width: 34px; height: 34px; border-radius: var(--gs-r-2); cursor: pointer; display: grid; place-items: center; padding: 0;
@@ -523,7 +551,7 @@ a.gs-btn { color: inherit; text-decoration: none; }   /* a link that looks like 
   .gs-btn__label, .gs-brand__name, .gs-sort-word, .gs-wide { display: none; }
   .gs-narrow { display: inline; }
   /* one filter row: the chips scroll sideways in whatever room search, sort and Display leave */
-  .gs-search { flex: 0 1 200px; }
+  .gs-search, .gs-search.has-inside { flex: 0 1 300px; }
   .gs-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; min-width: 0; flex: 1 1 0; }
   .gs-chips::-webkit-scrollbar { display: none; }
   .gs-chips { mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent); }   /* says: more to the right */
@@ -534,7 +562,7 @@ a.gs-btn { color: inherit; text-decoration: none; }   /* a link that looks like 
   .gs-counts, .gs-btn--key { display: none; }
   .gs-seg--icons .gs-seg__label { display: none; }
   .gs-filters { flex-wrap: wrap; }
-  .gs-search { flex: 1 1 100%; }
+  .gs-search, .gs-search.has-inside { flex: 1 1 100%; }
   .gs-lb__info { position: absolute; inset: 0 0 0 auto; width: min(300px, 90%); background: #0b0f14; z-index: 4; }
   /* a phone pinches and double-taps to zoom; the bar keeps the name, Download, Details and Close */
   .gs-lb__zoomtools, .gs-lb__tab, .gs-lb__record, .gs-lb__meta { display: none; }
@@ -651,7 +679,7 @@ a.gs-btn { color: inherit; text-decoration: none; }   /* a link that looks like 
 .gs-te__editor .cm-editor { height: 100%; }
 .gs-te__preview { flex: 1; min-width: 0; position: relative; border-left: 1px solid var(--gs-line); background: #ffffff; overflow: auto; }
 .gs-te__frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #ffffff; }
-.gs-te__tag { position: absolute; right: 8px; bottom: 8px; padding: 2px 8px; border-radius: var(--gs-r-1); background: rgba(11, 17, 23, 0.72); color: #f0f5fa; font-size: var(--gs-fs-1); pointer-events: none; }
+.gs-te__tag { position: absolute; right: 8px; bottom: 8px; padding: 2px 8px; border-radius: var(--gs-r-1); background: rgba(11, 17, 23, 0.72); color: var(--gs-scrim-ink); font-size: var(--gs-fs-1); pointer-events: none; }
 .gs-te__svg { position: absolute; inset: 0; display: grid; place-items: center; }
 .gs-te__svg img { max-width: 90%; max-height: 90%; }
 .gs-te__md { padding: 20px 28px; color: #14202b; font: var(--gs-fs-3) / 1.6 var(--gs-font); max-width: 760px; }

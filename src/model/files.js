@@ -78,16 +78,23 @@ export function coverOf(rec) {
 /** Files a card can flip through on hover: everything that draws as a picture. */
 export const flippable = (rec) => rec.files.filter((f) => f.kind === 'image' || f.kind === 'pdf' || f.kind === 'video' || f.kind === 'heic');
 
-const fold = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+export const fold = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 /** Every word of the query must appear in the file's name, its record's title or the record's fields. */
 export function matcher(query) {
   const words = fold(query).split(/\s+/).filter(Boolean);
   if (!words.length) return null;
-  return (...texts) => {
+  const m = (...texts) => {
     const hay = fold(texts.filter(Boolean).join(' '));
     return words.every((w) => hay.includes(w));
   };
+  m.words = words;
+  /** The same, but a word may also be found in a file's text (already folded): some words in the record, some in the file. */
+  m.within = (folded, ...texts) => {
+    const hay = fold(texts.filter(Boolean).join(' '));
+    return words.every((w) => hay.includes(w) || folded.includes(w));
+  };
+  return m;
 }
 
 /** Counts per filter group, for the chips: {all, image, pdf, video, audio, other}. */
@@ -120,13 +127,18 @@ export function sortFiles(files, sort) {
  * chosen group, each record's files sorted. Records left with no file are dropped.
  * @returns {{groups: [{rec, files}], files: [file]}} files = the flat order the lightbox steps through
  */
-export function visibleFiles(gallery, { query = '', group = 'all', sort = 'cell' } = {}) {
+export function visibleFiles(gallery, { query = '', group = 'all', sort = 'cell', inside = null } = {}) {
   const match = matcher(query);
   const groups = [];
   const flat = [];
   for (const rec of gallery.records) {
     const recText = [rec.title, ...rec.fields.map((f) => f.text)];
-    const keep = rec.files.filter((f) => (group === 'all' || f.group === group) && (!match || match(f.name, ...recText)));
+    const keep = rec.files.filter((f) => {
+      if (group !== 'all' && f.group !== group) return false;
+      if (!match) return true;
+      const entry = inside?.(f);   // the file's own text, when the search looks inside files
+      return entry ? match.within(entry.all, f.name, ...recText) : match(f.name, ...recText);
+    });
     if (!keep.length) continue;
     const sorted = sortFiles(keep, sort);
     groups.push({ rec, files: sorted });
@@ -136,8 +148,11 @@ export function visibleFiles(gallery, { query = '', group = 'all', sort = 'cell'
 }
 
 /** What the Cards layout shows: records whose title, fields or file names match. Records with no files stay. */
-export function visibleRecords(gallery, { query = '' } = {}) {
+export function visibleRecords(gallery, { query = '', inside = null } = {}) {
   const match = matcher(query);
   if (!match) return gallery.records;
-  return gallery.records.filter((rec) => match(rec.title, ...rec.fields.map((f) => f.text), ...rec.files.map((f) => f.name)));
+  return gallery.records.filter((rec) => {
+    const texts = [rec.title, ...rec.fields.map((f) => f.text), ...rec.files.map((f) => f.name)];
+    return match(...texts) || (inside && rec.files.some((f) => { const e = inside(f); return e && match.within(e.all, ...texts); }));
+  });
 }

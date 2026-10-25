@@ -11,7 +11,8 @@ import { start, accessLevel, selectedTableId, gristCulture, setOptions, moveCurs
 import { fileUrl, fileBlob, uploadFiles, dropTokens, docUrl, storageInfo, freeUnusedFiles } from './grist/files.js';
 import { loadColumns, loadFileMeta, loadAttachmentRows, loadLabels, loadOwnSection, forgetMeta, loadLocations } from './data/live.js';
 import { resolveRoles, toStored, detectRoles } from './model/roles.js';
-import { buildGallery, metaFromRows, visibleFiles, visibleRecords, groupCounts, sortFiles } from './model/files.js';
+import { buildGallery, metaFromRows, visibleFiles, visibleRecords, groupCounts, sortFiles, matcher } from './model/files.js';
+import { hitFor } from './model/textsearch.js';
 import { attachmentIds, cellText } from './model/values.js';
 import { addFiles as addFilesActions, removeFile, removeFiles, moveFile, newRecords, renameFiles, sharedValue, replaceFile, replaceEverywhere, removeEverywhere, removeManyEverywhere, replaceMany, insertAfter, insertManyAfter, mergeResult, copyFilesTo, moveFilesTo } from './model/edits.js';
 import { buildIndex, cellLink } from './model/locations.js';
@@ -22,6 +23,7 @@ import { createThumbs } from './media/thumbs.js';
 import { openPdf } from './media/pdf.js';
 import { makeZip, manifestCsv, ZIP_LIMIT } from './media/zip.js';
 import { shrinkPhoto } from './media/shrink.js';
+import { TextIndex, canRead } from './media/textindex.js';
 import { createWall } from './views/wall.js';
 import { createViewer } from './views/viewer.js';
 import { openLightbox } from './views/lightbox.js';
@@ -45,6 +47,8 @@ const S = {
   view: { layout: null, query: '', group: 'all', sort: 'cell', cardSize: null, fileSize: null, fit: null, grouped: null, captions: null, cover: null },
   current: null, selfCursor: null, marked: new Set(), lastMark: null,
   lb: null,   // {box, scope: 'wall' | rowId}
+  // Searching inside files: on/off is this browser's choice; the text itself is read on request (see "inside files" below).
+  inside: { on: false, reading: false, done: 0, total: 0 }, readable: new Map(),
 };
 const demoHistory = { undo: [], redo: [] };
 // The language first: everything below builds its labels once, in the language set now.
@@ -126,6 +130,10 @@ function rebuild() {
   for (const f of S.gallery.files) f.colLabel = labels.get(f.col) || f.col;
   // Marks on files that are gone are dropped.
   if (S.marked.size) { const keys = new Set(S.gallery.files.map((f) => f.key)); for (const k of [...S.marked]) if (!keys.has(k)) S.marked.delete(k); }
+  // The files whose text can be read, one per content (the same file in two records is read once).
+  S.readable = new Map();
+  for (const f of S.gallery.files) if (canRead(f)) { const id = identOf(f); if (!S.readable.has(id)) S.readable.set(id, f); }
+  if (S.inside.on) loadKnownText();
 }
 const recordOf = (rowId) => S.gallery?.records.find((r) => r.rowId === rowId) || null;
 const rowOf = (rowId) => S.rows.find((r) => r.id === rowId) || null;
@@ -162,6 +170,9 @@ const bars = createBars(chrome, filters, {
   onColumns: () => openColumnsPanel(),
   onStorage: () => openStorage(),
   onQuery: (q) => { setView({ query: q }, { remember: false }); render(); },
+  onInside: () => toggleInside(),
+  onInsideRead: () => startReading(),
+  onInsideStop: () => insideRun?.abort(),
   onGroup: (g) => { setView({ group: g }); render(); },
   onSort: (s) => { setView({ sort: s }); render(); },
   onSize: (n) => { setView(V().layout === 'cards' ? { cardSize: n } : { fileSize: n }); render(); },
@@ -184,6 +195,7 @@ function updateBars(level = 'full') {
     level, mode: S.demo ? 'demo' : canEdit() ? 'live' : 'ro', readOnlyWhy: readOnlyWhy(), layout: v.layout, editable: canEdit() && !!fileColumn(),
     records: S.gallery?.records.length || 0, files: files.length, query: v.query, group: v.group, groupCounts: groupCounts(files), sort: v.sort,
     size: v.layout === 'cards' ? v.cardSize : v.fileSize, fit: v.fit, grouped: v.grouped, captions: v.captions, cover: v.cover, markedCount: S.marked.size,
+    inside: insideInfo(),
   });
 }
 
@@ -198,7 +210,9 @@ function emptyState(title, body, actions = []) {
 /** What the Files wall shows, in order. */
 function filesData() {
   const v = V();
-  const vis = visibleFiles(S.gallery, { query: v.query, group: v.group, sort: v.sort });
+  const inside = insideFn();
+  const vis = visibleFiles(S.gallery, { query: v.query, group: v.group, sort: v.sort, inside });
+  setHits(vis.files, v.query, inside);
   const groups = v.grouped ? vis.groups : [{ rec: null, files: v.sort === 'cell' ? vis.files : sortFiles(vis.files, v.sort) }];
   return { groups, size: v.fileSize, fit: v.fit, grouped: v.grouped, captions: v.captions };
 }
@@ -254,7 +268,8 @@ function render() {
       });
     }
     if (v.layout === 'cards') {
-      const records = visibleRecords(S.gallery, { query: v.query });
+      setHits([], '', null);
+      const records = visibleRecords(S.gallery, { query: v.query, inside: insideFn() });
       if (!records.length) emptyInWall(v.query ? t('No record matches “{q}”.', { q: v.query }) : t('No records to show. Grist’s filters or a linked selection may hide them.'));
       else wall.setCards({ records, size: v.cardSize, fields: S.roles.fields.length, cover: v.cover });
     } else {
@@ -324,6 +339,7 @@ function openFile(f, list, scope) {
     menuItems: (x, ctx) => menuItems(x, ctx), onEdit: (x) => editFile(x), whereIs: (x) => placesOf(x), onShowRow: (p) => showRow(p),
     onRecord: (x) => { select(x.rowId, { scroll: true }); box.close(); },
     onDownload: (x) => downloadFile(x),
+    hitOf: (x) => x.hit || null,
     onOpenTab: (x) => openInTab(x),
     onRename: (x) => renameOne(x),
     onCover: (x) => reorder(x, 0),
@@ -1079,6 +1095,93 @@ shell.addEventListener('drop', (e) => {
   e.preventDefault();
   addFiles([...e.dataTransfer.files], null);
 });
+
+// ---- inside files ---------------------------------------------------------------------------------------------------
+// The search can look at the words in PDFs, Word, Excel, PowerPoint and text files. Reading them means downloading each
+// file once, so it starts only when asked (the switch in the filter bar, with a one-time question), can be stopped, and
+// keeps its result in this browser (media/textindex.js), under the file's content hash.
+const INSIDE_KEY = 'file-studio-inside', INSIDE_OK_KEY = 'file-studio-inside-ok';
+const mem = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch { /* private window: asked again next time */ } },
+};
+S.inside.on = mem.get(INSIDE_KEY) === '1';
+const fileText = new TextIndex();
+let insideRun = null;
+
+function identOf(f) { return f.ident || 'att' + f.attId; }
+/** The lookup the search uses for a file's own text, or null while the switch is off. */
+const insideFn = () => (S.inside.on ? (f) => fileText.get(identOf(f)) || null : null);
+function insideInfo() {
+  let read = 0, failed = 0, unread = 0;
+  for (const id of S.readable.keys()) { const st = fileText.state(id); if (st === 'ready') read++; else if (st === 'failed') failed++; else unread++; }
+  return { available: S.readable.size, on: S.inside.on, reading: S.inside.reading, done: S.inside.done, total: S.inside.total, read, failed, unread };
+}
+/** Where the query's words are in the shown files, kept on the files for the tiles and the lightbox. */
+function setHits(files, query, inside) {
+  for (const f of S.gallery?.files || []) if (f.hit) f.hit = null;
+  const m = inside && query ? matcher(query) : null;
+  if (!m) return;
+  for (const f of files) { const e = inside(f); if (e) f.hit = hitFor(e, m.words); }
+}
+/** The wall or the bar changes after the text changed: redraw the matches only when a search is on screen. */
+function textChanged() { if (V().query && V().layout !== 'viewer') render(); else updateBars(); }
+
+async function loadKnownText() {
+  const n = await fileText.load([...S.readable.keys()]);
+  if (n) textChanged();
+}
+
+async function toggleInside() {
+  if (S.inside.on) {
+    insideRun?.abort();
+    S.inside.on = false;
+    mem.set(INSIDE_KEY, '0');
+    render();
+    return;
+  }
+  await fileText.load([...S.readable.keys()]);
+  const todo = [...S.readable].filter(([id]) => fileText.state(id) === 'none');
+  if (todo.length && mem.get(INSIDE_OK_KEY) !== '1') {
+    const bytes = todo.reduce((n, [, f]) => n + f.size, 0);
+    const ok = await confirmBox(shell, {
+      title: tn(todo.length, 'Read the text of {n} file?', 'Read the text of {n} files?'),
+      body: t('File Studio downloads each PDF, Word, Excel and text file once ({size} in all), reads the words in it and keeps them in this browser, not in the document. After that the search can look inside the files.', { size: sizeText(bytes, uiLang()) }),
+      ok: t('Read the files'),
+    });
+    if (!ok) return;
+    mem.set(INSIDE_OK_KEY, '1');
+  }
+  S.inside.on = true;
+  mem.set(INSIDE_KEY, '1');
+  render();
+  startReading();
+}
+
+async function startReading() {
+  if (S.inside.reading) return;
+  const list = [...S.readable].filter(([id]) => fileText.state(id) === 'none').map(([ident, file]) => ({ ident, file }));
+  if (!list.length) { updateBars(); return; }
+  const ctrl = new AbortController();
+  insideRun = ctrl;
+  Object.assign(S.inside, { reading: true, done: 0, total: list.length });
+  updateBars();
+  let drawn = 0;
+  try {
+    const res = await fileText.read(list, {
+      source, signal: ctrl.signal,
+      onProgress: (done) => { S.inside.done = done; if (Date.now() - drawn > 500) { drawn = Date.now(); textChanged(); } },
+    });
+    if (!res.stopped && res.failed) toast(tn(res.failed, '{n} file could not be read and is left out of the search.', '{n} files could not be read and are left out of the search.'));
+    else if (!res.stopped && res.read) toast(tn(res.read, 'Read the text of {n} file. The search now looks inside it.', 'Read the text of {n} files. The search now looks inside them.'));
+  } catch (e) {
+    toast(t('Reading the files stopped: {why}', { why: errText(e) }));
+  } finally {
+    S.inside.reading = false;
+    insideRun = null;
+  }
+  textChanged();
+}
 
 // ---- starting up ----------------------------------------------------------------------------------------------------
 let rowsTimer = 0;
