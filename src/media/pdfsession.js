@@ -5,7 +5,7 @@
 // every source is a PDF. Nothing in this file touches the widget's DOM.
 
 import { openPdf } from './pdf.js';
-import { openDocument, imageToPdf, hasSignature } from './pdfops.js';
+import { openDocument, imageToPdf, hasSignature, formFields, blankPdf } from './pdfops.js';
 
 let libPromise = null;
 /** The vendored pdf-lib bundle, fetched the first time a PDF is edited. */
@@ -43,7 +43,8 @@ export const isPhoto = (blob, name) => /^image\//.test(blob.type || '') || IMAGE
 
 /**
  * The sources of one editing session. add() resolves a source:
- *   {id, name, bytes, doc (pdf.js), count, sizes: [{w, h}] (display size of each page, in points), password, signed, photo}
+ *   {id, name, bytes, doc (pdf.js), count, sizes: [{w, h}] (display size of each page, in points), password, signed, photo,
+ *    pages: [{crop, rotate}] (each page's crop box and own rotation, for placing form fields), fields (see formFields), blank}
  * `askPassword(wrong)` is called for a protected file and resolves the password or null to give up.
  */
 export class Sources {
@@ -73,14 +74,25 @@ export class Sources {
       }
     }
     // pdf-lib must be able to write what pdf.js can show; this also checks the password once.
-    try { await openDocument(this.lib, bytes, password); } catch (e) { doc.destroy(); throw e; }
+    let lib1;
+    try { lib1 = await openDocument(this.lib, bytes, password); } catch (e) { doc.destroy(); throw e; }
     const sizes = [];
     for (let i = 1; i <= doc.numPages; i++) {
       const vp = (await doc.getPage(i)).getViewport({ scale: 1 });
       sizes.push({ w: vp.width, h: vp.height });
     }
-    const src = { id, name, bytes, doc, count: doc.numPages, sizes, password, signed: !photo && hasSignature(bytes), photo };
+    const pages = lib1.getPages().map((p) => ({ crop: p.getCropBox(), rotate: p.getRotation().angle }));
+    let fields = [];
+    try { fields = photo ? [] : formFields(this.lib, lib1); } catch { fields = []; }
+    const src = { id, name, bytes, doc, count: doc.numPages, sizes, password, signed: !photo && hasSignature(bytes), photo, pages, fields, blank: false };
     this.map.set(id, src);
+    return src;
+  }
+
+  /** A source of one empty page, w by h points. */
+  async addBlank(w, h, name) {
+    const src = await this.add(name, new Blob([await blankPdf(this.lib, w, h)], { type: 'application/pdf' }), async () => null);
+    src.blank = true;
     return src;
   }
 

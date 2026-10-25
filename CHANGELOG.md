@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.5.0
+
+More PDF tools. Checked in the demo with real mouse and keys, read back with pdf-lib, and in Grist 1.7.20 (a guest document: the form saved in place with its fields kept, opened again with the entries, Undo).
+
+### PDF editor
+- **Form** tab, when the PDF has form fields: text (one line or several), tick boxes, radio buttons, drop-down lists and option
+  lists are drawn as inputs on the page, in place, turned with the page. What is typed is written into the saved file.
+  Filled fields are flattened by default (printed on the page); unticking that keeps a form with the entries in it
+  when the document is edited where it stands. Fields with an automatic text size get a readable 12 pt (11 pt multi-line).
+- **Finish** tab: **Turn pages into pictures** (only pages with a cover-up, or every page; 100, 150 or 200 dpi) makes a
+  cover a real redaction (the words are gone from the file, tested by looking for them inside every stream) and shrinks scans;
+  **Password** locks the file with a password to open and the choices to allow printing, copying and changing.
+- **A blank page** on the Pages tab, the size of the page before it; **Picture** on the Fill and sign tab places a logo or
+  stamp from the computer (JPEG stays JPEG, other pictures keep their transparency).
+- The Cover up hint now says that the text under a cover stays in the file until the page is turned into a picture.
+
+### Smaller
+- The demo has a fillable `move-in-form.pdf` (Hafenstraße 12).
+- The vendored pdf-lib exports its form classes; nothing new is bundled.
+- The text on tile labels and search hits stays light in the dark theme (it had borrowed the tooltip's ink).
+
 ## 1.4.0
 
 Photo report. Checked in Grist 1.7.20 on docs.getgrist.com (a guest document, headless Chrome) and in the demo.

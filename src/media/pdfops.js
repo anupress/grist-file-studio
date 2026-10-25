@@ -275,6 +275,135 @@ export async function drawElements(lib, doc, page, elements, book, images) {
   return [...dropped];
 }
 
+// ---- forms ---------------------------------------------------------------------------------------------
+
+/** A point of the page's user space -> the display frame (unit square). The inverse of userPoint(). */
+export function displayPoint(u, rotation, crop) {
+  const dx = (u.x - crop.x) / crop.width, dy = (u.y - crop.y) / crop.height;
+  switch (norm(rotation)) {
+    case 90: return { x: dy, y: dx };
+    case 180: return { x: 1 - dx, y: dy };
+    case 270: return { x: 1 - dy, y: 1 - dx };
+    default: return { x: dx, y: 1 - dy };
+  }
+}
+
+/** A rectangle of the page's user space {x, y, width, height} -> the box it covers in the display frame, as fractions {x, y, w, h}. */
+export function widgetBox(rect, rotation, crop) {
+  const pts = [[rect.x, rect.y], [rect.x + rect.width, rect.y], [rect.x + rect.width, rect.y + rect.height], [rect.x, rect.y + rect.height]]
+    .map(([x, y]) => displayPoint({ x, y }, rotation, crop));
+  const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
+  const x = Math.min(...xs), y = Math.min(...ys);
+  return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
+}
+
+const attempt = (fn, fallback) => { try { return fn(); } catch { return fallback; } };
+
+/** A field whose text size is "auto" (0 in its default appearance): pdf-lib would fill the whole height with the letters. */
+const autoSized = (f) => attempt(() => /(^|\s)0(\.0+)?\s+Tf/.test(f.acroField.getDefaultAppearance() || ''), false);
+/** A readable size for such a field: 12 pt at most, a little under the height of a one-line box, 11 pt in a multi-line one. */
+function fieldSize(f) {
+  if (f.isMultiline && attempt(() => f.isMultiline(), false)) return 11;
+  const heights = attempt(() => f.acroField.getWidgets().map((w) => w.getRectangle().height), [20]);
+  return Math.max(7, Math.min(12, Math.min(...heights) * 0.6));
+}
+
+/**
+ * The fields of a PDF form that a person can fill: text, tick boxes, radio buttons, drop-down lists and option lists.
+ * Buttons and signature fields are left out, and so are fields with no visible place on a page.
+ * -> [{name, kind: 'text'|'check'|'radio'|'dropdown'|'list', readOnly, value, options?, multiline?, maxLength?, multi?,
+ *      widgets: [{page (0-based), rect: {x, y, width, height} in user space, option?}]}]
+ */
+export function formFields(lib, doc) {
+  let fields;
+  try { fields = doc.getForm().getFields(); } catch { return []; }
+  if (!fields.length) return [];
+  // Which page each widget annotation sits on: pdf-lib's own widgets do not always know their page.
+  const pageOf = new Map();
+  doc.getPages().forEach((page, i) => {
+    const annots = page.node.Annots();
+    if (!annots) return;
+    for (let k = 0; k < annots.size(); k++) pageOf.set(doc.context.lookup(annots.get(k)), i);
+  });
+  const out = [];
+  for (const f of fields) {
+    let kind = null;
+    if (f instanceof lib.PDFTextField) kind = 'text';
+    else if (f instanceof lib.PDFCheckBox) kind = 'check';
+    else if (f instanceof lib.PDFRadioGroup) kind = 'radio';
+    else if (f instanceof lib.PDFDropdown) kind = 'dropdown';
+    else if (f instanceof lib.PDFOptionList) kind = 'list';
+    if (!kind) continue;
+    const options = kind === 'radio' || kind === 'dropdown' || kind === 'list' ? attempt(() => f.getOptions(), []) : null;
+    const widgets = attempt(() => f.acroField.getWidgets(), []).map((w, i) => {
+      const r = w.getRectangle();
+      return { page: pageOf.has(w.dict) ? pageOf.get(w.dict) : -1, rect: { x: r.x, y: r.y, width: r.width, height: r.height }, ...(kind === 'radio' && options[i] != null ? { option: options[i] } : {}) };
+    }).filter((w) => w.page >= 0 && w.rect.width > 0 && w.rect.height > 0);
+    if (!widgets.length) continue;
+    const item = { name: f.getName(), kind, readOnly: attempt(() => f.isReadOnly(), false), widgets };
+    if (kind === 'text') {
+      item.value = attempt(() => f.getText() ?? '', '');
+      item.multiline = attempt(() => f.isMultiline(), false);
+      item.maxLength = attempt(() => f.getMaxLength() ?? null, null);
+    } else if (kind === 'check') item.value = attempt(() => f.isChecked(), false);
+    else if (kind === 'radio') { item.value = attempt(() => f.getSelected() ?? '', ''); item.options = options; }
+    else if (kind === 'dropdown') { item.value = attempt(() => f.getSelected()[0] ?? '', ''); item.options = options; }
+    else { item.value = attempt(() => f.getSelected(), []); item.options = options; item.multi = attempt(() => f.isMultiselect(), false); }
+    out.push(item);
+  }
+  return out;
+}
+
+/**
+ * Puts values into a document's form fields: {fieldName: text | boolean | option}. With `flatten`, the filled fields become
+ * part of the pages (they can no longer be changed), which is also what keeps them when pages are copied into a new file.
+ * Letters the standard font has no glyph for are written as "?" (and listed in `dropped`), as in the editor's text marks.
+ * -> {failed: names that would not take their value (a text too long, a field that is not there...), dropped: characters}
+ */
+export async function applyForm(lib, doc, values, { flatten = false } = {}) {
+  const failed = [];
+  const dropped = new Set();
+  let form;
+  try { form = doc.getForm(); } catch { return { failed: Object.keys(values), dropped: [] }; }
+  const charset = new Set((await doc.embedFont(lib.StandardFonts.Helvetica)).getCharacterSet());
+  for (const [name, v] of Object.entries(values)) {
+    try {
+      const f = form.getField(name);
+      if (f instanceof lib.PDFTextField) {
+        if (v === '' || v == null) f.setText(undefined);
+        else { for (const ch of unsupportedChars(charset, v)) dropped.add(ch); if (autoSized(f)) f.setFontSize(fieldSize(f)); f.setText(cleanText(charset, String(v))); }
+      }
+      else if (f instanceof lib.PDFCheckBox) { if (v) f.check(); else f.uncheck(); }
+      else if (f instanceof lib.PDFRadioGroup || f instanceof lib.PDFDropdown) {
+        if (v === '' || v == null) f.clear();
+        else { if (f instanceof lib.PDFDropdown && autoSized(f)) f.setFontSize(fieldSize(f)); f.select(String(v)); }
+      }
+      else if (f instanceof lib.PDFOptionList) { const list = [].concat(v || []).map(String); if (list.length) f.select(list); else f.clear(); }
+    } catch { failed.push(name); }
+  }
+  if (flatten) {
+    try { form.flatten(); } catch { failed.push('(flatten)'); }
+  }
+  return { failed, dropped: [...dropped] };
+}
+
+/** A PDF of one empty page. */
+export async function blankPdf(lib, w, h) {
+  const doc = await lib.PDFDocument.create();
+  doc.addPage([w, h]);
+  return doc.save();
+}
+
+/**
+ * Which pages become pictures: 'none', 'covered' (those with a cover-up mark) or 'all'. -> Set of page ids.
+ * A cover-up on a page does not remove what is under it, which stays in the file as text: the page has to be redrawn.
+ */
+export function picturePages(mode, entries, marks) {
+  if (mode === 'all') return new Set(entries.map((e) => e.id));
+  if (mode !== 'covered') return new Set();
+  return new Set(entries.filter((e) => (marks.get(e.id) || []).some((m) => m.type === 'rect')).map((e) => e.id));
+}
+
 // ---- building the file ------------------------------------------------------------------------------
 
 /** Opens PDF bytes for editing. A password may be given; without one an encrypted file throws EncryptedPDFError. */
@@ -299,7 +428,10 @@ export async function imageToPdf(lib, imageBytes, type, width, height) {
  *                       index in the source, `rotate` clockwise degrees to add
  *   marks            -> Map(page id -> display-frame marks) drawn on that page, in its final rotation
  *   stamp            -> page numbers and watermark for every page (see stampElements)
- * Returns {bytes, dropped: characters the standard fonts could not draw}.
+ *   form             -> {values: Map(source id -> {field name: value}), flatten} fills form fields of the sources first
+ *   raster           -> {ids: Set(page ids), render(bytes, indices) -> [{bytes, type: 'jpg'|'png', w, h}]} pages redrawn as pictures
+ *   protect          -> {userPassword, ownerPassword, permissions} encrypts the result
+ * Returns {bytes, dropped: characters the standard fonts could not draw, formFailed: field names, pictures: how many pages}.
  *
  * Two ways to the same result, chosen by what the plan does:
  *   * every page of ONE source is kept (turning, reordering, copying, marks, numbers): the document is edited
@@ -308,14 +440,29 @@ export async function imageToPdf(lib, imageBytes, type, width, height) {
  *     never prunes a file it saves, so a page "removed" from the old document would still be inside it,
  *     with its text, and a page sent to someone else must carry nothing of the others.
  */
-export async function buildPdf(lib, { load, pages, marks = new Map(), stamp = null, title = null }) {
+export async function buildPdf(lib, { load, pages, marks = new Map(), stamp = null, title = null, form = null, raster = null, protect = null }) {
   if (!pages.length) throw new Error('No pages');
   const docs = new Map();
-  const get = async (id) => { if (!docs.has(id)) docs.set(id, await load(id)); return docs.get(id); };
+  const formFailed = [];
+  let inPlace = null;
+  // Filled fields stay fields only when the document is edited where it stands; pages copied into a new file would lose them.
+  const dropped = new Set();
+  const fill = async (id, d) => {
+    const values = form?.values?.get(id);
+    if (!values || !Object.keys(values).length) return;
+    const r = await applyForm(lib, d, values, { flatten: !!form.flatten || !inPlace });
+    formFailed.push(...r.failed);
+    for (const ch of r.dropped) dropped.add(ch);
+  };
+  const get = async (id) => {
+    if (!docs.has(id)) { const d = await load(id); docs.set(id, d); if (inPlace !== null) await fill(id, d); }
+    return docs.get(id);
+  };
   const baseId = pages[0].src;
   const single = pages.every((e) => e.src === baseId);
   const base = await get(baseId);
-  const inPlace = single && new Set(pages.map((e) => e.page)).size === base.getPageCount();
+  inPlace = single && new Set(pages.map((e) => e.page)).size === base.getPageCount();
+  await fill(baseId, base);
 
   let out;
   const objs = [];
@@ -361,7 +508,6 @@ export async function buildPdf(lib, { load, pages, marks = new Map(), stamp = nu
 
   const book = fontBook(lib, out);
   const images = new Map();
-  const dropped = new Set();
   for (let k = 0; k < pages.length; k++) {
     const page = out.getPage(k);
     if (pages[k].rotate) page.setRotation(lib.degrees(norm(page.getRotation().angle + pages[k].rotate)));
@@ -372,7 +518,39 @@ export async function buildPdf(lib, { load, pages, marks = new Map(), stamp = nu
   if (title) out.setTitle(title);
   out.setProducer('ANUPRESS File Studio');
   out.setModificationDate(new Date());
-  return { bytes: await out.save({ useObjectStreams: true }), dropped: [...dropped] };
+
+  // Pages redrawn as pictures: what was covered is gone for good, and a scan gets smaller. The page is drawn from the file as
+  // it stands now (marks and numbers included), and a new file is built from those pictures and the pages that stay as they are.
+  let pictures = 0;
+  if (raster && raster.ids.size) {
+    const which = pages.map((e, k) => (raster.ids.has(e.id) ? k : -1)).filter((k) => k >= 0);
+    if (which.length) {
+      const drawn = await raster.render(await out.save({ useObjectStreams: false }), which);
+      const flat = await lib.PDFDocument.create();
+      let n = 0;
+      for (let k = 0; k < pages.length; k++) {
+        const at = which.indexOf(k);
+        if (at < 0) { const [pg] = await flat.copyPages(out, [k]); flat.addPage(pg); continue; }
+        const img = drawn[at];
+        const page = flat.addPage([img.w, img.h]);
+        page.drawImage(img.type === 'png' ? await flat.embedPng(img.bytes) : await flat.embedJpg(img.bytes), { x: 0, y: 0, width: img.w, height: img.h });
+        n++;
+      }
+      for (const [get1, set1] of [['getTitle', 'setTitle'], ['getAuthor', 'setAuthor'], ['getSubject', 'setSubject']]) {
+        const v = out[get1]();
+        if (v) flat[set1](v);
+      }
+      flat.setProducer('ANUPRESS File Studio');
+      flat.setModificationDate(new Date());
+      out = flat;
+      pictures = n;
+    }
+  }
+  if (protect && protect.userPassword) {
+    out.encrypt({ userPassword: protect.userPassword, ownerPassword: protect.ownerPassword || protect.userPassword, permissions: protect.permissions });
+    return { bytes: await out.save({ useObjectStreams: false }), dropped: [...dropped], formFailed, pictures };
+  }
+  return { bytes: await out.save({ useObjectStreams: true }), dropped: [...dropped], formFailed, pictures };
 }
 
 /** True when the file carries a digital signature, which any change breaks. */

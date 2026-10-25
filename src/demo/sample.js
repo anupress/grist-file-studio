@@ -15,7 +15,7 @@ const FILES = [
   ['balcony.jpg', 180004, 1280, 720], ['floor-plan.png', 26539, 1400, 1000], ['inspection-report.pdf', 110005, 0, 0],
   ['notes.txt', 386, 0, 0], ['walkthrough.mp4', 379592, 0, 0], ['meter-readings.csv', 252, 0, 0],
   ['handover-protocol.docx', 36946, 0, 0], ['smoke-alarm-test.mp3', 32617, 0, 0],
-  ['handover-checklist.md', 570, 0, 0], ['listing.html', 769, 0, 0],
+  ['handover-checklist.md', 570, 0, 0], ['listing.html', 769, 0, 0], ['move-in-form.pdf', 11099, 0, 0],
 ];
 const DAY = 864e5;
 const T0 = Date.UTC(2026, 9, 1, 9);
@@ -45,7 +45,7 @@ const D = (y, m, d) => ['d', Date.UTC(y, m - 1, d) / 1000];
 export function demoRows() {
   return [
     { id: 1, Property: 'Testgasse 7, Vienna', Inspector: 'Anna', Visited: D(2026, 10, 2), Photos: L(1, 2, 3, 4), Documents: L(9, 10, 15, 8) },
-    { id: 2, Property: 'Hafenstraße 12, Hamburg', Inspector: 'Jonas', Visited: D(2026, 10, 6), Photos: L(5, 6), Documents: L(11, 12, 13) },
+    { id: 2, Property: 'Hafenstraße 12, Hamburg', Inspector: 'Jonas', Visited: D(2026, 10, 6), Photos: L(5, 6), Documents: L(11, 12, 13, 17) },
     { id: 3, Property: '14 Rue des Lilas, Lyon', Inspector: 'Claire', Visited: D(2026, 10, 9), Photos: L(7), Documents: L(14, 16, 13) },
     { id: 4, Property: 'Kanalstraße 41, Berlin', Inspector: 'Jonas', Visited: null, Photos: null, Documents: null },
   ];

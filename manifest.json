@@ -5,7 +5,7 @@
     "url": "https://anupress.github.io/grist-file-studio/index.html",
     "published": true,
     "accessLevel": "full",
-    "description": "A gallery, viewer, editor and file manager for the files in your Attachments columns: cards, a wall of files and a viewer. Photos, PDFs, video, audio and text open large; edit pictures, text files and PDFs (reorder, split, merge, fill and sign) and save them in place or as a copy; see where the space goes, shrink photos in bulk and free up space; search the words inside PDFs, Word, Excel and text files; make a photo report PDF of a record; see every cell a file sits in; copy, move, rename and zip files named after your columns. Runs entirely in the browser: no server, your files go only between the browser and your Grist.",
+    "description": "A gallery, viewer, editor and file manager for the files in your Attachments columns: cards, a wall of files and a viewer. Photos, PDFs, video, audio and text open large; edit pictures, text files and PDFs (reorder, split, merge, fill and sign, fill in forms, make pages into pictures, set a password) and save them in place or as a copy; see where the space goes, shrink photos in bulk and free up space; search the words inside PDFs, Word, Excel and text files; make a photo report PDF of a record; see every cell a file sits in; copy, move, rename and zip files named after your columns. Runs entirely in the browser: no server, your files go only between the browser and your Grist.",
     "authors": [
       {
         "name": "ANUPRESS",

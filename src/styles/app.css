@@ -29,7 +29,9 @@
   --gs-paper: #fbfcfd;
   --gs-paper-ink: #3a4756;
   --gs-tip-bg: #14202b;
-  --gs-tip-ink: #f0f5fa; --gs-scrim-ink: #f0f5fa;
+  --gs-tip-ink: #f0f5fa;
+  --gs-scrim-ink: #f0f5fa;   /* ink on the dark scrims over pictures: light in both themes (unlike the tooltip ink) */
+  --gs-field-bg: rgba(20, 80, 155, 0.1); --gs-field-line: rgba(20, 80, 155, 0.55);   /* PDF form fields on a white sheet: the same in both themes */
   --gs-note: #f8efdc;
   --gs-chrome: #101c29;
   --gs-chrome-ink: #f0f5fa;
@@ -850,3 +852,13 @@ a.gs-btn { color: inherit; text-decoration: none; }   /* a link that looks like 
 .gs-report__checks { display: flex; flex-direction: column; gap: 8px; margin: 14px 0 6px; }
 .gs-report__check input { margin: 0; }
 .gs-dialog .gs-report__sum { margin: 10px 0 16px; font-size: var(--gs-fs-2); font-variant-numeric: tabular-nums; }
+
+/* ---- PDF form fields drawn over a page (the sheet is white in both themes) ---- */
+.gs-pe__field {
+  position: absolute; box-sizing: border-box; margin: 0; padding: 0 3px; border: 1px solid var(--gs-field-line); border-radius: 2px;
+  background: var(--gs-field-bg); color: #111827; font-family: var(--gs-font); outline: none; color-scheme: light;   /* the sheet is white: native controls are drawn light */
+}
+.gs-pe__field:focus { background: #fff; box-shadow: 0 0 0 2px var(--gs-accent); }
+textarea.gs-pe__field { padding: 3px; resize: none; line-height: 1.25; }
+select.gs-pe__field { padding: 0 2px; }
+.gs-pe__field--tick { padding: 0; accent-color: var(--gs-accent); cursor: pointer; }

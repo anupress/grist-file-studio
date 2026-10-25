@@ -212,13 +212,32 @@ export function createPagesView(ctx) {
     sel.clear(); entries.forEach((p) => sel.add(p.id)); paintSel(); ctx.repanel();
     ctx.toast(tn(entries.length, 'Added {n} page.', 'Added {n} pages.'));
   }
+  /** One empty page, the size of the page it follows, after the last selected page (or at the end). */
+  async function addBlank() {
+    const all = ctx.S.pages;
+    const last = Math.max(-1, ...all.map((p, i) => (sel.has(p.id) ? i : -1)));
+    const after = all[last >= 0 ? last : all.length - 1];
+    const size = after ? ctx.pageSize(after) : { w: 595.28, h: 841.89 };
+    const src = await ctx.sources.addBlank(size.w, size.h, t('Blank page'));
+    const entry = { id: ctx.newId('p'), src: src.id, page: 0, rot: 0, removed: false };
+    ctx.commit((S) => { S.pages.splice(last < 0 ? S.pages.length : last + 1, 0, entry); });
+    sel.clear(); sel.add(entry.id); paintSel(); ctx.repanel();
+    ctx.toast(t('Added a blank page.'));
+  }
   function moveSource(id, dir) {
     ctx.commit((S) => {
-      const order = [...new Set(S.pages.map((p) => p.src))];
+      // A blank page belongs to the file whose page it follows, so it travels with it.
+      const owner = S.pages.map((p, i) => {
+        if (!ctx.sources.get(p.src).blank) return p.src;
+        for (let k = i - 1; k >= 0; k--) if (!ctx.sources.get(S.pages[k].src).blank) return S.pages[k].src;
+        for (let k = i + 1; k < S.pages.length; k++) if (!ctx.sources.get(S.pages[k].src).blank) return S.pages[k].src;
+        return p.src;
+      });
+      const order = [...new Set(owner)];
       const i = order.indexOf(id), j = i + dir;
       if (i < 0 || j < 0 || j >= order.length) return;
       [order[i], order[j]] = [order[j], order[i]];
-      S.pages = order.flatMap((sid) => S.pages.filter((p) => p.src === sid));   // pages of a file stay together, in their order
+      S.pages = order.flatMap((sid) => S.pages.filter((p, k) => owner[k] === sid));   // pages of a file stay together, in their order
     });
   }
   function extract() {
@@ -277,7 +296,7 @@ export function createPagesView(ctx) {
     const some = list.length > 0;
     const allRemoved = some && list.every((p) => p.removed);
     body.append(
-      ...(ctx.merging && ctx.sources.all().length > 1 ? [sourcesGroup()] : []),
+      ...(ctx.merging && ctx.sources.all().filter((s) => !s.blank).length > 1 ? [sourcesGroup()] : []),
       el('p', { class: 'gs-pe__count', text: `${tn(kept, '{n} page', '{n} pages')}${ctx.S.pages.length > kept ? ' · ' + tn(ctx.S.pages.length - kept, '{n} removed [one]', '{n} removed') : ''}${some ? ' · ' + tn(list.length, '{n} selected [one]', '{n} selected') : ''}` }),
       group(t('Selected pages'),
         el('div', { class: 'gs-ed__row' }, [
@@ -300,13 +319,14 @@ export function createPagesView(ctx) {
       ),
       group(t('Add pages'),
         button(icon('plus'), t('Pages from other files…'), () => addPages(), { title: t('PDFs and photos from this document, or from your computer') }),
+        button(icon('plus'), t('A blank page'), () => addBlank(), { title: t('An empty page the size of the one before it') }),
         el('p', { class: 'gs-hint', text: some ? t('They go in after the last selected page.') : t('They go in at the end.') }),
       ),
-      ...(!ctx.merging && ctx.sources.all().length > 1 ? [sourcesGroup()] : []),
+      ...(!ctx.merging && ctx.sources.all().filter((s) => !s.blank).length > 1 ? [sourcesGroup()] : []),
     );
   }
   function sourcesGroup() {
-    const order = [...new Set(ctx.S.pages.map((p) => p.src))];
+    const order = [...new Set(ctx.S.pages.map((p) => p.src))].filter((id) => !ctx.sources.get(id).blank);
     return group(t('Files, in this order'), el('ol', { class: 'gs-pe__files' }, order.map((id, i) => {
       const s = ctx.sources.get(id);
       const n = ctx.S.pages.filter((p) => p.src === id).length;

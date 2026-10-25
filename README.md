@@ -1,7 +1,7 @@
 # File Studio — a custom widget for Grist (by ANUPRESS)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-2563EB.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.4.0-0F1B2D.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.5.0-0F1B2D.svg)](CHANGELOG.md)
 
 File Studio is a gallery, viewer, editor and file manager for the files in your Grist
 **Attachments** columns. It shows them the way people look at files:
@@ -131,8 +131,8 @@ wrapping of long lines.
 
 ## PDF files
 
-A PDF opens in an editor with three tabs. It reads and writes the file in your browser; nothing is uploaded
-anywhere but back to your Grist.
+A PDF opens in an editor with up to five tabs: Pages, Fill and sign, Form (when the PDF has fields), Numbers and Finish.
+It reads and writes the file in your browser; nothing is uploaded anywhere but back to your Grist.
 
 ![Three files merged into one PDF: the pages as thumbnails, the files in their order, the name of the new file](docs/images/pdf-merge.png)
 
@@ -140,21 +140,42 @@ anywhere but back to your Grist.
 
 - Drag a page to move it (or use **Earlier** and **Later**), **turn** it, **remove** it (it stays listed as
   "Removed" until you save, and can be restored) or **duplicate** it.
-- **Pages from other files…** adds the pages of other PDFs and photos, from this document or your computer.
+- **Pages from other files…** adds the pages of other PDFs and photos, from this document or your computer;
+  **A blank page** adds an empty one, the size of the page before it.
 - **Save the selected pages as a new file** takes pages out; **Split into several files…** cuts the document
   up: every page on its own, every few pages, or by ranges such as `1-3, 5, 8-`. The new files land right
   after the original, in one step that Undo takes back.
 
 **Fill and sign** puts marks on the pages: text, today's date, a tick, a cross, a **cover** (a box that hides
-what is under it from view and print), a highlighter, a pen, and a **signature** you draw with the mouse, a
-finger or a pen. Marks can be moved, resized by their corners and recoloured, and they stay on the same spot of
+what is under it from view and print), a highlighter, a pen, a **picture** from your computer (a logo, a stamp)
+and a **signature** you draw with the mouse, a finger or a pen. Marks can be moved, resized by their corners and recoloured, and they stay on the same spot of
 the paper when a page is turned.
 
 ![A page of an inspection report with ticks, a cross, a highlighted word, a note and a drawn signature](docs/images/pdf-sign.png)
 
+**Form** appears when the PDF has its own form fields. They are drawn on the page where they are: click one and type,
+tick a box, choose from a list or a radio button. What you typed goes into the saved file. By default the fields are
+flattened (what you typed is printed on the page and cannot be changed, which also survives dropping or joining
+pages); untick **Make what you filled in part of the page** to keep the file a form with your entries in it, which is
+possible when the document is edited where it stands.
+
+![A form PDF with its fields filled in on the page: text, a list, a radio button, a tick box and notes](docs/images/pdf-form.png)
+
 **Numbers** adds page numbers (six positions, four looks, a start number, the first page left out) and a
 watermark such as DRAFT, diagonal or straight. Both go on every page of the saved file, and on every file you
 split off.
+
+**Finish** has the two things that change the whole file:
+
+- **Turn pages into pictures** redraws pages as JPEG pictures at 100, 150 or 200 dpi: only the pages with a cover-up
+  (so what was under the cover is **gone for good**, text and all), or every page (which also makes a scan smaller).
+  The text of such pages can no longer be selected or searched. A cover on its own only hides: the tab says so in
+  words when a page has one and the choice is still "As they are".
+- **Password** asks for a password to open the file, with the choices to allow printing, copying and changing. Most PDF
+  programs respect those three; some do not, so only the password itself is a lock. It is not stored anywhere: a
+  forgotten password cannot be recovered.
+
+These two apply to the file you save and to every file you split off.
 
 **Merging.** Mark PDFs and photos in the Files layout and press **Merge into PDF…**, or choose **Merge with…**
 in one file's menu. The editor opens with all their pages: put the files in order, drop or reorder pages, name
@@ -165,11 +186,13 @@ pixels on its long side.
 **What it does not do**
 
 - It does not rewrite the text that is already in a PDF: marks sit on top of the page, which is how filling in
-  and signing work. A **cover** hides, it does not redact: the text under it is still inside the file.
+  and signing work. A **cover** hides, it does not redact: the text under it is still inside the file until you
+  turn that page into a picture on the Finish tab.
 - Marks use the PDF's standard fonts (sans, serif and mono, bold and italic): German, French and other Western
   European text is fine. Other scripts, such as Greek or Chinese, would turn into "?", and the editor warns you
   as you type.
-- A password-protected PDF asks for its password; the file you save is not protected. A digitally signed PDF
+- A password-protected PDF asks for its password; the file you save is not protected unless you set a password on
+  the Finish tab. A digitally signed PDF
   loses its signature when it is changed, so the editor says so and **Save as copy** is the safer choice.
 - When pages are left out or files are joined, the result is built fresh from the pages you keep, so a split-off
   page carries nothing of the others. Turning, reordering and marking edit the file where it stands, which keeps

@@ -6,24 +6,31 @@
 //   S.pages  [{id, src, page, rot, removed}]  every page in order, `rot` the clockwise degrees added by the person
 //   S.marks  Map(page id -> [mark])           what is drawn on each page (display frame, see media/pdfops.js)
 //   S.stamp  {numbers, watermark}             page numbers and a watermark for every saved page
+//   S.form   {values, flatten}                what was typed into the PDF's own form fields ("<source>|<field>" -> value)
+//   S.finish {pictures, dpi, protect}         pages turned into pictures, and a password
 
 import { el, clear } from '../core/util.js';
 import { icon } from '../core/assets/icons.js';
 import { trapFocus, openMenu, confirmBox, textBox } from '../ui/dialog.js';
 import { chooseFiles } from '../ui/filechooser.js';
 import { loadPdfLib, Sources } from '../media/pdfsession.js';
-import { buildPdf, displaySize, norm } from '../media/pdfops.js';
+import { buildPdf, displaySize, norm, picturePages } from '../media/pdfops.js';
+import { openPdf, renderPage } from '../media/pdf.js';
 import { baseOf } from '../model/kinds.js';
 import { createPagesView } from './pdfpages.js';
 import { createMarksView } from './pdfmarks.js';
 import { t, tn, dateLocale } from '../i18n/index.js';
 
-const TAB_LABELS = { pages: 'Pages', mark: 'Fill and sign', number: 'Numbers' };
+const TAB_LABELS = { pages: 'Pages', mark: 'Fill and sign', form: 'Form', number: 'Numbers', finish: 'Finish' };
 
 const freshStamp = () => ({
   numbers: { on: false, position: 'bc', format: 'n', start: 1, skipFirst: false, size: 10, color: '#374151', word: t('Page'), margin: 28 },
   watermark: { on: false, text: '', size: 72, opacity: 0.25, diagonal: true, color: '#6b7280' },
 });
+
+const freshForm = () => ({ values: {}, flatten: true });
+const freshFinish = () => ({ pictures: 'none', dpi: 150, protect: { on: false, password: '', repeat: '', print: true, copy: true, edit: false } });
+const deep = (v) => JSON.parse(JSON.stringify(v));
 
 /**
  * @param o {file, source, canSave, canCopy, culture,
@@ -71,8 +78,10 @@ export async function openPdfEditor(host, o) {
     pages: sources.all().flatMap((s) => Array.from({ length: s.count }, (_, i) => ({ id: newId('p'), src: s.id, page: i, rot: 0, removed: false }))),
     marks: new Map(),
     stamp: freshStamp(),
+    form: freshForm(),
+    finish: freshFinish(),
   };
-  const snap = () => ({ pages: S.pages.map((p) => ({ ...p })), marks: new Map([...S.marks].map(([k, v]) => [k, v.slice()])), stamp: JSON.parse(JSON.stringify(S.stamp)) });
+  const snap = () => ({ pages: S.pages.map((p) => ({ ...p })), marks: new Map([...S.marks].map(([k, v]) => [k, v.slice()])), stamp: deep(S.stamp), form: deep(S.form), finish: deep(S.finish) });
   const past = [], future = [];
   let dirty = false, lastKey = null, lastAt = 0, tab = 'pages', busyNote = null;
   const mergeOpts = { name: merging ? o.merge.name : '', removeOriginals: false };
@@ -82,6 +91,8 @@ export async function openPdfEditor(host, o) {
     const s = sources.get(entry.src).sizes[entry.page];
     return norm(entry.rot) % 180 ? { w: s.h, h: s.w } : { w: s.w, h: s.h };
   };
+  const hasForm = () => sources.all().some((s) => s.fields.some((f) => !f.readOnly));
+  const passwordOk = () => { const p = S.finish.protect; return !p.on || (!!p.password && p.password === p.repeat); };
   const stampActive = () => (S.stamp.numbers.on || (S.stamp.watermark.on && S.stamp.watermark.text.trim()) ? S.stamp : null);
 
   // ---- the frame ----
@@ -118,7 +129,8 @@ export async function openPdfEditor(host, o) {
   }
   function syncBar() {
     undoBtn.disabled = !past.length; redoBtn.disabled = !future.length;
-    saveBtn.disabled = !kept().length || (merging && !mergeOpts.name.trim());
+    saveBtn.disabled = !kept().length || (merging && !mergeOpts.name.trim()) || !passwordOk();
+    saveBtn.title = passwordOk() ? '' : t('Finish the password first (tab Finish).');
   }
 
   // ---- the editor the views talk to ----
@@ -141,10 +153,10 @@ export async function openPdfEditor(host, o) {
     addFiles,
     saveParts,
   };
-  const views = { pages: createPagesView(ctx), mark: createMarksView(ctx, 'mark'), number: createMarksView(ctx, 'number') };
+  const views = { pages: createPagesView(ctx), mark: createMarksView(ctx, 'mark'), form: createMarksView(ctx, 'form'), number: createMarksView(ctx, 'number'), finish: createMarksView(ctx, 'finish') };
   let active = views.pages;
 
-  function restore(s) { S = { pages: s.pages, marks: s.marks, stamp: s.stamp }; lastKey = null; }
+  function restore(s) { S = { pages: s.pages, marks: s.marks, stamp: s.stamp, form: s.form, finish: s.finish }; lastKey = null; }
   function undo() { if (!past.length) return; future.push(snap()); restore(past.pop()); dirty = true; syncBar(); refresh({ panel: true }); }
   function redo() { if (!future.length) return; past.push(snap()); restore(future.pop()); dirty = true; syncBar(); refresh({ panel: true }); }
   function zoomBy(d) { const pct = active.zoom?.(d); if (pct) zoomNow.textContent = `${pct} %`; }
@@ -155,7 +167,7 @@ export async function openPdfEditor(host, o) {
     syncBar();
   }
   function renderTabs() {
-    clear(tabs).append(...Object.keys(TAB_LABELS).map((id) => el('button', {
+    clear(tabs).append(...Object.keys(TAB_LABELS).filter((id) => id !== 'form' || hasForm()).map((id) => el('button', {
       type: 'button', role: 'tab', class: 'gs-ed__tab' + (tab === id ? ' is-on' : ''), 'aria-selected': tab === id ? 'true' : 'false', text: t(TAB_LABELS[id]), onclick: () => showTab(id),
     })));
   }
@@ -215,10 +227,53 @@ export async function openPdfEditor(host, o) {
   }
 
   // ---- building and saving ----
+  /** What was typed into form fields, per source: Map(source id -> {field name: value}). */
+  function formValues() {
+    const out = new Map();
+    for (const [key, v] of Object.entries(S.form.values)) {
+      const i = key.indexOf('|');
+      const src = key.slice(0, i), name = key.slice(i + 1);
+      if (!out.has(src)) out.set(src, {});
+      out.get(src)[name] = v;
+    }
+    return out;
+  }
+  /** Pages of the file just built, drawn as JPEG pictures at the chosen sharpness (a page is drawn again from what will be saved). */
+  async function renderPictures(bytes, indices) {
+    const dpi = S.finish.dpi, quality = dpi >= 200 ? 0.88 : dpi >= 150 ? 0.8 : 0.7;
+    const doc = await openPdf(bytes);
+    try {
+      const out = [];
+      for (let n = 0; n < indices.length; n++) {
+        if (busyNote) busyNote.textContent = t('Drawing page {n} of {total} as a picture…', { n: n + 1, total: indices.length });
+        const page = await doc.getPage(indices[n] + 1);
+        const vp = page.getViewport({ scale: 1 });
+        const canvas = document.createElement('canvas');
+        await renderPage(doc, indices[n] + 1, canvas, Math.round((vp.width * dpi) / 72), { dpr: 1, intent: 'print' });
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+        if (!blob) throw new Error(t('This browser could not make the picture.'));
+        out.push({ bytes: new Uint8Array(await blob.arrayBuffer()), type: 'jpg', w: vp.width, h: vp.height });
+        canvas.width = canvas.height = 1;
+      }
+      return out;
+    } finally { doc.destroy(); }
+  }
+  const randomOwner = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('');
   async function build(entries) {
     const plan = entries.map((e) => ({ id: e.id, src: e.src, page: e.page, rotate: e.rot }));
-    const r = await buildPdf(lib, { load: sources.load, pages: plan, marks: S.marks, stamp: stampActive() });
+    const fin = S.finish, pr = fin.protect;
+    const ids = picturePages(fin.pictures, entries, S.marks);
+    const protect = pr.on && pr.password ? {
+      userPassword: pr.password, ownerPassword: randomOwner(),
+      permissions: { printing: pr.print ? 'highResolution' : false, copying: pr.copy, modifying: pr.edit, annotating: pr.edit, fillingForms: pr.edit, contentAccessibility: true, documentAssembly: pr.edit },
+    } : null;
+    const r = await buildPdf(lib, {
+      load: sources.load, pages: plan, marks: S.marks, stamp: stampActive(),
+      form: { values: formValues(), flatten: S.form.flatten },
+      raster: ids.size ? { ids, render: renderPictures } : null, protect,
+    });
     if (r.dropped.length) ctx.onUnsupported(r.dropped);
+    if (r.formFailed.length) flash(t('Some fields would not take what you typed: {names}', { names: r.formFailed.join(', ') }), 9000);
     return new Blob([r.bytes], { type: 'application/pdf' });
   }
   const base = () => baseOf(merging ? mergeOpts.name || o.merge.name : f.name);
