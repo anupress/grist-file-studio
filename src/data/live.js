@@ -32,6 +32,11 @@ export async function loadFileMeta() {
   return metaFromRows(await fetchRows('_grist_Attachments'));
 }
 
+/** Every row of _grist_Attachments as Grist keeps it, including files nobody uses any more (for the storage view). */
+export function loadAttachmentRows() {
+  return fetchRows('_grist_Attachments');
+}
+
 /**
  * For each Reference column the cards show: rowId -> the text Grist shows for it (the referenced
  * table's "show column"). One read per referenced table.

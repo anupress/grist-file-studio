@@ -44,6 +44,7 @@ export function createBars(chrome, filters, on) {
   const add = el('button', { type: 'button', class: 'gs-btn gs-btn--primary', title: t('Add files (or drop them anywhere, or paste)'), onclick: () => on.onAdd() }, [icon('plus'), el('span', { class: 'gs-wide', text: t('Add files') }), el('span', { class: 'gs-narrow', text: t('Add') })]);
   const download = el('button', { type: 'button', class: 'gs-btn', title: t('Download or zip files'), 'aria-label': t('Download'), 'aria-haspopup': 'menu', onclick: () => on.onDownload(download) }, [icon('download2'), el('span', { class: 'gs-btn__label', text: t('Download') })]);
   const keys = el('button', { type: 'button', class: 'gs-btn gs-btn--key', text: '?', title: t('Keyboard shortcuts (?)'), 'aria-label': t('Keyboard shortcuts'), onclick: () => on.onKeys() });
+  const storage = el('button', { type: 'button', class: 'gs-btn', title: t('Where the space goes, and how to make room'), 'aria-label': t('Storage'), onclick: () => on.onStorage() }, [icon('database'), el('span', { class: 'gs-btn__label', text: t('Storage') })]);
   const columns = el('button', { type: 'button', class: 'gs-btn', title: t('Which columns hold the files, what cards show, how zips are named'), 'aria-label': t('Columns'), onclick: () => on.onColumns() }, [icon('columns'), el('span', { class: 'gs-btn__label', text: t('Columns') })]);
   clear(chrome).append(
     el('div', { class: 'gs-bar-left' }, [
@@ -53,7 +54,7 @@ export function createBars(chrome, filters, on) {
       ]),
       mode, layouts.box, counts,
     ]),
-    el('div', { class: 'gs-bar-right' }, [add, download, keys, columns]),
+    el('div', { class: 'gs-bar-right' }, [add, download, keys, storage, columns]),
   );
 
   // ---- filters ----
@@ -125,6 +126,7 @@ export function createBars(chrome, filters, on) {
       add.hidden = level !== 'full' || !s.editable;
       download.hidden = level !== 'full' || !s.files;
       columns.hidden = level === 'bare';
+      storage.hidden = level === 'bare';
       keys.hidden = level === 'bare';
 
       filters.hidden = level !== 'full' || s.layout === 'viewer';

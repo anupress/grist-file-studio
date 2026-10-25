@@ -11,7 +11,7 @@ import { extOf, baseOf } from '../model/kinds.js';
 const SHRINKABLE = ['jpg', 'jpeg', 'jfif', 'png', 'webp', 'bmp', 'heic', 'heif'];
 
 /** @returns {Promise<File>} the smaller file, or the same file when there is nothing to gain */
-export async function shrinkPhoto(file, maxSide = 2560) {
+export async function shrinkPhoto(file, maxSide = 2560, quality = 0.85) {
   const ext = extOf(file.name);
   if (!SHRINKABLE.includes(ext)) return file;
   let bmp;
@@ -26,7 +26,7 @@ export async function shrinkPhoto(file, maxSide = 2560) {
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(bmp, 0, 0, c.width, c.height);
     const png = ext === 'png';
-    const blob = await new Promise((r) => c.toBlob(r, png ? 'image/png' : 'image/jpeg', 0.85));
+    const blob = await new Promise((r) => c.toBlob(r, png ? 'image/png' : 'image/jpeg', quality));
     if (!blob || blob.size >= file.size) return file;
     return new File([blob], baseOf(file.name) + (png ? '.png' : '.jpg'), { type: blob.type, lastModified: file.lastModified });
   } finally { bmp.close?.(); }

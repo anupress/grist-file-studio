@@ -35,6 +35,48 @@ export async function docUrl() {
   try { return docUrlFromBase((await token('ro')).baseUrl); } catch { return null; }
 }
 
+/**
+ * A call to the document's REST API with the widget's own token. Resolves {status, body} for any answer Grist gives
+ * (a refusal is an answer: 403 means the person may not do it); rejects only when Grist cannot be reached.
+ * `write` asks for a token that may change things. A stale token makes fetch throw, so it is tried once more with a new one.
+ */
+export async function docCall(method, path, { write = false } = {}) {
+  const attempt = async (fresh) => {
+    const t = await token(write ? 'rw' : 'ro', fresh);
+    const res = await fetch(`${t.baseUrl}${path}${path.includes('?') ? '&' : '?'}auth=${encodeURIComponent(t.token)}`, { method, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    const text = await res.text();
+    let body = null;
+    try { body = text ? JSON.parse(text) : null; } catch { body = text.slice(0, 200); }
+    return { status: res.status, body };
+  };
+  try { return await attempt(false); } catch { return attempt(true); }
+}
+
+/**
+ * What the storage view needs to know about the document: the person's access ('owners', 'editors', 'viewers'), where files
+ * are kept ('internal' or 'external'), and the server's host (Grist's hosted service has a 1 GB allowance per document).
+ */
+export async function storageInfo() {
+  const [doc, store] = await Promise.all([docCall('GET', '').catch(() => null), docCall('GET', '/attachments/store').catch(() => null)]);
+  let host = '';
+  try { host = new URL((await token('ro')).baseUrl).hostname; } catch { /* unknown */ }
+  return { access: doc?.status === 200 ? doc.body?.access || null : null, store: store?.status === 200 ? store.body?.type || 'internal' : 'internal', host };
+}
+
+/**
+ * Ask Grist to delete the files nobody uses. It must first look which ones those are (updateUsed), then delete them
+ * (removeUnused, owners only). Resolves {ok: true} or {ok: false, reason: 'owner' | 'failed', status}.
+ */
+export async function freeUnusedFiles() {
+  const look = await docCall('POST', '/attachments/updateUsed', { write: true });
+  if (look.status === 403) return { ok: false, reason: 'owner', status: 403 };
+  if (look.status >= 400) return { ok: false, reason: 'failed', status: look.status };
+  const gone = await docCall('POST', '/attachments/removeUnused', { write: true });
+  if (gone.status === 403) return { ok: false, reason: 'owner', status: 403 };
+  if (gone.status >= 400) return { ok: false, reason: 'failed', status: gone.status };
+  return { ok: true };
+}
+
 /** Forget the tokens, so the next request asks Grist for new ones (after an error). */
 export function dropTokens() { tokens.ro = null; tokens.rw = null; }
 

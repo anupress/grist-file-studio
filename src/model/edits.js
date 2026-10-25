@@ -120,6 +120,46 @@ export function replaceEverywhere(places, oldId, newId, currentOf) {
   return everyCell(places, oldId, currentOf, (ids) => ids.map((x) => (x === oldId ? newId : x)));
 }
 
+/**
+ * Many files replaced at once, each by its new version, in every cell that holds them: ONE action per cell, however many of
+ * its files change (replaceEverywhere once per file would let the last write undo the others in a shared cell).
+ * placesOf(attId) -> the cells holding it; mapping: Map(old id -> new id); currentOf(tableId, rowId, colId) -> the cell now.
+ * Formula cells are left to their formulas.
+ */
+export function replaceMany(placesOf, mapping, currentOf) {
+  const cells = new Map();
+  for (const old of mapping.keys()) {
+    for (const p of placesOf(old) || []) {
+      if (p.isFormula) continue;
+      cells.set(`${p.tableId}|${p.rowId}|${p.colId}`, p);
+    }
+  }
+  const actions = [];
+  for (const p of cells.values()) {
+    const ids = attachmentIds(currentOf(p.tableId, p.rowId, p.colId));
+    const next = ids.map((x) => (mapping.has(x) ? mapping.get(x) : x));
+    if (next.some((x, i) => x !== ids[i])) actions.push(['UpdateRecord', p.tableId, p.rowId, { [p.colId]: cellOf(next) }]);
+  }
+  return actions;
+}
+
+/**
+ * Several attachment ids (the same content under more than one row) out of every cell that holds any of them, one action
+ * per cell. placesOf(attId) -> the cells holding it; formula cells are left to their formulas.
+ */
+export function removeManyEverywhere(placesOf, ids, currentOf) {
+  const gone = new Set(ids);
+  const cells = new Map();
+  for (const id of gone) for (const p of placesOf(id) || []) if (!p.isFormula) cells.set(`${p.tableId}|${p.rowId}|${p.colId}`, p);
+  const actions = [];
+  for (const p of cells.values()) {
+    const ids0 = attachmentIds(currentOf(p.tableId, p.rowId, p.colId));
+    const next = ids0.filter((x) => !gone.has(x));
+    if (next.length !== ids0.length) actions.push(['UpdateRecord', p.tableId, p.rowId, { [p.colId]: cellOf(next) }]);
+  }
+  return actions;
+}
+
 /** A file out of every cell that holds it, in one bundle; formula cells left out as above. */
 export function removeEverywhere(places, attId, currentOf) {
   return everyCell(places, attId, currentOf, (ids) => ids.filter((x) => x !== attId));

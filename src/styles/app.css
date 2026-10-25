@@ -772,3 +772,47 @@ a.gs-btn { color: inherit; text-decoration: none; }   /* a link that looks like 
 
 /* the marked-files bar has six buttons: on a narrow widget it takes a second row rather than scrolling sideways */
 .gs-filters.gs-marked { flex-wrap: wrap; row-gap: 6px; }
+
+/* ---- storage: where the space goes ---- */
+.gs-lib { position: absolute; inset: 0; z-index: 46; display: flex; flex-direction: column; background: var(--gs-ground); color: var(--gs-ink); }
+.gs-lib__head { flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--gs-line); background: var(--gs-surface); }
+.gs-lib__head h2 { margin: 0; font-size: var(--gs-fs-4); }
+.gs-lib__body { flex: 1; min-height: 0; overflow: auto; padding: 20px max(16px, calc((100% - 880px) / 2)) 48px; display: flex; flex-direction: column; gap: 24px; }
+.gs-lib__note { margin: 0; padding: 9px 12px; border-left: 3px solid var(--gs-accent); background: var(--gs-accent-soft); border-radius: 0 var(--gs-r-2) var(--gs-r-2) 0; }
+.gs-lib__top { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.gs-lib__big { font-size: 22px; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.gs-lib__sub { color: var(--gs-muted); font-size: var(--gs-fs-2); }
+.gs-lib__limit { display: flex; align-items: center; gap: 8px; }
+.gs-lib__bar { display: flex; height: 14px; margin-top: 14px; border-radius: var(--gs-r-pill); overflow: hidden; background: var(--gs-surface-2); border: 1px solid var(--gs-line-strong); }
+.gs-lib__seg { display: block; height: 100%; min-width: 3px; border-right: 1px solid var(--gs-ground); }
+.gs-lib__seg:last-child { border-right: 0; }
+.gs-lib__seg--unused, .gs-lib__dot--unused { background: repeating-linear-gradient(135deg, var(--gs-muted) 0 2px, transparent 2px 5px); }   /* a pattern, not a colour: unused is said in words too */
+.gs-lib__fill { margin: 8px 0 0; font-weight: 600; }
+.gs-lib__fill.is-near { color: var(--gs-t-orange); }
+.gs-lib__fill.is-over { color: var(--gs-danger); }
+.gs-lib__legend { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 20px; padding: 0; margin: 12px 0 8px; font-size: var(--gs-fs-2); }
+.gs-lib__legend li { display: inline-flex; align-items: baseline; gap: 6px; }
+.gs-lib__dot { width: 10px; height: 10px; border-radius: 2px; flex: none; align-self: center; border: 1px solid var(--gs-line-strong); box-sizing: border-box; }
+.gs-lib__legend b { font-variant-numeric: tabular-nums; }
+.gs-lib__n { color: var(--gs-muted); font-variant-numeric: tabular-nums; }
+.gs-lib__section h3 { margin: 0 0 6px; font-size: var(--gs-fs-1); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gs-muted); }
+.gs-lib__row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 14px 0; border-top: 1px solid var(--gs-line); }
+.gs-lib__what { flex: 1; min-width: 0; }
+.gs-lib__what .gs-hint { margin: 2px 0 0; }
+.gs-lib__row > .gs-btn { flex: none; }
+.gs-lib__side { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.gs-lib__table { width: 100%; border-collapse: collapse; }
+.gs-lib__table th { text-align: left; padding: 6px 8px; font-size: var(--gs-fs-1); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gs-muted); border-bottom: 1px solid var(--gs-line-strong); white-space: nowrap; }
+.gs-lib__table td { padding: 6px 8px; border-bottom: 1px solid var(--gs-line); vertical-align: middle; }
+.gs-lib__table .is-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gs-lib__table .gs-lib__name { width: 100%; max-width: 0; }
+.gs-lib__name span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gs-lib__used { white-space: nowrap; color: var(--gs-muted); font-size: var(--gs-fs-2); }
+.gs-lib__act { width: 40px; text-align: right; }
+.gs-lib__job-bar { height: 8px; margin: 10px 0 14px; border-radius: var(--gs-r-pill); background: var(--gs-surface-2); border: 1px solid var(--gs-line); overflow: hidden; }
+.gs-lib__job-bar span { display: block; height: 100%; width: 0; background: var(--gs-accent); transition: width 0.2s; }
+.gs-lib__job-text { margin: 0; color: var(--gs-muted); font-variant-numeric: tabular-nums; }
+@media (max-width: 560px) {
+  .gs-lib__row { flex-direction: column; }
+  .gs-lib__used { display: none; }
+}

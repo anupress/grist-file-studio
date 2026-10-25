@@ -1,7 +1,7 @@
 # File Studio — a custom widget for Grist (by ANUPRESS)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-2563EB.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.1.0-0F1B2D.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.2.0-0F1B2D.svg)](CHANGELOG.md)
 
 File Studio is a gallery, viewer, editor and file manager for the files in your Grist
 **Attachments** columns. It shows them the way people look at files:
@@ -206,6 +206,27 @@ cleared out by Grist; how long is set by whoever runs the Grist server.
 
 File Studio stores no files of its own. It reads them from your Grist and writes them back there,
 in your browser; only the thumbnails are kept, in this browser's cache.
+
+## Storage
+
+A document's attachments have a size, and on Grist's hosted service it is capped at 1 GB per document. The **Storage**
+button shows where the space goes and helps make room.
+
+![The Storage view: 7.4 MB in a document, the photos that could be smaller, the leftover files, the biggest files](docs/images/storage.png)
+
+- **The picture**: the total, split into pictures, PDFs, video, audio and other, with the files nobody uses any more shown
+  apart (hatched in the bar, and in words in the list). Grist stores a file once, however many cells hold it, so the same
+  photo in two records counts once. An **allowance to watch** (1 GB where Grist's service applies it, none elsewhere; you
+  can pick another) says how full the document is, in words as well as in the bar.
+- **Shrink photos** redraws every photo that is larger than the longest side you pick (1024, 1600, 2048 or 2560 px), or
+  very heavy for its size, and puts the new file where the old one was, in every cell and every table, as one step
+  that Undo takes back. It shows what it expects to save first. Camera data, including where a photo was taken, is not
+  kept. HEIC, GIF and SVG pictures are left alone.
+- **Free up space** asks Grist to delete the files that no cell uses. Shrinking photos, replacing and removing files all
+  leave old files behind: Grist keeps them so that Undo can bring them back, and they count towards the limit until
+  this step. After it, Undo cannot restore them. Only an **owner** of the document can do it.
+- The **biggest files** list each file's size and in how many places it is used, with **Where it is…**, **Download** and
+  **Remove from every place…**.
 
 ## Getting files out
 

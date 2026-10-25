@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.2.0
+
+Storage: where the document's attachment space goes, and two ways to make room. Checked in Grist 1.7.20 on
+docs.getgrist.com (a guest document, headless Chrome) and in the demo.
+
+### Storage
+- A **Storage** button opens a view of every file in the document: the total, split by kind (with the files nobody
+  uses shown separately and in words), an allowance to watch (1 GB by default on Grist's hosted service, which keeps
+  1 GB of attachments per document; none elsewhere; chosen per document, kept in this browser) and the biggest files.
+  Grist stores a file once however many cells hold it, and the view counts it once.
+- **Shrink photos**: the photos larger than a longest side you choose (1024 to 2560 px), or very heavy for their pixels,
+  are redrawn smaller (JPEG at 85 %, a PNG stays a PNG), with a guess of what is saved shown first. The old file is
+  replaced by the new one in every cell that holds it, in all tables, as one Grist action: one Undo takes it all back.
+  It runs two photos at a time with a progress bar and can be stopped. What the camera wrote into the file, including
+  where the photo was taken, is not kept.
+- **Free up space**: asks Grist to look at which files nobody uses and to delete them. Only an owner of the document
+  may (Grist answers "No owner access" otherwise, and the button says so before it is pressed). Grist keeps removed and
+  replaced files so that Undo can bring them back; after this step it cannot.
+- The biggest files each have Where it is…, Download and Remove from every place….
+
+### Smaller
+- Photos and files removed from a cell show up under Free up space until Grist's cleanup runs.
+
 ## 1.1.0
 
 PDF tools: a PDF now opens in an editor of its own, and PDFs and photos can be merged. Checked in Grist 1.7.20

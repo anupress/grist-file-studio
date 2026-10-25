@@ -8,12 +8,12 @@
 import { el, clear } from './core/util.js';
 import { VERSION } from './version.js';
 import { start, accessLevel, selectedTableId, gristCulture, setOptions, moveCursor, apply, undo as gristUndo, redo as gristRedo, linkingInfo } from './grist/connect.js';
-import { fileUrl, fileBlob, uploadFiles, dropTokens, docUrl } from './grist/files.js';
-import { loadColumns, loadFileMeta, loadLabels, loadOwnSection, forgetMeta, loadLocations } from './data/live.js';
+import { fileUrl, fileBlob, uploadFiles, dropTokens, docUrl, storageInfo, freeUnusedFiles } from './grist/files.js';
+import { loadColumns, loadFileMeta, loadAttachmentRows, loadLabels, loadOwnSection, forgetMeta, loadLocations } from './data/live.js';
 import { resolveRoles, toStored, detectRoles } from './model/roles.js';
 import { buildGallery, metaFromRows, visibleFiles, visibleRecords, groupCounts, sortFiles } from './model/files.js';
 import { attachmentIds, cellText } from './model/values.js';
-import { addFiles as addFilesActions, removeFile, removeFiles, moveFile, newRecords, renameFiles, sharedValue, replaceFile, replaceEverywhere, removeEverywhere, insertAfter, insertManyAfter, mergeResult, copyFilesTo, moveFilesTo } from './model/edits.js';
+import { addFiles as addFilesActions, removeFile, removeFiles, moveFile, newRecords, renameFiles, sharedValue, replaceFile, replaceEverywhere, removeEverywhere, removeManyEverywhere, replaceMany, insertAfter, insertManyAfter, mergeResult, copyFilesTo, moveFilesTo } from './model/edits.js';
 import { buildIndex, cellLink } from './model/locations.js';
 import { exportPaths, safeName } from './model/names.js';
 import { extOf, baseOf, sizeText } from './model/kinds.js';
@@ -27,6 +27,7 @@ import { createViewer } from './views/viewer.js';
 import { openLightbox } from './views/lightbox.js';
 import { createBars } from './ui/bars.js';
 import { openColumns } from './ui/columns.js';
+import { openLibrary } from './ui/library.js';
 import { createTray } from './ui/tray.js';
 import { openKeys } from './ui/keys.js';
 import { renameBox } from './ui/renamebox.js';
@@ -159,6 +160,7 @@ const bars = createBars(chrome, filters, {
   onDownload: (anchor) => downloadMenu(anchor),
   onKeys: () => openKeys(shell),
   onColumns: () => openColumnsPanel(),
+  onStorage: () => openStorage(),
   onQuery: (q) => { setView({ query: q }, { remember: false }); render(); },
   onGroup: (g) => { setView({ group: g }); render(); },
   onSort: (s) => { setView({ sort: s }); render(); },
@@ -707,6 +709,104 @@ async function removeEverywhereAsk(f) {
   S.marked.delete(f.key);
   await write(actions, t(actions.length === 1 ? 'Removed “{name}” from {n} place.' : 'Removed “{name}” from {n} places.', { name: f.name, n: actions.length }));
 }
+// ---- storage: where the space goes, shrinking photos, freeing what nobody uses ----------------------------------
+// The demo has two leftover files so the view has something to show; "Free up space" there just forgets them.
+let demoUnused = [
+  { id: 9001, fileName: 'old-draft.pdf', fileExt: 'pdf', fileSize: 640000, fileIdent: 'demo-unused-1', timeDeleted: null },
+  { id: 9002, fileName: 'rejected-photo.jpg', fileExt: 'jpg', fileSize: 2100000, fileIdent: 'demo-unused-2', imageWidth: 4000, imageHeight: 3000, timeDeleted: null },
+];
+let storageUI = null;
+
+function demoAttachmentRows() {
+  return [...S.meta.values()].map((m) => ({ id: m.id, fileName: m.name, fileExt: m.ext, fileSize: m.size, fileIdent: m.ident, imageWidth: m.w, imageHeight: m.h, timeUploaded: m.uploaded, timeDeleted: null })).concat(demoUnused);
+}
+
+async function openStorage() {
+  if (storageUI) return;
+  let key = 'demo';
+  if (!S.demo) { try { key = (await docUrl()) || 'live'; } catch { key = 'live'; } }
+  storageUI = openLibrary(shell, {
+    canWrite: canEdit(),
+    limitKey: key,
+    load: async () => {
+      locs = null;
+      const L = await locationsIndex();
+      const rows = S.demo ? demoAttachmentRows() : await loadAttachmentRows();
+      const info = S.demo ? { access: 'owners', store: 'internal', host: '' } : await storageInfo();
+      return { rows, usesOf: (id) => L.index.get(id) || [], info };
+    },
+    onShrink: shrinkPhotosInDocument,
+    onFree: async () => {
+      if (S.demo) { demoUnused = []; return { ok: true }; }
+      const r = await freeUnusedFiles();
+      S.meta = await loadFileMeta().catch(() => S.meta);
+      return r;
+    },
+    onWhere: async (b) => {
+      const all = [];
+      for (const id of b.ids) all.push(...(await placesOf({ attId: id, rowId: -1, col: '' })));
+      placesDialog(shell, { title: b.name, places: all, onRow: (p) => showRow(p) });
+    },
+    onDownload: (b) => downloadFile({ attId: b.id, name: b.name, ext: b.ext, size: b.size }),
+    onRemove: (b) => removeContentEverywhere(b),
+    onClose: () => { storageUI = null; },
+  });
+}
+
+/** Photos redrawn smaller, the old file replaced by the new one in every cell that holds it, as ONE Grist action. */
+async function shrinkPhotosInDocument(cands, { maxSide }, { onProgress, signal }) {
+  const mapping = new Map();
+  let saved = 0, failed = 0, done = 0;
+  const work = async (c) => {
+    try {
+      const blob = await source.blob({ attId: c.id, name: c.name, ext: c.ext });
+      const file = new File([blob], c.name, { type: blob.type });
+      const small = await shrinkPhoto(file, maxSide);
+      if (small === file || small.size >= file.size) return null;   // nothing to gain: left as it is
+      const [id] = await source.upload([{ blob: small, name: small.name }]);
+      return { c, id, gain: file.size - small.size };
+    } catch { failed++; return null; }
+  };
+  const step = 2;   // two at a time: a 12-megapixel photo is 48 MB once decoded
+  for (let i = 0; i < cands.length && !signal.aborted; i += step) {
+    for (const r of await Promise.all(cands.slice(i, i + step).map(work))) {
+      if (!r) continue;
+      for (const id of r.c.ids) mapping.set(id, r.id);
+      saved += r.gain; done++;
+    }
+    onProgress(Math.min(cands.length, i + step), cands.length, saved);
+  }
+  if (mapping.size) {
+    locs = null;
+    const L = await locationsIndex();
+    const actions = replaceMany((id) => L.index.get(id), mapping, (tableId, rowId, colId) => (tableId === S.tableId ? cellOf(rowId, colId) : L.tables.get(tableId)?.rows.get(rowId)?.[colId]));
+    if (actions.length) await write(actions, tn(done, 'Shrunk {n} photo.', 'Shrunk {n} photos.'));
+    if (!S.demo) S.meta = await loadFileMeta().catch(() => S.meta);
+  }
+  return { done, failed, saved };
+}
+
+/** One content out of every cell in the document that holds it (asks first, lists where). */
+async function removeContentEverywhere(b) {
+  if (!canEdit()) { toast(readOnlyWhy()); return false; }
+  const L = await locationsIndex();
+  const all = [];
+  for (const id of b.ids) all.push(...(await placesOf({ attId: id, rowId: -1, col: '' })));
+  const open = all.filter((p) => !p.isFormula);
+  if (!open.length) { toast(t('This file comes from a formula column and cannot be removed here.')); return false; }
+  const listed = open.slice(0, 6).map((p) => `${p.rowTitle || t('Row {id}', { id: p.rowId })} · ${p.tableLabel} › ${p.colLabel}`);
+  if (open.length > listed.length) listed.push(t('and {n} more', { n: open.length - listed.length }));
+  const ok = await confirmBox(shell, {
+    title: t(open.length === 1 ? 'Remove “{name}” from {n} place?' : 'Remove “{name}” from {n} places?', { name: b.name, n: open.length }),
+    body: t('It leaves these cells in one step, which Undo takes back. Grist keeps the file for a while, then deletes it.'),
+    items: listed, ok: t('Remove everywhere'), danger: true,
+  });
+  if (!ok) return false;
+  const actions = removeManyEverywhere((id) => L.index.get(id), b.ids, (tableId, rowId, colId) => (tableId === S.tableId ? cellOf(rowId, colId) : L.tables.get(tableId)?.rows.get(rowId)?.[colId]));
+  if (!actions.length) return false;
+  return write(actions, t(actions.length === 1 ? 'Removed “{name}” from {n} place.' : 'Removed “{name}” from {n} places.', { name: b.name, n: actions.length }));
+}
+
 async function removeMany(files) {
   const can = files.filter(canEditFile);
   if (!can.length) { toast(readOnlyWhy() || t('These files come from formula columns and cannot be removed here.')); return; }
