@@ -97,6 +97,15 @@ export function openLightbox(host, o) {
       el('dl', {}, [el('dt', { text: t('Title') }), el('dd', { text: f.recordTitle || '—' }), el('dt', { text: t('Column') }), el('dd', { text: f.colLabel || f.col })]),
       el('button', { type: 'button', class: 'gs-btn gs-lb__go', text: t('Select this record'), onclick: () => o.onRecord(f) }),
     );
+    // Tags and note, with the way to change them.
+    if (o.notesOf) {
+      const n = o.notesOf(f);
+      fileList.append(
+        el('dt', { text: t('Tags') }), el('dd', { text: n.tags.length ? n.tags.join(', ') : '—' }),
+        ...(n.note ? [el('dt', { text: t('Note') }), el('dd', { class: 'gs-lb__note', text: n.note })] : []),
+      );
+      info.append(el('button', { type: 'button', class: 'gs-btn gs-lb__go', text: n.tags.length || n.note ? t('Change tags and note…') : t('Add tags and a note…'), onclick: () => o.onNotes(f) }));
+    }
     // What the photo says about itself, once it has been read (the start of the file only).
     if (o.exifOf && f.kind === 'image') {
       o.exifOf(f).then((x) => {
@@ -293,7 +302,8 @@ export function openLightbox(host, o) {
       if (same >= 0) {
         const changed = files[same].name !== cur.name;
         i = same;
-        if (changed) { name.textContent = files[i].name; if (showInfo) renderInfo(); }
+        if (changed) name.textContent = files[i].name;
+        if (showInfo) renderInfo();
         meta.textContent = `${i + 1} / ${files.length} · ${typeLabel(files[i].ext)} · ${sizeText(files[i].size, uiLang())}`;
         renderStrip();
         return;

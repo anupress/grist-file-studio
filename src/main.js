@@ -7,12 +7,13 @@
 
 import { el, clear } from './core/util.js';
 import { VERSION } from './version.js';
-import { start, accessLevel, selectedTableId, gristCulture, setOptions, moveCursor, apply, undo as gristUndo, redo as gristRedo, linkingInfo } from './grist/connect.js';
+import { start, accessLevel, selectedTableId, gristCulture, setOptions, moveCursor, apply, undo as gristUndo, redo as gristRedo, linkingInfo, fetchRows } from './grist/connect.js';
 import { fileUrl, fileBlob, fileHead, uploadFiles, dropTokens, docUrl, storageInfo, freeUnusedFiles } from './grist/files.js';
 import { loadColumns, loadFileMeta, loadAttachmentRows, loadLabels, loadOwnSection, forgetMeta, loadLocations } from './data/live.js';
 import { resolveRoles, toStored, detectRoles } from './model/roles.js';
 import { buildGallery, metaFromRows, visibleFiles, visibleRecords, groupCounts, sortFiles, matcher } from './model/files.js';
 import { hitFor } from './model/textsearch.js';
+import { NOTES_TABLE, createTable, cleanTag, rowsAreNotes, parseNotes, allTags, setNote, addTagTo, carryNotes, notesText } from './model/notes.js';
 import { attachmentIds, cellText } from './model/values.js';
 import { addFiles as addFilesActions, removeFile, removeFiles, moveFile, newRecords, renameFiles, sharedValue, replaceFile, replaceEverywhere, removeEverywhere, removeManyEverywhere, replaceMany, insertAfter, insertManyAfter, mergeResult, copyFilesTo, moveFilesTo } from './model/edits.js';
 import { buildIndex, cellLink } from './model/locations.js';
@@ -33,6 +34,7 @@ import { createBars } from './ui/bars.js';
 import { openColumns } from './ui/columns.js';
 import { openLibrary } from './ui/library.js';
 import { reportBox } from './ui/reportbox.js';
+import { openNoteBox } from './ui/notebox.js';
 import { REPORT_PICTURE } from './media/reportimages.js';
 import { createTray } from './ui/tray.js';
 import { openKeys } from './ui/keys.js';
@@ -48,7 +50,7 @@ const S = {
   live: false, demo: false, ready: false, problem: null,
   tableId: null, columns: [], roles: { files: [], title: null, fields: [] }, settings: readOptions(null), options: null,
   rows: [], meta: new Map(), labels: {}, gallery: null, ownSection: null,
-  view: { layout: null, query: '', group: null, sort: null, cardSize: null, fileSize: null, fit: null, grouped: null, captions: null, cover: null },
+  view: { layout: null, query: '', tag: '', group: null, sort: null, cardSize: null, fileSize: null, fit: null, grouped: null, captions: null, cover: null },
   current: null, selfCursor: null, marked: new Set(), lastMark: null,
   lb: null,   // {box, scope: 'wall' | rowId}
   // Searching inside files: on/off is this browser's choice; the text itself is read on request (see "inside files" below).
@@ -136,6 +138,7 @@ function rebuild() {
   // Marks on files that are gone are dropped.
   if (S.marked.size) { const keys = new Set(S.gallery.files.map((f) => f.key)); for (const k of [...S.marked]) if (!keys.has(k)) S.marked.delete(k); }
   // The files whose text can be read, one per content (the same file in two records is read once).
+  annotateNotes();
   S.readable = new Map();
   for (const f of S.gallery.files) if (canRead(f)) { const id = identOf(f); if (!S.readable.has(id)) S.readable.set(id, f); }
   if (S.inside.on) loadKnownText();
@@ -151,7 +154,7 @@ const V = () => {
   return {
     layout: v.layout || s.layout, cardSize: v.cardSize || s.cards.size, fileSize: v.fileSize || s.files.size,
     fit: v.fit || s.files.fit, grouped: v.grouped ?? s.files.grouped, captions: v.captions ?? s.files.captions, cover: v.cover || s.cards.cover,
-    query: v.query, group: v.group, sort: v.sort,
+    query: v.query, group: v.group, sort: v.sort, tag: v.tag,
   };
 }
 function setView(patch, { remember = true } = {}) {
@@ -175,6 +178,8 @@ const bars = createBars(chrome, filters, {
   onColumns: () => openColumnsPanel(),
   onStorage: () => openStorage(),
   onQuery: (q) => { setView({ query: q }, { remember: false }); render(); },
+  onTag: (tag) => { setView({ tag }, { remember: false }); render(); },
+  onMarkedTag: () => tagMarked(),
   onInside: () => toggleInside(),
   onInsideRead: () => startReading(),
   onInsideStop: () => insideRun?.abort(),
@@ -204,7 +209,7 @@ function updateBars(level = 'full') {
     level, mode: S.demo ? 'demo' : canEdit() ? 'live' : 'ro', readOnlyWhy: readOnlyWhy(), layout: v.layout, editable: canEdit() && !!fileColumn(),
     records: S.gallery?.records.length || 0, files: files.length, query: v.query, group: v.group, groupCounts: groupCounts(files), sort: v.sort,
     size: v.layout === 'cards' ? v.cardSize : v.fileSize, fit: v.fit, grouped: v.grouped, captions: v.captions, cover: v.cover, markedCount: S.marked.size, markedPictures: markedFiles().some((f) => REPORT_PICTURE.test(f.ext)), markedPair: (() => { const m = markedFiles(); return m.length === 2 && m.every((f) => f.kind === 'image'); })(),
-    inside: insideInfo(), dates: datesInfo(),
+    inside: insideInfo(), dates: datesInfo(), tags: allTags(NOTES.map), tag: v.tag,
   });
 }
 
@@ -220,7 +225,7 @@ function emptyState(title, body, actions = []) {
 function filesData() {
   const v = V();
   const inside = insideFn();
-  const vis = visibleFiles(S.gallery, { query: v.query, group: v.group, sort: v.sort, inside, taken: takenOf });
+  const vis = visibleFiles(S.gallery, { query: v.query, group: v.group, sort: v.sort, inside, taken: takenOf, tag: v.tag });
   setHits(vis.files, v.query, inside);
   const groups = v.grouped ? vis.groups : [{ rec: null, files: v.sort === 'cell' ? vis.files : sortFiles(vis.files, v.sort, { taken: takenOf }) }];
   return { groups, size: v.fileSize, fit: v.fit, grouped: v.grouped, captions: v.captions };
@@ -285,7 +290,7 @@ function render() {
     } else {
       const d = filesData();
       if (!d.groups.length || !d.groups[0].files.length) {
-        emptyInWall(v.query || v.group !== 'all' ? t('No file matches these filters.') : canEdit() ? t('No files yet. Drop files here, paste a screenshot, or use Add files.') : t('No files in these records.'));
+        emptyInWall(v.query || v.tag || v.group !== 'all' ? t('No file matches these filters.') : canEdit() ? t('No files yet. Drop files here, paste a screenshot, or use Add files.') : t('No files in these records.'));
       } else wall.setFiles(d);
     }
     renderState();
@@ -352,6 +357,7 @@ function openFile(f, list, scope) {
     hitOf: (x) => x.hit || null,
     onCompare: (a, b) => compareFiles(a, b),
     exifOf: (x) => exifOf(x),
+    notesOf: (x) => notesOf(x), onNotes: (x) => editNotes(x),
     onOpenTab: (x) => openInTab(x),
     onRename: (x) => renameOne(x),
     onCover: (x) => reorder(x, 0),
@@ -376,6 +382,7 @@ function menuItems(f, { inLightbox = false } = {}) {
     [t('Download'), () => downloadFile(f)],
     [t('Open in a new tab'), () => openInTab(f)],
     [t('Where it is…'), () => showPlaces(f)],
+    [t('Tags and note…'), () => editNotes(f), { hint: t('Words to find the file by, and a note about it') }],
     null,
     [t('Rename…'), () => renameOne(f), { disabled: !canRename(f) }],
     [t('Duplicate'), () => duplicate(f), { disabled: !can, hint: t('A separate copy next to this file') }],
@@ -529,12 +536,13 @@ async function saveEdited(f, blob, { mode, name, pause, removeOriginals = null }
     return write(actions, t('Saved “{name}” as a copy.', { name: name || f.name }));
   }
   let actions = replaceFile(S.tableId, f, cellOf(f.rowId, f.col), id);
+  const carried = carryNotes(NOTES.map, [[identOf(f), S.meta.get(id)?.ident]]);
   if (everywhere) {
     locs = null;   // read the cells again: the question may have stood open while another table changed
     const L = await locationsIndex();
     actions = replaceEverywhere(L.index.get(f.attId) || places, f.attId, id, (tableId, rowId, colId) => (tableId === S.tableId ? cellOf(rowId, colId) : L.tables.get(tableId)?.rows.get(rowId)?.[colId]));
   }
-  return write(actions, t('Saved “{name}”.', { name: name || f.name }));
+  return writeNotes([...actions, ...carried], t('Saved “{name}”.', { name: name || f.name }));
 }
 
 async function duplicate(f) {
@@ -588,7 +596,7 @@ function replaceWith(f) {
     const file = replacer.files[0];
     if (!file) return;
     const id = await uploadOne(file, file.name);
-    if (id != null) await write(replaceFile(S.tableId, f, cellOf(f.rowId, f.col), id), t('Replaced “{old}” with “{name}”.', { old: f.name, name: file.name }));
+    if (id != null) await writeNotes([...replaceFile(S.tableId, f, cellOf(f.rowId, f.col), id), ...carryNotes(NOTES.map, [[identOf(f), S.meta.get(id)?.ident]])], t('Replaced “{old}” with “{name}”.', { old: f.name, name: file.name }));
   };
   replacer.click();
 }
@@ -650,7 +658,7 @@ async function write(actions, done) {
   if (!actions || !actions.length) return false;
   locs = null;   // the cells changed: "where it is" reads them again next time
   if (S.demo) {
-    demoHistory.undo.push({ rows: JSON.parse(JSON.stringify(S.rows)), meta: new Map([...S.meta].map(([k, v]) => [k, { ...v }])) });
+    demoHistory.undo.push(demoSnapshot());
     demoHistory.redo = [];
     applyDemo(actions);
     rebuild(); render();
@@ -667,8 +675,24 @@ async function write(actions, done) {
     return false;
   }
 }
+function demoNotesApply(kind, id, fields) {
+  const rows = demoNotes.rows;
+  const blank = () => ({ id: demoNotes.next++, Ident: '', Name: '', Tags: null, Note: '' });
+  if (kind === 'AddRecord') rows.push({ ...blank(), ...fields });
+  else if (kind === 'BulkAddRecord') id.forEach((_, i) => rows.push({ ...blank(), ...Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, v[i]])) }));
+  else if (kind === 'UpdateRecord') { const r = rows.find((x) => x.id === id); if (r) Object.assign(r, fields); }
+  else if (kind === 'RemoveRecord') { const k = rows.findIndex((x) => x.id === id); if (k >= 0) rows.splice(k, 1); }
+}
+const demoSnapshot = () => ({ rows: JSON.parse(JSON.stringify(S.rows)), meta: new Map([...S.meta].map(([k, v]) => [k, { ...v }])), notes: JSON.parse(JSON.stringify(demoNotes)) });
+function demoRestore(snap) {
+  S.rows = snap.rows; S.meta = snap.meta;
+  Object.assign(demoNotes, snap.notes);
+  loadNotes();
+}
 function applyDemo(actions) {
   for (const [kind, table, id, fields] of actions) {
+    if (kind === 'AddTable') { if (table === NOTES_TABLE) demoNotes.exists = true; continue; }
+    if (table === NOTES_TABLE) { demoNotesApply(kind, id, fields); continue; }
     if (table === '_grist_Attachments') {
       const ids = Array.isArray(id) ? id : [id];
       ids.forEach((x, i) => { const m = S.meta.get(x); if (m && fields.fileName) { const name = Array.isArray(id) ? fields.fileName[i] : fields.fileName; S.meta.set(x, { ...m, name, ext: extOf(name) || m.ext }); } });
@@ -683,23 +707,25 @@ async function undo() {
   if (S.demo) {
     const last = demoHistory.undo.pop();
     if (!last) return;
-    demoHistory.redo.push({ rows: JSON.parse(JSON.stringify(S.rows)), meta: new Map(S.meta) });
-    S.rows = last.rows; S.meta = last.meta; rebuild(); render();
+    demoHistory.redo.push(demoSnapshot());
+    demoRestore(last); rebuild(); render();
     return;
   }
   await gristUndo();
   await reloadMeta();
+  await loadNotes(); render();
 }
 async function redo() {
   if (S.demo) {
     const next = demoHistory.redo.pop();
     if (!next) return;
-    demoHistory.undo.push({ rows: JSON.parse(JSON.stringify(S.rows)), meta: new Map(S.meta) });
-    S.rows = next.rows; S.meta = next.meta; rebuild(); render();
+    demoHistory.undo.push(demoSnapshot());
+    demoRestore(next); rebuild(); render();
     return;
   }
   await gristRedo();
   await reloadMeta();
+  await loadNotes(); render();
 }
 async function reloadMeta() {
   if (S.demo) return;
@@ -811,7 +837,9 @@ async function shrinkPhotosInDocument(cands, { maxSide }, { onProgress, signal }
     locs = null;
     const L = await locationsIndex();
     const actions = replaceMany((id) => L.index.get(id), mapping, (tableId, rowId, colId) => (tableId === S.tableId ? cellOf(rowId, colId) : L.tables.get(tableId)?.rows.get(rowId)?.[colId]));
-    if (actions.length) await write(actions, tn(done, 'Shrunk {n} photo.', 'Shrunk {n} photos.'));
+    if (!S.demo) S.meta = await loadFileMeta().catch(() => S.meta);
+    const carried = carryNotes(NOTES.map, [...mapping].map(([from, to]) => [S.meta.get(from)?.ident, S.meta.get(to)?.ident]));
+    if (actions.length) await writeNotes([...actions, ...carried], tn(done, 'Shrunk {n} photo.', 'Shrunk {n} photos.'));
     if (!S.demo) S.meta = await loadFileMeta().catch(() => S.meta);
   }
   return { done, failed, saved };
@@ -1226,6 +1254,85 @@ async function exifOf(f) {
   try { return await exifIndex.readOne(id, f, source); } catch { return null; }
 }
 
+// ---- tags and notes -------------------------------------------------------------------------------------------------------
+// A tag or a note belongs to a file's content (its hash) and lives in a table of the document, File_Studio_notes, which is made the first
+// time someone tags a file (after asking). The table is read at the start and whenever the widget is looked at again; every change is one
+// Grist action, so Undo takes it back. In the demo the table is a list in memory.
+const NOTES = { exists: false, map: new Map() };
+const demoNotes = { exists: false, rows: [], next: 1 };
+
+async function loadNotes() {
+  try {
+    if (S.demo) { NOTES.exists = demoNotes.exists; NOTES.map = parseNotes(demoNotes.rows); }
+    else {
+      const rows = await fetchRows(NOTES_TABLE);
+      NOTES.exists = rowsAreNotes(rows);
+      NOTES.map = parseNotes(rows);
+    }
+  } catch { NOTES.exists = false; NOTES.map = new Map(); }   // no such table: no tags yet
+  annotateNotes();
+}
+/** Put each file's tags and note on the file (the search, the filter, the tooltip and the details read them there). */
+function annotateNotes() {
+  for (const f of S.gallery?.files || []) {
+    const n = NOTES.map.get(identOf(f));
+    f.tags = n ? n.tags : [];
+    f.note = n ? n.note : '';
+    f.notesText = notesText(n);
+  }
+}
+const notesOf = (f) => NOTES.map.get(identOf(f)) || { tags: [], note: '' };
+
+/** The table must be there before a tag is written. Asks once; resolves true when it is (or has just been made). */
+async function ensureNotesTable() {
+  if (NOTES.exists) return true;
+  if (!canEdit()) { toast(readOnlyWhy() || t('This document has no table for tags and notes, and you cannot add one.')); return false; }
+  const ok = await confirmBox(shell, {
+    title: t('Set up tags and notes?'),
+    body: t('File Studio adds a table called “{table}” to this document: one row for each file you tag, with the file’s content hash, its name, the tags and the note. It is an ordinary Grist table, so you can see and edit it there. Undo takes it away again.', { table: NOTES_TABLE }),
+    ok: t('Add the table'),
+  });
+  if (!ok) return false;
+  const done = await write(createTable(), null);
+  if (!done) return false;
+  if (S.demo) demoNotes.exists = true;
+  await loadNotes();
+  return NOTES.exists;
+}
+
+/** Write changes to the notes table, then read it again. */
+async function writeNotes(actions, message) {
+  if (!actions.length) return true;
+  const ok = await write(actions, message);
+  if (ok) { await loadNotes(); render(); }
+  return ok;
+}
+
+async function editNotes(f) {
+  const can = canEdit();
+  if (can && !(await ensureNotesTable())) return;
+  const cur = notesOf(f);
+  const v = await openNoteBox(shell, { name: f.name, tags: cur.tags, note: cur.note, suggestions: allTags(NOTES.map), canEdit: can });
+  if (!v || !can) return;
+  await writeNotes(setNote(NOTES.map, { ident: identOf(f), name: f.name }, v), t('Saved the tags and note of “{name}”.', { name: f.name }));
+}
+
+async function tagMarked() {
+  const files = markedFiles();
+  if (!files.length) return;
+  if (!(await ensureNotesTable())) return;
+  const tag = await textBox(shell, {
+    title: tn(files.length, 'Tag {n} file', 'Tag {n} files'), body: allTags(NOTES.map).length ? t('In use: {tags}', { tags: allTags(NOTES.map).slice(0, 12).join(', ') }) : '',
+    label: t('Tag'), ok: t('Add the tag'), empty: t('Type a tag.'),
+  });
+  if (!tag) return;
+  const one = new Map();
+  for (const f of files) if (!one.has(identOf(f))) one.set(identOf(f), { ident: identOf(f), name: f.name });
+  const { actions, changed } = addTagTo(NOTES.map, [...one.values()], tag);
+  if (!actions.length) { toast(t('These files have the tag “{tag}” already.', { tag: cleanTag(tag) })); return; }
+  await writeNotes(actions, tn(changed, 'Tagged {n} file “{tag}”.', 'Tagged {n} files “{tag}”.').replace('{tag}', cleanTag(tag)));
+}
+
 // ---- inside files ---------------------------------------------------------------------------------------------------
 // The search can look at the words in PDFs, Word, Excel, PowerPoint and text files. Reading them means downloading each
 // file once, so it starts only when asked (the switch in the filter bar, with a one-time question), can be stopped, and
@@ -1392,7 +1499,7 @@ async function boot() {
     S.labels = await loadLabels(S.columns, [S.roles.title, ...S.roles.fields].filter(Boolean)).catch(() => ({}));
     S.ownSection = await loadOwnSection(S.tableId, S.options ? JSON.parse(S.options) : null);
     // Files renamed or uploaded elsewhere: Grist sends nothing for those, so look again when the person comes back.
-    window.addEventListener('focus', () => { dropTokens(); reloadMeta(); });
+    window.addEventListener('focus', () => { dropTokens(); reloadMeta(); loadNotes().then(() => render()); });
   } else {
     S.demo = true;
     S.tableId = DEMO_TABLE;
@@ -1414,6 +1521,7 @@ async function boot() {
   for (const k of ['layout', 'cardSize', 'fileSize', 'fit', 'grouped', 'captions', 'cover', 'sort', 'group']) if (stored[k] != null && S.view[k] == null) S.view[k] = stored[k];
   if (!['all', 'image', 'pdf', 'video', 'audio', 'other'].includes(S.view.group)) S.view.group = 'all';
   if (!S.view.sort) S.view.sort = 'cell';
+  await loadNotes();
   S.ready = true;
   rebuild();
   render();

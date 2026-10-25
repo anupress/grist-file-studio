@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.9.0
+
+Tags and a note for each file. Checked in the demo with the real mouse and keys, and in Grist 1.7.20 (a guest document: the table is
+added after asking, the tags are written, read again after a reload, shared by the same photo in two records, and undone step by step).
+
+### Files
+- **Tags and note** from a file's menu, the lightbox's Details, or **Tag…** on the marked files. Tags are chips (Enter or a comma adds
+  one, tags already in use are offered); the note is free text.
+- They are kept in a table of the document, `File_Studio_notes`, that File Studio adds after asking when the first tag is made:
+  the file's content hash, its name, the tags (a choice list) and the note. The same photo in two records has the same tags; an
+  edited, shrunk or replaced file takes them along. Every change is one Grist action, so Undo covers it, and a change made in
+  Grist itself shows when the widget is looked at again.
+- A **Tag** list beside Sort (it appears once a tag exists) shows only the files with that tag. The search box also finds tags and
+  notes, a tile's tooltip shows them, and so do the Details.
+
+### Layout
+- The type chips no longer get squeezed to a sliver between 620 and 900 px when the bar is full (a Tag list, German or French
+  labels): they keep at least 140 px or take a row of their own.
+
+### Fixed
+- The French text for "and {n} more" was defined twice (the later one won); it is now defined once.
+
 ## 1.8.0
 
 The Document look for photos of pages. Checked in the demo with a synthetic photo (a page lit from one side, a shadow in a corner,

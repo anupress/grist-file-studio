@@ -142,7 +142,7 @@ export function sortFiles(files, sort, opts = {}) {
  * chosen group, each record's files sorted. Records left with no file are dropped.
  * @returns {{groups: [{rec, files}], files: [file]}} files = the flat order the lightbox steps through
  */
-export function visibleFiles(gallery, { query = '', group = 'all', sort = 'cell', inside = null, taken = null } = {}) {
+export function visibleFiles(gallery, { query = '', group = 'all', sort = 'cell', inside = null, taken = null, tag = '' } = {}) {
   const match = matcher(query);
   const groups = [];
   const flat = [];
@@ -150,9 +150,10 @@ export function visibleFiles(gallery, { query = '', group = 'all', sort = 'cell'
     const recText = [rec.title, ...rec.fields.map((f) => f.text)];
     const keep = rec.files.filter((f) => {
       if (group !== 'all' && f.group !== group) return false;
+      if (tag && !(f.tags || []).some((x) => x.toLowerCase() === tag.toLowerCase())) return false;
       if (!match) return true;
       const entry = inside?.(f);   // the file's own text, when the search looks inside files
-      return entry ? match.within(entry.all, f.name, ...recText) : match(f.name, ...recText);
+      return entry ? match.within(entry.all, f.name, f.notesText, ...recText) : match(f.name, f.notesText, ...recText);
     });
     if (!keep.length) continue;
     const sorted = sortFiles(keep, sort, { taken });
@@ -167,7 +168,7 @@ export function visibleRecords(gallery, { query = '', inside = null } = {}) {
   const match = matcher(query);
   if (!match) return gallery.records;
   return gallery.records.filter((rec) => {
-    const texts = [rec.title, ...rec.fields.map((f) => f.text), ...rec.files.map((f) => f.name)];
+    const texts = [rec.title, ...rec.fields.map((f) => f.text), ...rec.files.map((f) => f.name), ...rec.files.map((f) => f.notesText)];
     return match(...texts) || (inside && rec.files.some((f) => { const e = inside(f); return e && match.within(e.all, ...texts); }));
   });
 }

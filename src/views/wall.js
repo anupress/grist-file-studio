@@ -124,9 +124,10 @@ export function createWall(host, thumbs, on) {
   // ---- a tile (Files) ----------------------------------------------------------------------------------
   function buildTile(f, tile) {
     const where = f.hit ? hitWhere(f.hit) : '';
+    const labelled = (f.tags && f.tags.length ? f.tags.join(', ') : '');
     const node = el('div', {
-      class: 'gs-tile' + (f.hit ? ' has-hit' : ''), role: 'listitem', tabindex: '-1', 'aria-label': fileLabel(f) + (where ? ', ' + where : ''), dataset: { key: f.key, row: String(f.rowId) },
-      title: f.hit ? `${f.name}\n${f.hit.snippet}` : f.name,
+      class: 'gs-tile' + (f.hit ? ' has-hit' : ''), role: 'listitem', tabindex: '-1', 'aria-label': fileLabel(f) + (where ? ', ' + where : '') + (labelled ? ', ' + labelled : ''), dataset: { key: f.key, row: String(f.rowId) },
+      title: [f.name, f.hit ? f.hit.snippet : '', labelled ? '# ' + labelled : '', f.note || ''].filter(Boolean).join('\n'),
     });
     const release = renderFace(node, f, { thumbs, cssPx: Math.max(tile.w, tile.h) });
     const mark = el('button', { type: 'button', class: 'gs-tile__mark', 'aria-label': t('Mark'), tabindex: '-1',

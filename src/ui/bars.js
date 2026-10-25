@@ -84,7 +84,10 @@ export function createBars(chrome, filters, on) {
   const datesNote = el('span', { class: 'gs-inside__note', role: 'status' });
   const datesAct = el('button', { type: 'button', class: 'gs-linkbtn', hidden: true });
   const datesBox = el('div', { class: 'gs-inside', hidden: true }, [datesNote, datesAct]);
-  const end = el('div', { class: 'gs-filters__end' }, [datesBox, sortBox, display]);
+  // The tags in use: a list to show only the files with one (there when any file has a tag).
+  const tagSel = el('select', { class: 'gs-input gs-input--inline', 'aria-label': t('Show only files with the tag'), onchange: () => on.onTag(tagSel.value) });
+  const tagBox = el('label', { class: 'gs-check', hidden: true }, [el('span', { class: 'gs-label gs-sort-word', text: t('Tag') }), tagSel]);
+  const end = el('div', { class: 'gs-filters__end' }, [tagBox, datesBox, sortBox, display]);
   function displayPanel() {
     const s = last;
     const files = s.layout === 'files';
@@ -116,6 +119,7 @@ export function createBars(chrome, filters, on) {
     el('button', { type: 'button', class: 'gs-btn gs-btn--primary', onclick: () => on.onMarkedZip() }, [icon('archive2'), t('Download as zip')]),
     el('button', { type: 'button', class: 'gs-btn', dataset: { role: 'rename' }, title: t('Give the marked files names built from their columns'), onclick: () => on.onMarkedRename() }, [icon('edit'), t('Rename…')]),
     el('button', { type: 'button', class: 'gs-btn', dataset: { role: 'merge' }, title: t('Put the marked PDFs and pictures into one new PDF'), onclick: () => on.onMarkedMerge() }, [icon('copy'), t('Merge into PDF…')]),
+    el('button', { type: 'button', class: 'gs-btn', dataset: { role: 'tag' }, title: t('Give the marked files a tag'), onclick: () => on.onMarkedTag() }, [icon('tag2'), t('Tag…')]),
     el('button', { type: 'button', class: 'gs-btn', dataset: { role: 'compare' }, title: t('Two marked pictures with a divider to drag between them'), onclick: () => on.onMarkedCompare() }, [compareIcon(), t('Compare')]),
     el('button', { type: 'button', class: 'gs-btn', dataset: { role: 'report' }, title: t('The marked photos on pages, as a PDF'), onclick: () => on.onMarkedReport() }, [icon('file2'), t('Photo report…')]),
     el('button', { type: 'button', class: 'gs-btn', dataset: { role: 'remove' }, onclick: () => on.onMarkedRemove() }, [icon('trash'), t('Remove from records')]),
@@ -156,6 +160,7 @@ export function createBars(chrome, filters, on) {
       marked.querySelector('[data-role=merge]').hidden = !s.editable || s.markedCount < 2;
       marked.querySelector('[data-role=report]').hidden = !s.markedPictures;
       marked.querySelector('[data-role=compare]').hidden = !s.markedPair;
+      marked.querySelector('[data-role=tag]').hidden = !s.editable;
 
       if (document.activeElement !== search && search.value !== s.query) search.value = s.query || '';
       search.setAttribute('aria-label', s.layout === 'cards' ? t('Search records') : t('Search files and records'));
@@ -171,6 +176,13 @@ export function createBars(chrome, filters, on) {
       }
       sortBox.hidden = !filesLayout;
       sort.value = s.sort;
+      const tags = s.tags || [];
+      tagBox.hidden = !filesLayout || (!tags.length && !s.tag);
+      if (!tagBox.hidden && tagSel.dataset.key !== tags.join('\u0001')) {
+        clear(tagSel).append(el('option', { value: '', text: t('Any tag') }), ...tags.map((x) => el('option', { value: x, text: x })));
+        tagSel.dataset.key = tags.join('\u0001');
+      }
+      tagSel.value = tags.includes(s.tag) ? s.tag : '';
       const dt = s.dates;
       let dnote = '', dact = null;
       if (dt && filesLayout) {

@@ -103,6 +103,26 @@ Markdown, CSV and HTML files.
 - **What it cannot do.** A scanned PDF without a text layer has no words to read (there is no text recognition). A file
   that cannot be read (damaged, password-protected, too big) is counted next to the box and left out.
 
+## Tags and notes
+
+Give a file words to find it by and a note about it. Open **⋯ → Tags and note…** on a file in the wall, **Change tags and note…**
+in the lightbox's Details, or mark several files and press **Tag…** to put one tag on all of them.
+
+![The Tags and note dialog with three tags and a note, beside the lightbox's Details showing them](docs/images/tags-notes.png)
+
+- **Tags are chips.** Type one and press Enter or a comma; the tags already in use are offered under the box; Backspace takes the
+  last one back. A note can be up to 2,000 characters, a tag 40.
+- **They live in your document.** The first time, File Studio asks, then adds a table called `File_Studio_notes`: one row for each
+  file you tag, with the file's content hash, its name, the tags (a choice list) and the note. It is an ordinary Grist table, so you
+  can read and edit it there, and Grist's Undo, history and access rules cover it. **Undo** takes a tag back, and a few steps
+  later the table itself.
+- **They belong to the file, not the cell.** The same photo in two records has the same tags and note. A file you edit, shrink or
+  replace here takes them along. A row stays when its file is removed from every cell; delete it in Grist if you want it gone.
+- **Finding them.** Once any file has a tag, a **Tag** list appears beside Sort and shows only the files with that tag. The search
+  box also looks at tags and notes, a tile's tooltip shows them, and so do the Details.
+- **Who can change them.** Anyone who can edit the document. Anyone else sees the tags and note but cannot change them, and if the
+  document has no such table, nothing is added.
+
 ## Adding and arranging files
 
 - **Drop** files on a card, a record's heading or the Viewer to add them to that record. Drop them
@@ -365,6 +385,7 @@ Enter opens, Space marks, Delete removes, **?** lists the rest.
 - **In the widget's options**, saved in the document and shared by everyone, written only when
   someone presses Save in Columns: the columns, the layout it opens in, card and tile options, zip
   naming and the upload option.
+- **In the document**: the tags and notes, in the table `File_Studio_notes` (made when someone adds the first tag).
 - **In this browser**: the layout last switched to, tile size, filters and sort, the interface
   language, the thumbnail cache, the text read from files for **Inside files** (with whether it is on) and the dates
   read from photos for **Date taken**.

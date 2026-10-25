@@ -90,13 +90,13 @@ export function choiceBox(host, { title, body, choices, cancel = t('Cancel') }) 
  * A line of text to type (a new file name). Resolves the text, or null when cancelled.
  * @param o {select: [start, end] of the text to select at first, e.g. the name without its extension}
  */
-export function textBox(host, { title, body = '', label, value = '', ok = t('Save'), cancel = t('Cancel'), select = null, check = null, secret = false }) {
+export function textBox(host, { title, body = '', label, value = '', ok = t('Save'), cancel = t('Cancel'), select = null, check = null, secret = false, empty = null }) {
   return new Promise((resolve) => {
     const done = (v) => { release(); scrim.remove(); box.remove(); resolve(v); };
     const problem = el('p', { class: 'gs-dialog__problem', role: 'alert', hidden: true });
     const submit = () => {
       const v = secret ? input.value : input.value.trim();   // a password is taken as typed
-      const why = !v ? (secret ? t('Type the password.') : t('Type a name.')) : check ? check(v) : null;
+      const why = !v ? (empty || (secret ? t('Type the password.') : t('Type a name.'))) : check ? check(v) : null;
       if (why) { problem.textContent = why; problem.hidden = false; input.focus(); return; }
       done(v);
     };
