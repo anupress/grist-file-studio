@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.21.0
+
+Import a folder from the computer. Checked in the demo (a real folder dropped on the page and on a folder's card, the question, Cancel, Import, the nesting and the
+file counts, the hidden files left out, Undo, the directory picker with a list of files carrying their relative paths), in Grist 1.7.20 (a real folder dropped on
+a table with no Parent column: both choices, each undone in one step; the nested one with its ids and Parents; a drop on a record) and by 29 new tests.
+
+### Folders
+- **Drop a folder** on the page, or on a folder (it goes inside that one), or choose **Import a folder…** (right-click menu, Ctrl+K). Each folder becomes a record named
+  after it, inside its parent folder, with its files in the Attachments cell. A question comes first: the number of folders and files, the size, what is left out.
+- Without a Parent column you choose between **Keep the folders inside each other** (the column is added) and **one record for each folder, named by its path**.
+- Hidden and system files (`.DS_Store`, `Thumbs.db`, `desktop.ini`, `~$` lock files) and hidden folders (`.git`) are left out and counted. Up to 3,000 files at a time.
+- The records are written in one action with their ids chosen in advance, so one Undo takes the import back. The records come in name order (2, 10, a, b).
+- A dropped folder used to be uploaded as one empty file; now it is read, and a drop of files only works as before.
+
+### Found on the way
+- The demo kept thumbnails by an id that restarts at every load, so a file uploaded in a second visit could show the picture of one uploaded in the first.
+- Photos are shrunk just before their upload, one at a time per upload slot, instead of all at once (a few hundred photos no longer decode together).
+- A Parent field on the cards shows the new folders' names (the names are read again after an import and after the column is added).
+
 ## 1.20.0
 
 A last look at what a first-time user meets, and at what the widget is for. Checked in the demo (Delete folder: the menu item off for a folder with files or

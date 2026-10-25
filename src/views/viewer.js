@@ -8,6 +8,7 @@ import { el, clear } from '../core/util.js';
 import { icon } from '../core/assets/icons.js';
 import { showFile } from './stage.js';
 import { renderFace } from './face.js';
+import { droppedFiles } from '../media/dropwalk.js';
 import { t, tn } from '../i18n/index.js';
 
 /**
@@ -104,7 +105,7 @@ export function createViewer(host, { source, thumbs, culture }, on) {
     if (!S.editable || !S.rec || !e.dataTransfer?.files?.length) return;
     e.preventDefault(); e.stopPropagation();
     root.classList.remove('is-drop-target');
-    on.onDrop(S.rec.rowId, [...e.dataTransfer.files]);
+    on.onDrop(S.rec.rowId, droppedFiles(e.dataTransfer));
   });
   root.addEventListener('keydown', (e) => {
     if (e.target.closest('input, textarea, select, .gs-menu, .gs-dialog, .gs-lightbox, iframe, video, audio')) return;

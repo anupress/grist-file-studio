@@ -13,6 +13,7 @@ import { icon } from '../core/assets/icons.js';
 import { layoutFiles, layoutCards, visibleBlocks, locate, neighbour, listColumns, LIST_HEAD_H, tilesInRect } from '../model/layout.js';
 import { flippable, coverOf, listSortState } from '../model/files.js';
 import { shorten } from '../model/textsearch.js';
+import { droppedFiles } from '../media/dropwalk.js';
 import { renderFace, fileLabel } from './face.js';
 import { sizeText, typeLabel, tintOf } from '../model/kinds.js';
 import { t, tn, uiLang, dateLocale } from '../i18n/index.js';
@@ -521,7 +522,7 @@ export function createWall(host, thumbs, on) {
       if (row && keys.length) on.onSendFiles(keys, Number(row), e.ctrlKey || e.altKey ? 'copy' : 'move');
       return;
     }
-    on.onDrop(row ? Number(row) : null, [...e.dataTransfer.files]);
+    on.onDrop(row ? Number(row) : null, droppedFiles(e.dataTransfer));
   });
 
   scroll.addEventListener('scroll', schedule, { passive: true });

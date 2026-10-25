@@ -109,7 +109,7 @@ export function demoSource(meta, openPdf) {
         extra.set(id, URL.createObjectURL(blob));
         let w = 0, h = 0;
         if (kindOf(extOf(f.name)) === 'image') { try { const b = await createImageBitmap(blob); w = b.width; h = b.height; b.close?.(); } catch { /* not a picture after all */ } }
-        meta.set(id, { id, name: f.name, ext: extOf(f.name), kind: kindOf(extOf(f.name)), size: blob.size, ident: 'demo-up-' + id, w, h, uploaded: Date.now(), src: extra.get(id) });
+        meta.set(id, { id, name: f.name, ext: extOf(f.name), kind: kindOf(extOf(f.name)), size: blob.size, ident: 'demo-up-' + id + '-' + Math.random().toString(36).slice(2, 8), w, h, uploaded: Date.now(), src: extra.get(id) });
         ids.push(id);
       }
       onProgress?.(1, 1);

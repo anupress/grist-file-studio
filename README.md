@@ -1,7 +1,7 @@
 # File Studio — a custom widget for Grist (by ANUPRESS)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-2563EB.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.20.0-0F1B2D.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.21.0-0F1B2D.svg)](CHANGELOG.md)
 
 Grist keeps the files of a table in **Attachments** columns, where a cell shows a few thumbnails. File Studio is where you **work with
 those files**: see them as cards, as a wall, as a list or one record at a time; open anything large (photos, PDFs, Word, Excel and
@@ -32,7 +32,7 @@ A table whose rows own files. Each row is a folder, and what changes is what the
   with its date, camera and place. Mark the good ones, **Compare** before and after, tag what is open and what is fixed, draw an arrow on a
   defect, then make the **photo report** PDF of the visit and send it. *Cards* for the overview, *Files* for the wall.
 - **Customers, suppliers, projects.** Contracts, offers and invoices as PDFs, one row per customer or project, with **folders inside
-  folders** (customer, then year) if you want them. **Search inside files** finds the clause or the invoice number, in scans too.
+  folders** (customer, then year) if you want them. **Search inside files** finds the clause or the invoice number, in scans too. A customer's folder from your computer can be dropped in whole.
   Tags say *to check* or *paid*. Fill in and sign a PDF, merge three into one, black out a page, or download a customer's files as one zip.
 - **Receipts and bookkeeping.** Photos of receipts and scans of letters: the **Document look** turns a photo of a page into a clean scan,
   recognised text makes them searchable by shop or amount, **Sort by date taken** puts them in order, and a month's marked files go to the
@@ -49,7 +49,8 @@ A table whose rows own files. Each row is a folder, and what changes is what the
 1. In Grist, **Add widget → Custom → Enter Custom URL**, paste `https://anupress.github.io/grist-file-studio/`, choose the table, and
    accept **Full document access**.
 2. If the table has no Attachments column, press **Add an Attachments column**. Otherwise it shows the files that are there.
-3. **Drop files on a card** (or press **Add files**, or paste a screenshot). Photos from a phone work as they are.
+3. **Drop files on a card** (or press **Add files**, or paste a screenshot). Photos from a phone work as they are. **Drop a whole folder** from your
+   computer and its folders become folders here.
 4. Press **Ctrl+K** to find a file, a folder or a command. Right-click a file or a folder for what you can do with it.
 5. Optional: **Columns** says which column names a record and what a card shows; the **Folders** button gives you a folder list on the
    left; put the widget next to the table (**Select by**) and the Viewer shows the files of whichever row you select.
@@ -228,6 +229,13 @@ The **Folders** button (or Ctrl+K → "Show the folder list") opens a list of ev
   folder cannot go inside itself or one of its own folders. **New subfolder…** makes one inside the folder you right-click; **New folder…** makes
   one inside the chosen folder.
 - **Put files in a folder** by dragging files from the wall, or from your computer, onto it (Ctrl or Alt copies instead of moving).
+- **Import a folder from your computer** by dropping it on the page, or on a folder here to put it inside that one, or with **Import a folder…** (the
+  right-click menu, or Ctrl+K). Each folder on the disk becomes a record named after it, inside its parent folder, with its files in the Attachments
+  cell: *Customer / 2024 / Invoices* becomes three folders inside each other. A question comes first: how many folders and files, how large, and what is
+  left out (hidden and system files such as `.DS_Store`, `Thumbs.db` and Office's `~$` lock files, and hidden folders such as `.git`). When the table has
+  no Parent column you choose between nesting (the column is added) and one record for each folder, named by its path (*Customer / 2024*). Up to 3,000
+  files at a time. The records come in one step, so one Undo takes them back (the uploaded files stay in the document, unused, until **Free up space**).
+  The files are read in the browser and sent to your Grist, as with any upload.
 - The keyboard works as in a file manager: arrows move, Right opens, Left closes or goes up, Enter chooses, F2 renames, the menu key opens the menu.
   On a narrow widget the list slides over the files and closes after a choice.
 

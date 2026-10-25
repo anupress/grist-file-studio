@@ -8,11 +8,14 @@
 import { el, clear } from './core/util.js';
 import { VERSION } from './version.js';
 import { start, accessLevel, selectedTableId, gristCulture, setOptions, moveCursor, apply, undo as gristUndo, redo as gristRedo, linkingInfo, fetchRows } from './grist/connect.js';
+import { droppedFiles } from './media/dropwalk.js';
 import { fileUrl, archiveUrl, fileBlob, fileHead, uploadFiles, dropTokens, docUrl, storageInfo, freeUnusedFiles } from './grist/files.js';
 import { loadColumns, loadFileMeta, loadAttachmentRows, loadLabels, loadOwnSection, forgetMeta, loadLocations } from './data/live.js';
 import { resolveRoles, toStored, detectRoles } from './model/roles.js';
 import { buildGallery, metaFromRows, visibleFiles, visibleRecords, groupCounts, sortFiles, matcher, listSortFor } from './model/files.js';
 import { hitFor } from './model/textsearch.js';
+import { planImport, nextIds, importActions, topFolders, MAX_IMPORT_FILES } from './model/importfolder.js';
+import { walkEntries, listFromInput, hasFolders } from './media/dropwalk.js';
 import { newFolder as newFolderActions, renameFolder as renameFolderActions, canName, newestId, folderStats, clipFiles, canDeleteFolder, deleteFolderActions } from './model/folders.js';
 import { NOTES_TABLE, createTable, cleanTag, rowsAreNotes, parseNotes, allTags, setNote, addTagTo, carryNotes, notesText } from './model/notes.js';
 import { attachmentIds, cellText } from './model/values.js';
@@ -325,7 +328,7 @@ function emptyInWall(text) {
   // The empty wall still takes dropped files: they become new records.
   const sheet = stage.firstChild;
   stage.ondragover = (e) => { if (canEdit() && [...(e.dataTransfer?.types || [])].includes('Files')) e.preventDefault(); };
-  stage.ondrop = (e) => { if (!canEdit() || !e.dataTransfer?.files?.length) return; e.preventDefault(); addFiles([...e.dataTransfer.files], null); };
+  stage.ondrop = (e) => { if (!canEdit() || !e.dataTransfer?.files?.length) return; e.preventDefault(); addFiles(droppedFiles(e.dataTransfer), null); };
   return sheet;
 }
 function renderState() {
@@ -734,7 +737,7 @@ function applyDemo(actions) {
     }
     else if (kind === 'BulkAddRecord') {
       let next = Math.max(0, ...S.rows.map((r) => r.id)) + 1;
-      id.forEach((_, i) => { const r = { id: next++ }; for (const c of S.columns) r[c.id] = null; for (const [k, list] of Object.entries(fields)) r[k] = list[i]; S.rows.push(r); });
+      id.forEach((given, i) => { const r = { id: given ?? next++ }; for (const c of S.columns) r[c.id] = null; for (const [k, list] of Object.entries(fields)) r[k] = list[i]; S.rows.push(r); });
     }
   }
 }
@@ -990,6 +993,7 @@ function pickFiles(rowId) {
  */
 async function addFiles(files, rowId, { picked = false } = {}) {
   if (!files.length) return;
+  if (files.entries) { await importDropped(files, rowId); return; }   // a folder was dropped
   if (!canEdit()) { toast(readOnlyWhy()); return; }
   const col = fileColumn();
   if (!col) { toast(S.roles.files.length ? t('The files columns here are formulas: files cannot be added to them.') : t('Add an Attachments column first.')); return; }
@@ -1010,29 +1014,8 @@ async function addFiles(files, rowId, { picked = false } = {}) {
   const target = rowId != null ? recordOf(rowId) : null;
   if (rowId != null && !rowOf(rowId)) { toast(t('That record is no longer shown here.')); return; }
 
-  let list = files;
-  if (S.settings.upload.shrink) list = await Promise.all(files.map((f) => shrinkPhoto(f, S.settings.upload.maxSide).catch(() => f)));
-  const handles = tray.start(list);
-  const done = [];
-  // Two uploads at a time, each file its own request: a failure costs that file only, and progress is per file.
-  let next = 0;
-  const work = async () => {
-    while (next < list.length) {
-      const k = next++;
-      const f = list[k];
-      try {
-        const ids = await source.upload([f], { onProgress: (a, b) => handles[k].progress(b ? a / b : 0) });
-        done.push({ k, id: ids[0], name: f.name });
-        handles[k].done();
-      } catch (e) {
-        handles[k].fail(uploadWhy(e));
-      }
-    }
-  };
-  await Promise.all([work(), work()]);
+  const done = await uploadList(files);
   if (!done.length) return;
-  done.sort((a, b) => a.k - b.k);
-  if (!S.demo) S.meta = await loadFileMeta().catch(() => S.meta);
   const titleCol = S.columns.find((c) => c.id === S.roles.title) || null;
   const actions = asNew
     ? newRecords(S.tableId, done.map((d) => ({ id: d.id, name: d.name })), { titleCol, filesCol: col.id, prefill: linkPrefill() })
@@ -1042,6 +1025,34 @@ async function addFiles(files, rowId, { picked = false } = {}) {
     : tn(done.length, 'Added {n} file to {record}.', 'Added {n} files to {record}.').replace('{record}', target?.title || t('the record')));
   if (ok && !asNew) announce(t('Files added'));
 }
+/**
+ * Upload files, two at a time, each its own request (a failure costs that file only, and progress is per file), a line each in the tray. Photos are
+ * redrawn smaller just before their turn when that is switched on, so a few hundred of them are never decoded at once.
+ * @returns [{k, id, name}] for what arrived, k being the file's place in `files`
+ */
+async function uploadList(files) {
+  const handles = tray.start(files);
+  const done = [];
+  let next = 0;
+  const work = async () => {
+    while (next < files.length) {
+      const k = next++;
+      try {
+        const f = S.settings.upload.shrink ? await shrinkPhoto(files[k], S.settings.upload.maxSide).catch(() => files[k]) : files[k];
+        const ids = await source.upload([f], { onProgress: (a, b) => handles[k].progress(b ? a / b : 0) });
+        done.push({ k, id: ids[0], name: f.name });
+        handles[k].done();
+      } catch (e) {
+        handles[k].fail(uploadWhy(e));
+      }
+    }
+  };
+  await Promise.all([work(), work()]);
+  done.sort((a, b) => a.k - b.k);
+  if (done.length && !S.demo) S.meta = await loadFileMeta().catch(() => S.meta);
+  return done;
+}
+
 function uploadWhy(e) {
   if (e?.blocked) return t('The Grist server refused the upload from a widget (CORS). Add the file in the Grist cell instead, or ask the server’s administrator.');
   if (e?.status === 413) return t('The file is larger than this Grist allows.');
@@ -1055,6 +1066,112 @@ function linkPrefill() {
   const value = sharedValue(S.rows, col);
   return value == null ? null : { col, value };
 }
+// ---- importing a folder from the computer ----------------------------------------------------------------------------
+// A folder dropped on the page (or chosen with "Import a folder…") becomes records: one per folder, named after it, inside its parent folder when
+// the table has a Parent column, with the folder's files in the Attachments cell. The records get their ids in advance (nextIds), so a folder can
+// point at its parent in the same single action: one Undo takes the whole import back (the uploaded files stay in the document, unused, until
+// "Free up space" removes them, as with any upload that is not kept).
+const folderPicker = el('input', { type: 'file', multiple: true, hidden: true });
+folderPicker.setAttribute('webkitdirectory', '');
+shell.append(folderPicker);
+
+function pickFolder(rowId) {
+  if (!canEdit()) { toast(readOnlyWhy()); return; }
+  folderPicker.value = '';
+  folderPicker.onchange = () => {
+    const list = [...folderPicker.files];
+    if (!list.length) return;
+    // A browser without a directory picker (a phone) hands over plain files: they are added as usual.
+    if (hasFolders(list)) importFolder(listFromInput(list), rowId ?? null); else addFiles(list, rowId ?? null, { picked: true });
+  };
+  folderPicker.click();
+}
+
+/** A drop that holds a folder: read it (it can take a moment), then the same as a picked folder. */
+async function importDropped(files, rowId) {
+  if (!canEdit()) { toast(readOnlyWhy()); return; }
+  toast(t('Reading the folder…'), null, 0);
+  let read;
+  try { read = await walkEntries(files.entries, { limit: MAX_IMPORT_FILES + 1 }); } catch (e) { toast(t('The folder could not be read: {why}', { why: errText(e) })); return; }
+  toastBox.hidden = true;
+  await importFolder(read.items, rowId, read);
+}
+
+async function importFolder(items, rowId, { unreadable = 0, skippedDirs = 0, tooMany = false } = {}) {
+  if (!canEdit()) { toast(readOnlyWhy()); return; }
+  const col = fileColumn();
+  if (!col) { toast(S.roles.files.length ? t('The files columns here are formulas: files cannot be added to them.') : t('Add an Attachments column first.')); return; }
+  const why = folderWhy();
+  if (why) { toast(why); return; }
+  const titleCol = titleColumn();
+  let nest = !!S.roles.parent;
+  const shape = planImport(items, { nest: true });   // the folders as they are on the disk: what the question counts and names
+  let plan = nest ? shape : planImport(items, { nest: false });
+  if (!shape.count.files) { toast(shape.count.skipped || skippedDirs ? t('Nothing to import: the folder holds only hidden or system files.') : t('Nothing to import: the folder has no files.')); return; }
+  if (tooMany || shape.count.files > MAX_IMPORT_FILES) { toast(t('That is more than {n} files. Import it in parts.', { n: MAX_IMPORT_FILES })); return; }
+  if (!shape.folders.length) { await addFiles(shape.loose.map((x) => x.file), rowId); return; }
+
+  const wasDeep = shape.count.deepest > 1;
+  const left = shape.count.skipped + skippedDirs;
+  const into = nest ? (rowId != null && recordOf(rowId) ? rowId : (S.view.folder != null && recordOf(S.view.folder) ? S.view.folder : null)) : null;
+  const summary = () => [
+    t('{folders} with {files}, {size}. Each folder becomes a record named after it, with its files in “{col}”.', {
+      folders: tn(shape.count.folders, '{n} folder', '{n} folders'), files: tn(shape.count.files, '{n} file', '{n} files'), size: sizeText(shape.count.bytes, uiLang()), col: col.label,
+    }),
+    nest && wasDeep ? t('Folders inside folders stay inside them.') : '',
+    into != null ? t('They go inside “{parent}”.', { parent: recordOf(into).title || t('Untitled record') }) : '',
+    left ? tn(left, '{n} hidden or system item is left out.', '{n} hidden or system items are left out.') : '',
+    unreadable ? tn(unreadable, '{n} file could not be read.', '{n} files could not be read.') : '',
+    shape.loose.length ? tn(shape.loose.length, '{n} loose file is added afterwards.', '{n} loose files are added afterwards.') : '',
+  ].filter(Boolean).join(' ');
+  const tops = topFolders(shape);
+  const title = tops.length === 1 ? t('Import the folder “{name}”?', { name: tops[0].name }) : t('Import {n} folders?', { n: tops.length });
+
+  if (!nest && wasDeep) {
+    // No Parent column: the folders can nest (one column is added to the table) or become one record each, named by their path.
+    const choice = await choiceBox(shell, {
+      title, body: summary(),
+      choices: [
+        [t('Keep the folders inside each other'), 'nest', t('Adds a “Parent folder” column to the table, then imports.')],
+        [t('One record for each folder, named by its path'), 'flat', t('No new column: “Customer / 2024”, “Customer / 2025” and so on.')],
+      ],
+    });
+    if (!choice) return;
+    if (choice === 'nest') {
+      await addParentColumn();
+      if (!S.roles.parent) return;
+      nest = true;
+      plan = planImport(items, { nest });
+    }
+  } else if (!(await confirmBox(shell, { title, body: summary(), ok: t('Import') }))) return;
+
+  const order = plan.folders.flatMap((f) => f.files.map((x) => x.item));
+  const done = await uploadList(order.map((x) => x.file));
+  if (!done.length) return;
+  const idFor = new Map(done.map((d) => [order[d.k], d.id]));
+  const ids = nextIds(S.rows, plan.folders.length);
+  const parentId = nest && S.roles.parent ? (rowId != null && recordOf(rowId) ? rowId : (S.view.folder != null && recordOf(S.view.folder) ? S.view.folder : null)) : null;
+  const actions = importActions(S.tableId, plan, (item) => idFor.get(item), {
+    ids, titleCol, filesCol: col.id, parentCol: nest ? S.roles.parent : null, parentId, prefill: linkPrefill(),
+  });
+  const added = done.length;
+  const ok = await write(actions, t('Imported {folders} with {files}.', { folders: tn(plan.folders.length, '{n} folder', '{n} folders'), files: tn(added, '{n} file', '{n} files') }));
+  if (!ok) return;
+  // Grist sends the new rows a moment later: wait for the first, then show them and go to the first folder.
+  for (let i = 0; i < 50 && !S.rows.some((r) => r.id === ids[0]); i++) await new Promise((r) => setTimeout(r, 100));
+  for (const id of ids) S.fresh.add(id);
+  // Names of the new folders for a Parent field on the cards (they are read once, so the new rows are not in them yet).
+  if (!S.demo) S.labels = await loadLabels(S.columns, [S.roles.title, ...S.roles.fields, S.roles.parent].filter(Boolean)).catch(() => S.labels);
+  if (parentId != null) S.treeOpen.add(parentId);
+  const first = ids[topFolders(plan)[0].index];
+  S.treeOpen.add(first);
+  saveTreeOpen();
+  rebuild();
+  if (treeShown() && S.roles.parent) { chooseFolder(first, { close: false }); treePane?.reveal(first); }
+  else { S.current = first; render(); wall?.scrollToRecord(first); }
+  if (plan.loose.length) await addFiles(plan.loose.map((x) => x.file), null);   // (the same loose files in either plan)
+}
+
 async function addFilesColumn() {
   if (!canEdit()) return;
   const id = S.columns.some((c) => c.id === 'Files') ? 'Attachments' : 'Files';
@@ -1223,7 +1340,7 @@ shell.addEventListener('dragover', (e) => { if (canEdit() && [...(e.dataTransfer
 shell.addEventListener('drop', (e) => {
   if (!canEdit() || !e.dataTransfer?.files?.length || e.defaultPrevented) return;
   e.preventDefault();
-  addFiles([...e.dataTransfer.files], null);
+  addFiles(droppedFiles(e.dataTransfer), null);
 });
 
 // ---- the photo report ------------------------------------------------------------------------------------------------
@@ -1560,6 +1677,7 @@ function recordMenu(rowId, anchor) {
   openMenu(shell, anchor, tidy([
     [t('Open in the Viewer'), () => { select(rowId); setView({ layout: 'viewer' }); render(); }],
     [t('Add files…'), () => pickFiles(rowId), { disabled: !can }],
+    [t('Import a folder…'), () => pickFolder(rowId), { disabled: !can || !folder, hint: t('From your computer, with the folders inside it') }],
     clipN() > 0 && [tn(clipN(), 'Paste {n} file here', 'Paste {n} files here'), () => pasteClip(rowId), { disabled: !can }],
     null,
     S.roles.parent ? [t('New subfolder…'), () => newFolder({ parent: rowId }), { disabled: !folder, note: folder ? null : folderWhy() }] : [t('New folder…'), () => newFolder(), { disabled: !folder, note: folder ? null : folderWhy() }],
@@ -1583,6 +1701,7 @@ function spaceMenu(anchor) {
   const folder = canFolder();
   openMenu(shell, anchor, tidy([
     [t('Add files…'), () => pickFiles(null), { disabled: !(canEdit() && fileColumn()), hint: t('Into the selected record, or one new record for each file') }],
+    [t('Import a folder…'), () => pickFolder(null), { disabled: !(canEdit() && fileColumn() && folder), hint: t('From your computer, with the folders inside it') }],
     clipN() > 0 && recordOf(S.current) && [tn(clipN(), 'Paste {n} file into “{record}”', 'Paste {n} files into “{record}”').replace('{record}', recordOf(S.current).title || t('the selected record')), () => pasteClip(S.current)],
     [t('New folder…'), () => newFolder({ parent: S.view.folder }), { disabled: !folder, note: folder ? null : folderWhy() }],
     null,
@@ -1646,6 +1765,7 @@ function paletteItems() {
   const out = [];
   const cmd = (label, run, o = {}) => out.push({ group: 'commands', label, run, ...o });
   if (edit) cmd(t('Add files…'), () => pickFiles(null), { disabled: !can });
+  if (edit) cmd(t('Import a folder…'), () => pickFolder(null), { disabled: !(can && canFolder()), hint: t('From your computer, with the folders inside it') });
   if (edit) cmd(t('New folder…'), () => newFolder({ parent: S.view.folder }), { disabled: !canFolder(), hint: canFolder() ? '' : folderWhy() });
   cmd(treeShown() ? t('Hide the folder list') : t('Show the folder list'), () => setTreeShown(!treeShown()));
   if (S.view.folder) cmd(t('Show all files'), () => chooseFolder(null));
@@ -1786,6 +1906,7 @@ async function addParentColumn() {
     S.settings = { ...S.settings, roles: toStored(S.roles, S.columns) };
     try { await setOptions(writeOptions(S.settings, toStored(S.roles, S.columns))); } catch { /* shown for this visit only */ }
     S.treeShow = true; mem.set(TREE_SHOW_KEY(), '1');
+    S.labels = await loadLabels(S.columns, [S.roles.title, ...S.roles.fields, S.roles.parent].filter(Boolean)).catch(() => S.labels);
     rebuild(); render();
     toast(t('Added the column “{id}”. Choose a folder it is inside in each record, or drag a folder onto another.', { id: made?.colId || 'Parent' }));
   } catch (e) { toast(t('Grist refused the change: {why}', { why: errText(e) })); }

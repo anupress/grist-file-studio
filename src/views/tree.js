@@ -5,6 +5,7 @@
 import { el, clear } from '../core/util.js';
 import { icon } from '../core/assets/icons.js';
 import { INTERNAL_FILES } from './wall.js';
+import { droppedFiles } from '../media/dropwalk.js';
 import { t, tn } from '../i18n/index.js';
 
 const ROW_H = 30;
@@ -112,7 +113,7 @@ export function createTree(host, on) {
       if (keys.length) on.onSendFiles(keys, rowId, e.ctrlKey || e.altKey ? 'copy' : 'move');
     } else if (t0.includes('Files')) {
       e.preventDefault(); e.stopPropagation();
-      on.onDrop(rowId, [...e.dataTransfer.files]);
+      on.onDrop(rowId, droppedFiles(e.dataTransfer));
     }
   }
   // the "All files" line takes a folder out to the top level
