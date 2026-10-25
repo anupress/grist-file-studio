@@ -79,7 +79,8 @@ export function coverOf(rec) {
 /** Files a card can flip through on hover: everything that draws as a picture. */
 export const flippable = (rec) => rec.files.filter((f) => f.kind === 'image' || f.kind === 'pdf' || f.kind === 'video' || f.kind === 'heic');
 
-export const fold = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+/** Text as the search compares it: no accents, no capitals, and ß written ss (Straße is found by strasse and the other way round). */
+export const fold = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/ß/g, 'ss');
 
 /** Every word of the query must appear in the file's name, its record's title or the record's fields. */
 export function matcher(query) {

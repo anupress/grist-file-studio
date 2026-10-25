@@ -419,6 +419,14 @@ Thumbnails are made in your browser the first time a file is on screen and kept 
 file's content hash, so the next visit draws at once. At most four files download at a time, and only
 what is on screen is drawn: 10,000 files open in about 0.3 s and scroll at full frame rate.
 
+## Find anything: Ctrl+K
+
+**Ctrl+K** (or **Find a file, a folder or a command** in the empty-space menu) opens one box for everything. Type a few letters:
+the commands that fit (layouts, Show as, Sort, Show only, a tag, Add files, New folder, Mark all, zip, Undo, Storage, Columns…), the
+folders whose name or fields fit, and the files whose name, record, tags or note fit; the group with the best match comes first.
+Arrow keys choose, **Enter** runs it (a file opens, a folder is selected and scrolled to, a command does its job), **Esc** closes.
+With nothing typed it lists the commands. Accents and capitals do not matter, and ß and ss are the same (`strasse` finds Hafenstraße).
+
 ## Languages and keys
 
 English, German and French, following Grist's language (or chosen in Columns). Arrows move,

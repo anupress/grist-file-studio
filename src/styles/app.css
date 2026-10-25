@@ -272,6 +272,20 @@ a.gs-btn { color: inherit; text-decoration: none; }   /* a link that looks like 
 .gs-row__more:hover { background: var(--gs-surface); color: var(--gs-ink); }
 .gs-row__more svg { width: 15px; height: 15px; }
 .gs-row.is-dragged { opacity: 0.5; }
+/* the command palette */
+.gs-pal { top: 10%; width: min(580px, calc(100% - 32px)); padding: 10px; display: flex; flex-direction: column; gap: 8px; max-height: 78%; }
+.gs-pal__input { width: 100%; font-size: var(--gs-fs-4); padding: 9px 12px; }
+.gs-pal__list { overflow: auto; min-height: 0; }
+.gs-pal__group { padding: 8px 10px 4px; font-size: var(--gs-fs-1); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gs-muted); }
+.gs-pal__item { display: flex; align-items: baseline; gap: 10px; padding: 8px 10px; border-radius: var(--gs-r-1); cursor: pointer; font-size: var(--gs-fs-3); }
+.gs-pal__item[aria-selected="true"] { background: var(--gs-accent-soft); box-shadow: inset 3px 0 0 var(--gs-accent); }
+.gs-pal__item.is-off { opacity: 0.55; cursor: default; }
+.gs-pal__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gs-pal__hint { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--gs-muted); font-size: var(--gs-fs-2); }
+.gs-pal__keys { margin-left: auto; flex: none; font: 600 var(--gs-fs-1)/1 var(--gs-font); padding: 3px 6px; border: 1px solid var(--gs-line-strong); border-radius: var(--gs-r-1); background: var(--gs-surface-2); color: var(--gs-muted); }
+.gs-pal__hint + .gs-pal__keys { margin-left: 0; }
+.gs-pal__foot { padding: 6px 10px 2px; border-top: 1px solid var(--gs-line); font-size: var(--gs-fs-1); color: var(--gs-muted); }
+.gs-pal__none { padding: 18px 10px; color: var(--gs-muted); font-size: var(--gs-fs-3); }
 /* cut and not pasted yet */
 .gs-tile.is-cut, .gs-row.is-cut { opacity: 0.45; }
 

@@ -31,7 +31,8 @@ import { createWall } from './views/wall.js';
 import { createViewer } from './views/viewer.js';
 import { openLightbox } from './views/lightbox.js';
 import { openCompare } from './views/compare.js';
-import { createBars } from './ui/bars.js';
+import { createBars, GROUP_LABELS, SORT_LABELS } from './ui/bars.js';
+import { openPalette } from './ui/palette.js';
 import { openColumns } from './ui/columns.js';
 import { openLibrary } from './ui/library.js';
 import { reportBox } from './ui/reportbox.js';
@@ -1134,6 +1135,7 @@ document.addEventListener('keydown', (e) => {
   if (S.lb || e.target.closest?.('.gs-dialog, .gs-drawer, .gs-menu')) return;
   const typing = e.target.closest?.('input, textarea, select');
   const mod = e.ctrlKey || e.metaKey;
+  if (mod && !e.shiftKey && !e.altKey && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); openFinder(); return; }
   if (mod && !typing && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
   if (mod && !typing && e.key === 'y') { e.preventDefault(); redo(); return; }
   if (mod && !typing && !e.shiftKey && !e.altKey && V().layout === 'files' && (e.key === 'x' || e.key === 'X' || e.key === 'c' || e.key === 'C')) {
@@ -1498,6 +1500,7 @@ function spaceMenu(anchor) {
     [t('New folder…'), () => newFolder(), { disabled: !folder, note: folder ? null : folderWhy() }],
     null,
     files && shownFiles().length > 0 && [t('Mark all shown'), () => { for (const f of shownFiles()) S.marked.add(f.key); renderState(); }],
+    [t('Find a file, a folder or a command'), () => openFinder(), { hint: 'Ctrl+K' }],
     files && [V().empty ? t('Hide records without files') : t('Show records without files'), () => { setView({ empty: !V().empty }); render(); },
       { hint: t('Records that have no file yet, so files can be put in them') }],
     null,
@@ -1536,6 +1539,64 @@ async function pasteClip(rowId) {
   if (ok && cut) dropClip();
   return ok;
 }
+
+// ---- the command palette (Ctrl+K) --------------------------------------------------------------------------------------
+// One box to find a command, a folder or a file. The items are made when it opens, from what is on screen now (layout, selection, marks).
+function goToFolder(rowId) {
+  const rec = recordOf(rowId);
+  if (!rec) return;
+  // The Files layout hides records without a file: show this one for now.
+  if (V().layout === 'files' && !rec.files.length && !S.fresh.has(rowId)) { S.fresh.add(rowId); render(); }
+  select(rowId, { scroll: true });
+}
+function paletteItems() {
+  const v = V();
+  const inFiles = v.layout === 'files';
+  const edit = canEdit();
+  const can = edit && !!fileColumn();
+  const out = [];
+  const cmd = (label, run, o = {}) => out.push({ group: 'commands', label, run, ...o });
+  if (edit) cmd(t('Add files…'), () => pickFiles(null), { disabled: !can });
+  if (edit) cmd(t('New folder…'), () => newFolder(), { disabled: !canFolder(), hint: canFolder() ? '' : folderWhy() });
+  if (S.marked.size) cmd(t('Unmark all'), () => clearMarks(), { keys: 'Esc' });
+  if (inFiles && shownFiles().length) cmd(t('Mark all shown'), () => { for (const f of shownFiles()) S.marked.add(f.key); renderState(); });
+  for (const [id, name, keys] of [['cards', 'Cards', 'Alt+1'], ['files', 'Files', 'Alt+2'], ['viewer', 'Viewer', 'Alt+3']]) {
+    if (v.layout !== id) cmd(t('Layout: {name}', { name: t(name) }), () => { setView({ layout: id }); clearMarks(false); render(); }, { keys });
+  }
+  if (inFiles) {
+    for (const [id, name] of [['justify', 'Natural'], ['square', 'Square'], ['list', 'List']]) {
+      if (v.fit !== id) cmd(t('Show as: {name}', { name: t(name) }), () => { setView({ fit: id }); render(); });
+    }
+    for (const [id, label] of Object.entries(SORT_LABELS)) {
+      if (v.sort !== id) cmd(t('Sort: {name}', { name: t(label) }), () => { setView({ sort: id }); if (byDate(id)) readDatesFor(); render(); });
+    }
+    for (const [id, label] of Object.entries(GROUP_LABELS)) {
+      if (v.group !== id) cmd(t('Show only: {name}', { name: t(label) }), () => { setView({ group: id }); render(); });
+    }
+    for (const tag of allTags(NOTES.map)) {
+      if (v.tag.toLowerCase() !== tag.toLowerCase()) cmd(t('Tag: {name}', { name: tag }), () => { setView({ tag }, { remember: false }); render(); });
+    }
+    if (v.tag) cmd(t('Tag: {name}', { name: t('Any tag') }), () => { setView({ tag: '' }, { remember: false }); render(); });
+    cmd(v.empty ? t('Hide records without files') : t('Show records without files'), () => { setView({ empty: !v.empty }); render(); });
+    const shown = shownFiles();
+    if (shown.length) cmd(tn(shown.length, 'The {n} file shown, as zip', 'All {n} files shown, as zip'), () => zipFiles(shown, S.tableId || DEMO_TABLE));
+  }
+  cmd(S.inside.on ? t('Stop searching inside files') : t('Search the text inside files'), () => toggleInside());
+  if (clipN() > 0 && recordOf(S.current)) cmd(tn(clipN(), 'Paste {n} file into “{record}”', 'Paste {n} files into “{record}”').replace('{record}', recordOf(S.current).title || t('the selected record')), () => pasteClip(S.current), { keys: 'Ctrl+V' });
+  cmd(t('Undo'), () => undo(), { keys: 'Ctrl+Z' });
+  cmd(t('Redo'), () => redo(), { keys: 'Ctrl+Y' });
+  cmd(t('Storage…'), () => openStorage());
+  cmd(t('Columns'), () => openColumnsPanel());
+  cmd(t('Keyboard shortcuts'), () => openKeys(shell), { keys: '?' });
+  for (const rec of S.gallery?.records || []) {
+    out.push({ group: 'folders', label: rec.title || t('Untitled record'), hint: tn(rec.files.length, '{n} file', '{n} files'), words: rec.fields.map((f) => f.text).join(' '), run: () => goToFolder(rec.rowId) });
+  }
+  for (const f of S.gallery?.files || []) {
+    out.push({ group: 'files', label: f.name, hint: [f.recordTitle, sizeText(f.size, uiLang())].filter(Boolean).join(' · '), words: f.notesText || '', run: () => openFile(f, null, v.layout === 'files' ? 'wall' : f.rowId) });
+  }
+  return out;
+}
+const openFinder = () => { if (S.ready && !S.problem) openPalette(shell, { items: paletteItems }); };
 
 // ---- inside files ---------------------------------------------------------------------------------------------------
 // The search can look at the words in PDFs, Word, Excel, PowerPoint and text files. Reading them means downloading each

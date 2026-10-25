@@ -978,4 +978,21 @@ export const DE = {
   'Paste {n} files into “{record}”': '{n} Dateien in „{record}“ einfügen',
   'The files that were cut or copied are no longer there.': 'Die ausgeschnittenen oder kopierten Dateien sind nicht mehr da.',
   'Then choose a folder and paste with Ctrl+V': 'Danach einen Ordner wählen und mit Strg+V einfügen',
+  // command palette
+  'Commands': 'Befehle',
+  'Folders': 'Ordner',
+  'Find a file, a folder or a command': 'Datei, Ordner oder Befehl finden',
+  'Layout: {name}': 'Ansicht: {name}',
+  'No matches': 'Keine Treffer',
+  'Nothing matches “{q}”.': 'Zu „{q}“ passt nichts.',
+  'Redo': 'Wiederholen',
+  'Search the text inside files': 'Den Text in Dateien durchsuchen',
+  'Show as: {name}': 'Anzeigen als: {name}',
+  'Show only: {name}': 'Nur anzeigen: {name}',
+  'Sort: {name}': 'Sortieren: {name}',
+  'Stop searching inside files': 'Nicht mehr in Dateien suchen',
+  'Tag: {name}': 'Schlagwort: {name}',
+  'Type to find a file, a folder or a command.': 'Tippen, um eine Datei, einen Ordner oder einen Befehl zu finden.',
+  // command palette footer
+  'Arrows to choose, Enter to run, Esc to close': 'Pfeiltasten zum Wählen, Enter zum Ausführen, Esc zum Schließen',
 };

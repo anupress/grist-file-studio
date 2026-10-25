@@ -18,8 +18,8 @@ import { t, tn } from '../i18n/index.js';
 const compareIcon = () => fromHTML('<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16"/><path d="M7.5 9.5 5.5 12l2 2.5M16.5 9.5l2 2.5-2 2.5"/></svg>');
 const LAYOUT_LABELS = { cards: 'Cards', files: 'Files', viewer: 'Viewer' };
 const LAYOUT_ICONS = { cards: 'grid2', files: 'gallery', viewer: 'image2' };
-const GROUP_LABELS = { all: 'All', image: 'Pictures', pdf: 'PDFs', video: 'Videos', audio: 'Audio', other: 'Other' };
-const SORT_LABELS = { cell: 'As in the table', name: 'Name', 'name-desc': 'Name, Z to A', newest: 'Newest first', oldest: 'Oldest first', 'taken-asc': 'Date taken, oldest first', 'taken-desc': 'Date taken, newest first', largest: 'Largest first', smallest: 'Smallest first', type: 'Type', 'type-desc': 'Type, Z to A' };
+export const GROUP_LABELS = { all: 'All', image: 'Pictures', pdf: 'PDFs', video: 'Videos', audio: 'Audio', other: 'Other' };
+export const SORT_LABELS = { cell: 'As in the table', name: 'Name', 'name-desc': 'Name, Z to A', newest: 'Newest first', oldest: 'Oldest first', 'taken-asc': 'Date taken, oldest first', 'taken-desc': 'Date taken, newest first', largest: 'Largest first', smallest: 'Smallest first', type: 'Type', 'type-desc': 'Type, Z to A' };
 
 const seg = (label, items, onPick) => {
   // A segment with icons may drop its words on a narrow widget (the icon and the tooltip remain);

@@ -55,7 +55,8 @@ eq('Excel: shared strings, their runs, and numbers; a string index is not a numb
 eq('HTML: visible words only', htmlText('<html><head><title>x</title><style>p{}</style></head><body><h1>Titel</h1><script>var a = "secret";</script><p>Erste &amp; zweite</p></body></html>'), 'Titel\nErste & zweite');
 
 // ---- folding and hits ----
-eq('folding drops accents and case', fold('Müller ÉCOLE Straße'), 'muller ecole straße');
+eq('folding drops accents and case, and writes ß as ss', fold('Müller ÉCOLE Straße'), 'muller ecole strasse');
+eq('Straße and strasse find each other, whichever is typed', [matcher('strasse')('Hafenstraße 12'), matcher('Straße')('Hafenstrasse 12'), matcher('STRAẞE')('hafenstraße')], [true, true, true]);
 const doc = prepare(['Invoice for Müller GmbH. Payment within 14 days.', 'Terms and conditions apply to every order.', 'Signed in Vienna. Müller agrees to the terms.']);
 eq('an entry keeps each page and the whole', [doc.pages.length, doc.all.split('\f').length], [3, 3]);
 eq('one word: the pages that hold it, the first one is quoted', hitFor(doc, ['muller']), { words: 1, pages: [1, 3], paged: true, snippet: 'Invoice for Müller GmbH. Payment within 14 days.', parts: ['Invoice for ', 'Müller', ' GmbH. Payment within 14 days.'] });

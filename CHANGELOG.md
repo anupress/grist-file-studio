@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.14.0
+
+The command palette. Checked in the demo with the real keys (Ctrl+K, typing, arrows, Enter, Esc) at 1366 and 390 px and in the audit.
+
+### Search
+- **Ctrl+K**: one box to find a command, a folder or a file; the group with the best match first; Enter runs it. Layouts, Show as, Sort,
+  Show only, tags, Add files, New folder, Mark all, zip, Undo and Redo, Storage, Columns and the keyboard sheet are commands; the
+  choices on offer follow what is on screen.
+- The search now treats **ß as ss** everywhere (names, records, text inside files): Hafenstraße is found by strasse and the other way round.
+
 ## 1.13.0
 
 Cut, copy and paste between folders. Checked in the demo with the real keys and mouse (Ctrl+C, Ctrl+X, the folder's Paste item, Esc, Undo) and in the audit.

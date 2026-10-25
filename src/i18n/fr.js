@@ -985,4 +985,21 @@ export const FR = {
   'Paste {n} files into “{record}”': `Coller {n} fichiers dans ${q('{record}')}`,
   'The files that were cut or copied are no longer there.': 'Les fichiers coupés ou copiés n’existent plus.',
   'Then choose a folder and paste with Ctrl+V': 'Choisissez ensuite un dossier et collez avec Ctrl+V',
+  // command palette
+  'Commands': 'Commandes',
+  'Folders': 'Dossiers',
+  'Find a file, a folder or a command': 'Trouver un fichier, un dossier ou une commande',
+  'Layout: {name}': 'Disposition : {name}',
+  'No matches': 'Aucun résultat',
+  'Nothing matches “{q}”.': `Rien ne correspond à ${q('{q}')}.`,
+  'Redo': 'Rétablir',
+  'Search the text inside files': 'Chercher le texte dans les fichiers',
+  'Show as: {name}': 'Afficher en : {name}',
+  'Show only: {name}': 'Afficher seulement : {name}',
+  'Sort: {name}': 'Trier : {name}',
+  'Stop searching inside files': 'Ne plus chercher dans les fichiers',
+  'Tag: {name}': 'Étiquette : {name}',
+  'Type to find a file, a folder or a command.': 'Saisissez pour trouver un fichier, un dossier ou une commande.',
+  // command palette footer
+  'Arrows to choose, Enter to run, Esc to close': 'Flèches pour choisir, Entrée pour lancer, Échap pour fermer',
 };
