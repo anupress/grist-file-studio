@@ -149,12 +149,14 @@ export function openPopover(host, anchor, build, { label = '' } = {}) {
  * The anchor is the button the menu opens under, or a point {x, y} (a right click): then the menu's corner is at the point.
  */
 export function openMenu(host, anchor, items, { align = 'right' } = {}) {
+  const born = Date.now();
   const point = typeof anchor.getBoundingClientRect !== 'function';
   const close = () => { release(); document.removeEventListener('pointerdown', outside, true); menu.remove(); };
   const outside = (e) => { if (!menu.contains(e.target) && (point || (e.target !== anchor && !anchor.contains(e.target)))) close(); };
   const menu = el('div', { class: 'gs-menu', role: 'menu' }, items.map((it) => (it ? el('button', {
     type: 'button', role: 'menuitem', class: 'gs-menu__item' + (it[2]?.danger ? ' is-danger' : '') + (it[2]?.note ? ' has-note' : ''), disabled: !!it[2]?.disabled,
-    title: it[2]?.hint || null, onclick: () => { close(); it[1](); },
+    // The click that ends a long press lands where the menu has just appeared: it is not a choice.
+    title: it[2]?.hint || null, onclick: () => { if (Date.now() - born < 350) return; close(); it[1](); },
   }, it[2]?.note ? [el('span', { class: 'gs-menu__label', text: it[0] }), el('span', { class: 'gs-menu__note', text: it[2].note })] : [it[0]])
     : el('div', { class: 'gs-menu__sep', role: 'separator' }))));
   host.append(menu);

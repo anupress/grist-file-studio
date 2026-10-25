@@ -131,7 +131,8 @@ in the lightbox's Details, or mark several files and press **Tag…** to put one
 
 ## Right-click and folders
 
-Right-click works where you would expect it: on a file, on a folder's heading or card, and on the empty part of the wall.
+Right-click works where you would expect it: on a file, on a folder's heading or card, and on the empty part of the wall. On a phone or
+tablet, **press and hold** (half a second) for the same menus; the tap that ends the press chooses nothing.
 
 ![A folder's right-click menu in the Files layout, with the new folder "Garden shed" below it](docs/images/folders.png)
 

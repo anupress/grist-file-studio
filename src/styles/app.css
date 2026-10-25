@@ -272,6 +272,8 @@ a.gs-btn { color: inherit; text-decoration: none; }   /* a link that looks like 
 .gs-row__more:hover { background: var(--gs-surface); color: var(--gs-ink); }
 .gs-row__more svg { width: 15px; height: 15px; }
 .gs-row.is-dragged { opacity: 0.5; }
+/* a long press opens the menu: no text selection or callout on what is pressed */
+.gs-tile, .gs-row, .gs-card, .gs-head { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 /* the box dragged over the wall */
 .gs-lasso { position: absolute; z-index: 5; pointer-events: none; border: 1px solid var(--gs-accent); background: color-mix(in srgb, var(--gs-accent) 14%, transparent); border-radius: 2px; }
 .gs-scroll.is-lassoing { user-select: none; cursor: crosshair; }

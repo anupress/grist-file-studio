@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.16.0
+
+The menus on touch screens. Checked in the demo with touch emulation (a 390 px wall: press and hold on a file, a folder heading and empty
+ground; a short tap; a drag), and the right-click, folder and clipboard checks again.
+
+### Touch
+- **Press and hold** opens the same menus as a right click (a file, a folder, the empty wall). Moving the finger (a scroll) or letting go
+  early opens nothing; a short tap still opens the file. On a touch screen tiles are no longer draggable, because the browser would start
+  a drag instead of the press.
+- A menu ignores a click in its first third of a second: the tap that ends a long press lands where the menu has just appeared.
+
 ## 1.15.0
 
 Marking with a box, more keys, and a copy of everything. Checked in the demo with the real mouse and keys and in Grist 1.7.20 (a box over

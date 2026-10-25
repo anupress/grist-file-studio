@@ -18,6 +18,7 @@ import { sizeText, typeLabel, tintOf } from '../model/kinds.js';
 import { t, tn, uiLang, dateLocale } from '../i18n/index.js';
 
 const OVERSCAN = 700;
+const COARSE = typeof matchMedia === 'function' ? matchMedia('(pointer: coarse)') : { matches: false };
 /** The drag type of tiles dragged inside the widget (files from the desktop come as 'Files'). */
 const INTERNAL = 'application/x-file-studio-files';
 
@@ -150,7 +151,8 @@ export function createWall(host, thumbs, on) {
     node.addEventListener('dragend', () => node.classList.remove('is-dragged'));
   }
   function refresh(node, f) {
-    node.draggable = S.editable && !f.readOnly;
+    // On a touch screen a long press opens the menu; a draggable element would start a drag instead (and drag and drop is for a mouse).
+    node.draggable = S.editable && !f.readOnly && !COARSE.matches;
     node.classList.toggle('is-marked', S.marked.has(f.key));
     node.classList.toggle('is-cut', S.cut.has(f.key));
     node.setAttribute('aria-selected', S.marked.has(f.key) ? 'true' : 'false');
@@ -401,19 +403,47 @@ export function createWall(host, thumbs, on) {
     }
   });
   // Right click: a file's menu on a tile, a folder's on its header, empty line or card, and the wall's own anywhere else.
-  scroll.addEventListener('contextmenu', (e) => {
-    if (e.target.closest?.('input, textarea, .gs-menu')) return;
-    e.preventDefault();
-    const at = { x: e.clientX, y: e.clientY };
-    const tile = S.mode === 'files' ? e.target.closest?.('.gs-tile, .gs-row') : null;
+  let lastMenuAt = 0;
+  /** The menu for what is at a point: a file, a folder, or the wall. Once per touch or click (a phone sends both a long press and a contextmenu). */
+  function menuAt(target, x, y) {
+    if (Date.now() - lastMenuAt < 800) return;
+    lastMenuAt = Date.now();
+    const at = { x, y };
+    const tile = S.mode === 'files' ? target.closest?.('.gs-tile, .gs-row') : null;
     if (tile) {
       const f = fileByKey(tile.dataset.key);
       if (f) { S.focusKey = f.key; on.onMenu(f, at); return; }
     }
-    const row = e.target.closest?.('.gs-head, .gs-emptyrow, .gs-card');
+    const row = target.closest?.('.gs-head, .gs-emptyrow, .gs-card');
     if (row) { on.onRecordMenu?.(Number(row.dataset.row), at); return; }
     on.onSpaceMenu?.(at);
+  }
+  scroll.addEventListener('contextmenu', (e) => {
+    if (e.target.closest?.('input, textarea, .gs-menu')) return;
+    e.preventDefault();
+    menuAt(e.target, e.clientX, e.clientY);
   });
+  // A long press (half a second without moving) does the same with a finger or a pen: phones and tablets have no right button, and
+  // not every browser sends a contextmenu for a press inside a widget. The click that ends the press is swallowed.
+  let press = null;
+  scroll.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' || e.button > 0 || e.target.closest?.('input, textarea, select, .gs-menu, .gs-listhead')) return;
+    const at = { x: e.clientX, y: e.clientY };
+    const target = e.target;
+    press = { id: e.pointerId, at, timer: setTimeout(() => {
+      press = null;
+      try { navigator.vibrate?.(12); } catch { /* not allowed */ }
+      menuAt(target, at.x, at.y);
+      const swallow = (ev) => { ev.stopPropagation(); ev.preventDefault(); };
+      scroll.addEventListener('click', swallow, { capture: true, once: true });
+      setTimeout(() => scroll.removeEventListener('click', swallow, true), 900);
+    }, 500) };
+  });
+  const endPress = (e) => { if (press && e.pointerId === press.id) { clearTimeout(press.timer); press = null; } };
+  scroll.addEventListener('pointermove', (e) => { if (press && e.pointerId === press.id && Math.hypot(e.clientX - press.at.x, e.clientY - press.at.y) > 9) endPress(e); });
+  scroll.addEventListener('pointerup', endPress);
+  scroll.addEventListener('pointercancel', endPress);
+  scroll.addEventListener('scroll', () => { if (press) { clearTimeout(press.timer); press = null; } }, { passive: true });
   function fileByKey(key) {
     for (const g of S.data?.groups || []) { const f = g.files.find((x) => x.key === key); if (f) return f; }
     return null;
