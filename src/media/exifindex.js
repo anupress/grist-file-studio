@@ -2,15 +2,17 @@
 // text of documents (media/textindex.js): the same photo in two records is read once, nothing goes into the document, and a photo that
 // has no EXIF is remembered as having none. Used to sort by date taken and to fill in a photo's details.
 
-import { parseExif } from './exif.js';
+import { parseAnyExif } from './exif.js';
 
 const DB_NAME = 'file-studio-exif';
 const STORE = 'photos';
 export const HEAD_BYTES = 128 * 1024;
+export const HEIC_HEAD_BYTES = 640 * 1024;   // a HEIC keeps its EXIF block as an item inside the file, not always at the very start
 const JPEG = /^(jpe?g|jfif|pjpeg)$/;
+const HEIC = /^(heic|heif)$/;
 
-/** Can a date be read from this file? Only JPEGs carry EXIF in a place we read. */
-export const hasExif = (f) => JPEG.test(f.ext || '');
+/** Can a date be read from this file? JPEGs and HEIC pictures carry EXIF in a place we read. */
+export const hasExif = (f) => JPEG.test(f.ext || '') || HEIC.test(f.ext || '');
 
 export class ExifIndex {
   constructor() { this.mem = new Map(); this.looked = new Set(); this.db = null; this.ready = this.open(); }
@@ -53,8 +55,8 @@ export class ExifIndex {
 
   /** Read one photo's EXIF through source.head(file, n). Resolves the info or null. */
   async readOne(ident, file, source, signal) {
-    const bytes = await source.head(file, HEAD_BYTES, { signal });
-    const p = parseExif(bytes);
+    const bytes = await source.head(file, HEIC.test(file.ext || '') ? HEIC_HEAD_BYTES : HEAD_BYTES, { signal });
+    const p = parseAnyExif(bytes);
     const info = p ? { taken: p.taken, make: p.make, model: p.model, orientation: p.orientation, lat: p.lat, lon: p.lon, altitude: p.altitude } : null;
     this.set(ident, info);
     return info;

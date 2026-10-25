@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.18.0
+
+HEIC pictures. Checked in the demo (thumbnail, lightbox, editor, Convert to JPEG and Undo, shrink on upload, the photo report, date and place) and in
+Grist 1.7.20 (a HEIC from the attachment endpoint, drawn, with its details, converted in the cell).
+
+### Photos
+- **HEIC and HEIF pictures are drawn in every browser.** libheif (LGPL 3.0, vendored as built in vendor/libheif, 2 MB) decodes them in a worker when the
+  browser's own decoder cannot; it is loaded only then. The thumbnails, the lightbox, Compare, the picture editor (which saves a JPEG), the
+  photo report and the recognition of words in pictures take them.
+- **Convert to JPEG** (a picture's menu, or the marked files' menu): the JPEG goes in every cell that held the HEIC, in one step. An uploaded
+  HEIC is converted at once when "Shrink large photos before uploading" is on.
+- **Date taken, camera and place** of a HEIC are read from its EXIF item (through the file's meta, iinf and iloc boxes), when it lies in the
+  first 640 kB.
+
 ## 1.17.0
 
 Text recognition for scans and pictures. Checked in the demo (the choice, the progress with the page number, search hits on recognised

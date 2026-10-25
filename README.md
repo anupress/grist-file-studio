@@ -84,7 +84,14 @@ pages, length, upload date, record and column).
   (photos with no date come last). It reads the date from the start of each JPEG, four at a time, once; the line beside
   the sort says how far it is and has **Stop**. The dates are kept in this browser, never in the document. A photo's
   **Details** (I) then also say **Taken**, the **Camera** and, when the phone was allowed to record it, the **Place**, as
-  a link that opens a map only when you click it. Only JPEGs carry this; other pictures keep their upload date.
+  a link that opens a map only when you click it. JPEGs and HEIC pictures carry this; other pictures keep their upload date.
+- **iPhone pictures (HEIC).** Chrome, Edge and Firefox cannot draw the HEIC (or HEIF) files an iPhone makes, so most programs show a blank.
+  File Studio draws them itself: the thumbnail, the lightbox, Compare, the picture editor, the photo report and the search for words in
+  pictures all work with them. libheif decodes the file in a worker in your browser (about 2 MB that load the first time one turns up;
+  Safari's own decoder is tried first). **Convert to JPEG** in a picture's menu, or the menu of marked files, replaces a HEIC by a JPEG in every
+  cell that holds it (Undo takes it back), and with **Shrink large photos before uploading** (Columns) an uploaded HEIC becomes a JPEG at once.
+  The camera data of a converted picture is not kept. The date, camera and place are read from the HEIC when its EXIF block lies in the first
+  640 kB of the file.
 
 ## Search inside files
 
@@ -475,4 +482,4 @@ library is the same kind of bundle, `vendor/pdflib/pdflib.mjs` (`node scripts/bu
 ## Licence
 
 MIT, see [LICENSE](LICENSE). Bundled third-party code (Grist's plugin API, pdf.js, Sortable,
-CodeMirror, marked, pdf-lib) is listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+CodeMirror, marked, pdf-lib, libheif, tesseract.js) is listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).

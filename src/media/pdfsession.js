@@ -6,6 +6,7 @@
 
 import { openPdf } from './pdf.js';
 import { openDocument, imageToPdf, hasSignature, formFields, blankPdf } from './pdfops.js';
+import { decodeBitmap } from './picture.js';
 
 let libPromise = null;
 /** The vendored pdf-lib bundle, fetched the first time a PDF is edited. */
@@ -23,7 +24,7 @@ const MAX_PHOTO_SIDE = 2600;   // pixels: more than a page can show, far less th
 
 /** A photo as JPEG (or PNG when it is a PNG) bytes, upright, no larger than MAX_PHOTO_SIDE. */
 export async function photoBytes(blob) {
-  const bmp = await createImageBitmap(blob, { imageOrientation: 'from-image' });
+  const bmp = await decodeBitmap(blob, { imageOrientation: 'from-image' });
   const k = Math.min(1, MAX_PHOTO_SIDE / Math.max(bmp.width, bmp.height));
   const w = Math.max(1, Math.round(bmp.width * k)), h = Math.max(1, Math.round(bmp.height * k));
   const canvas = document.createElement('canvas');

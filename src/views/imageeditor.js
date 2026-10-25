@@ -19,6 +19,7 @@ import {
 } from '../media/imaging.js';
 import { baseOf } from '../model/kinds.js';
 import { t } from '../i18n/index.js';
+import { decodeBitmap } from '../media/picture.js';
 
 const MAX_PIXELS = 40e6;
 const PREVIEW_MAX = 1800;
@@ -48,7 +49,7 @@ export async function openImageEditor(host, o) {
   let bmp;
   try {
     const blob = await o.source.blob(f);
-    bmp = await createImageBitmap(blob);
+    bmp = await decodeBitmap(blob);
   } catch {
     wait.textContent = t('This browser cannot open this picture for editing.');
     setTimeout(() => root.remove(), 2500);

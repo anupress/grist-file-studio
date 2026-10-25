@@ -35,7 +35,7 @@ eq('a picture with no words has an empty page and nothing recognised', (await ex
 let none = null; try { await extractPages(new Blob(['x']), 'jpg'); } catch (e) { none = e.message; }
 eq('a picture cannot be read without recognition', none, 'No text to read in this kind of file.');
 
-eq('what can be read: pictures only when asked', [readableKind('jpg', 'image'), readableKind('jpg', 'image', { pictures: true }), readableKind('mp4', 'video', { pictures: true }), readableKind('heic', 'heic', { pictures: true })], [null, 'image', null, null]);
+eq('what can be read: pictures (HEIC too) only when asked', [readableKind('jpg', 'image'), readableKind('jpg', 'image', { pictures: true }), readableKind('mp4', 'video', { pictures: true }), readableKind('heic', 'heic', { pictures: true })], [null, 'image', null, 'image']);
 eq('size limits for pictures', [canRead({ ext: 'jpg', kind: 'image', size: 5e6 }, { pictures: true }), canRead({ ext: 'jpg', kind: 'image', size: 40e6 }, { pictures: true }), canRead({ ext: 'jpg', kind: 'image', size: 1 })], [true, false, false]);
 
 // the index: scans left, and a file read again once recognition is allowed

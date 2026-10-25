@@ -1017,4 +1017,15 @@ export const DE = {
   'page {n} of {count}': 'Seite {n} von {count}',
   '{n} scanned page has no text yet': '{n} gescannte Seite ohne Text',
   '{n} scanned pages have no text yet': '{n} gescannte Seiten ohne Text',
+  // heic
+  'A picture every browser and program can open; the camera data is not kept': 'Ein Bild, das jeder Browser und jedes Programm öffnen kann; die Kameradaten bleiben nicht erhalten',
+  'Convert to JPEG': 'In JPEG umwandeln',
+  'Converted {n} picture to JPEG.': '{n} Bild in JPEG umgewandelt.',
+  'Converted {n} pictures to JPEG.': '{n} Bilder in JPEG umgewandelt.',
+  'Converting picture {done} of {total}…': 'Bild {done} von {total} wird umgewandelt …',
+  'Stopped.': 'Angehalten.',
+  'The pictures could not be converted.': 'Die Bilder konnten nicht umgewandelt werden.',
+  'The pictures could not be converted: {why}': 'Die Bilder konnten nicht umgewandelt werden: {why}',
+  'These files are not HEIC pictures, or cannot be changed here.': 'Diese Dateien sind keine HEIC-Bilder oder können hier nicht geändert werden.',
+  '{n} could not be converted.': '{n} konnten nicht umgewandelt werden.',
 };

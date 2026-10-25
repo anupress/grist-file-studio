@@ -1,8 +1,10 @@
 // Pictures for a report: each one decoded, turned the way it was shot, drawn on white, made at most `maxSide` pixels on its
 // long side and encoded as a JPEG. A report of 40 phone photos would otherwise be 150 MB.
 
+import { decodeBitmap } from './picture.js';
+
 /** The pictures a report can draw: what the browser decodes and pdf-lib can take after a redraw. HEIC, SVG and the rest are listed instead. */
-export const REPORT_PICTURE = /^(jpe?g|jfif|pjpeg|png|webp|bmp|gif|avif)$/;
+export const REPORT_PICTURE = /^(jpe?g|jfif|pjpeg|png|webp|bmp|gif|avif|heic|heif)$/;
 
 /**
  * @param files [{name, ext, ...}] with the source's blob(file, {signal})
@@ -14,7 +16,7 @@ export async function prepareImages(files, { source, maxSide = 1600, quality = 0
   let next = 0, done = 0;
   const one = async (f) => {
     const blob = await source.blob(f, { signal });
-    const bmp = await createImageBitmap(blob, { imageOrientation: 'from-image' });   // the EXIF turn is applied: the picture is the way it was held
+    const bmp = await decodeBitmap(blob, { imageOrientation: 'from-image' });   // the EXIF turn is applied: the picture is the way it was held
     try {
       const s = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
       const c = document.createElement('canvas');

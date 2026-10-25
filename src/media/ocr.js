@@ -5,6 +5,7 @@
 // when the run ends, so a run that finds nothing to recognise never loads it.
 
 import { uiLang } from '../i18n/index.js';
+import { decodeBitmap } from './picture.js';
 
 const base = () => new URL('vendor/tesseract/', document.baseURI).href;
 const MIN_CONFIDENCE = 50;     // below this the whole page is taken for noise (a photo of a building "reads" as nonsense)
@@ -73,7 +74,7 @@ export function createReader({ languages = ocrLanguages(), signal } = {}) {
     },
     /** The words in a picture (a Blob the browser can decode). */
     async image(blob) {
-      const bmp = await createImageBitmap(blob);
+      const bmp = await decodeBitmap(blob);
       try {
         const k = Math.min(1, PICTURE_SIDE / Math.max(bmp.width, bmp.height));
         const canvas = document.createElement('canvas');

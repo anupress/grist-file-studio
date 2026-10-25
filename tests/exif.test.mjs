@@ -1,10 +1,10 @@
 // Reading when and where a photo was taken from its EXIF block (built by hand here, in both byte orders).
 
-import { parseExif, cameraName, mapLink, placeText } from '../src/media/exif.js';
+import { parseExif, parseHeicExif, parseAnyExif, cameraName, mapLink, placeText } from '../src/media/exif.js';
 import { ExifIndex, hasExif, HEAD_BYTES } from '../src/media/exifindex.js';
 import { readHead } from '../src/media/head.js';
 import { sortFiles } from '../src/model/files.js';
-import { tinyJpeg, withExif } from './support/exif-builder.mjs';
+import { tinyJpeg, withExif, tinyHeic } from './support/exif-builder.mjs';
 
 let pass = 0, fail = 0;
 const eq = (n, got, want) => { if (JSON.stringify(got) === JSON.stringify(want)) pass++; else { fail++; console.log(`  FAIL ${n}\n    got  ${JSON.stringify(got)}\n    want ${JSON.stringify(want)}`); } };
@@ -66,7 +66,7 @@ eq('dates kept, and "no EXIF" remembered as null, and an unread one unknown', [i
 eq('progress counts every one', progress.length, 4);
 const again = await idx.read(list, { source });
 eq('a second run reads only what failed', [again.read, again.failed, asked.length], [0, 1, 5]);
-eq('only JPEGs are read', ['jpg', 'jpeg', 'JPG', 'png', 'webp', 'heic', 'pdf'].map((e) => hasExif({ ext: e.toLowerCase() })), [true, true, true, false, false, false, false]);
+eq('only JPEGs and HEIC pictures are read', ['jpg', 'jpeg', 'JPG', 'png', 'webp', 'heic', 'pdf'].map((e) => hasExif({ ext: e.toLowerCase() })), [true, true, true, false, false, true, false]);
 
 // ---- sorting by the date taken ----
 const set = [
@@ -77,6 +77,20 @@ eq('oldest first, photos with no date last (in the order they were uploaded)', s
 eq('newest first, still none last', sortFiles(set, 'taken-desc', { taken }).map((f) => f.name), ['n1', 'n5', 'n2', 'n4', 'n3']);
 eq('with no dates known at all it is upload order', sortFiles(set, 'taken-asc').map((f) => f.name), ['n5', 'n4', 'n3', 'n2', 'n1']);
 eq('the same moment: by name', sortFiles([{ name: 'b', id: 'a' }, { name: 'a', id: 'a' }], 'taken-asc', { taken }).map((f) => f.name), ['a', 'b']);
+
+// HEIC: the EXIF block is an item found through iinf and iloc
+for (const [name, o] of [['iloc version 0', {}], ['iloc version 1', { v1: true }], ['the picture first', { exifFirst: false }]]) {
+  const h = tinyHeic({}, o);
+  const p = parseHeicExif(h.bytes);
+  eq(`HEIC (${name}): when, camera and place`, [p && p.taken, p && p.model, p && Math.round(p.lat * 1e4) / 1e4], [Date.UTC(2026, 9, 2, 14, 31, 7), 'iPhone 15', 48.2085]);
+}
+const far = tinyHeic({}, { exifFirst: false, pictureBytes: 5000 });
+eq('HEIC: the block lies beyond what was read: no date', parseHeicExif(far.bytes.subarray(0, far.exifAt + 20)), null);
+eq('HEIC: read in full, the same file has its date', parseHeicExif(far.bytes).taken, Date.UTC(2026, 9, 2, 14, 31, 7));
+eq('HEIC: a big-endian block', parseHeicExif(tinyHeic({ be: true }).bytes).taken, Date.UTC(2026, 9, 2, 14, 31, 7));
+eq('HEIC: not a HEIC, too short, damaged', [parseHeicExif(new Uint8Array(30)), parseHeicExif(jpeg({})), parseHeicExif(tinyHeic().bytes.subarray(0, 40)), parseHeicExif(Uint8Array.from([0, 0, 0, 12, 102, 116, 121, 112, 104, 101, 105, 99, 255, 255, 255, 255]))], [null, null, null, null]);
+eq('either kind: the JPEG and the HEIC are read, anything else is not', [parseAnyExif(jpeg({})).model, parseAnyExif(tinyHeic().bytes).model, parseAnyExif(new Uint8Array(40)), parseAnyExif(new Uint8Array(3))], ['iPhone 15', 'iPhone 15', null, null]);
+eq('a HEIC has a date to read', [hasExif({ ext: 'heic' }), hasExif({ ext: 'heif' }), hasExif({ ext: 'png' })], [true, true, false]);
 
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

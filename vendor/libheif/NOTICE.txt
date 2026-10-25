@@ -1,0 +1,17 @@
+HEIC and HEIF pictures: libheif, vendored as built
+==================================================
+
+libheif-bundle.mjs   libheif-js 1.23.5 (https://github.com/catdad-experiments/libheif-js), dist libheif-wasm/libheif-bundle.mjs, unchanged.
+                     It is libheif (https://github.com/strukturag/libheif) and the HEVC decoder libde265
+                     (https://github.com/strukturag/libde265), compiled to WebAssembly with Emscripten, the WebAssembly inlined.
+                     Licence: GNU Lesser General Public License 3.0 (LICENSE-LGPL-3.0.txt; libheif's own notes in LICENSES-libheif.txt).
+heic-worker.mjs      File Studio's own (MIT). It is the only code that calls libheif: it loads libheif-bundle.mjs as a separate module in a
+                     Worker, hands it the bytes of a file and takes back the pixels.
+
+To use another build of libheif, replace libheif-bundle.mjs with one that has the same default export (libheif-js's
+libheif-wasm/libheif-bundle.mjs of another version does). The source of the libraries is at the links above; the exact versions are libheif-js
+1.23.5's, which names the libheif and libde265 it was built from in its scripts/install.js.
+
+HEVC, the video codec inside HEIC files, is covered by patents in some countries, and decoding it in software can need a licence from the
+patent holders for some uses. The pictures are only ever decoded on the computer of the person who opens them, and only when the browser's
+own decoder (Safari has one) cannot. Whoever distributes File Studio should take their own advice on this.

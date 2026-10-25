@@ -16,6 +16,7 @@ import { renderMark, RESIZABLE, KEEPS_SHAPE } from './pdfelements.js';
 import { group, chips, swatches, slider, button } from '../ui/controls.js';
 import { openSignPad } from '../ui/signpad.js';
 import { t, tn } from '../i18n/index.js';
+import { decodeBitmap } from '../media/picture.js';
 
 const TOOL_LABELS = { select: 'Select', text: 'Text', date: 'Date', check: 'Tick', cross: 'Cross', rect: 'Cover up', hilite: 'Highlight', draw: 'Pen', image: 'Signature', logo: 'Picture' };
 const HINT_LABELS = {
@@ -67,7 +68,7 @@ function pickPicture(root) {
       const file = input.files && input.files[0];
       if (!file) { finish(null); return; }
       try {
-        const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+        const bmp = await decodeBitmap(file, { imageOrientation: 'from-image' });
         const k = Math.min(1, 1000 / Math.max(bmp.width, bmp.height));
         const c = document.createElement('canvas');
         c.width = Math.max(1, Math.round(bmp.width * k)); c.height = Math.max(1, Math.round(bmp.height * k));

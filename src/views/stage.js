@@ -18,6 +18,7 @@ import { renderPage } from '../media/pdf.js';
 import { ALPHA } from './face.js';
 import { officeView, OFFICE } from './office.js';
 import { t, uiLang } from '../i18n/index.js';
+import { shownUrl } from '../media/picture.js';
 
 const MAX_MEDIA_BLOB = 300e6;
 const MAX_TEXT = 2e6;
@@ -94,7 +95,8 @@ function pictureView(host, file, { source, thumbs, onZoom, onSwipe, signal }) {
   const quick = thumbs?.peek(file, 720) || thumbs?.peek(file, 360);
   if (quick?.url) { img.src = quick.url; if (quick.w && quick.h) setSize(quick.w, quick.h); }
   const wait = quick?.url ? null : loading(box, t('Loading'));
-  source.url(file, { inline: true }).then((url) => {
+  // A HEIC file is shown as a JPEG made in the browser (media/picture.js); every other picture from its own URL.
+  (file.kind === 'heic' ? shownUrl(file, source, { signal }) : source.url(file, { inline: true })).then((url) => {
     if (signal.aborted) return;
     const full = new Image();
     full.decoding = 'async';

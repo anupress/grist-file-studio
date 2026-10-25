@@ -107,7 +107,7 @@ export function openLightbox(host, o) {
       info.append(el('button', { type: 'button', class: 'gs-btn gs-lb__go', text: n.tags.length || n.note ? t('Change tags and note…') : t('Add tags and a note…'), onclick: () => o.onNotes(f) }));
     }
     // What the photo says about itself, once it has been read (the start of the file only).
-    if (o.exifOf && f.kind === 'image') {
+    if (o.exifOf && (f.kind === 'image' || f.kind === 'heic')) {
       o.exifOf(f).then((x) => {
         if (!x || files[i] !== f || !showInfo) return;
         const more = [];

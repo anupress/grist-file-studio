@@ -284,6 +284,6 @@ export function outputFormat(choice, ext) {
   const e = String(ext || '').toLowerCase();
   if (/^(jpe?g|jfif|pjpeg)$/.test(e)) return ['image/jpeg', e === 'jpeg' ? 'jpeg' : 'jpg'];
   if (e === 'webp') return ['image/webp', 'webp'];
-  if (e === 'avif') return ['image/jpeg', 'jpg'];
+  if (e === 'avif' || e === 'heic' || e === 'heif') return ['image/jpeg', 'jpg'];   // formats the browser may not draw again
   return ['image/png', 'png'];   // png, gif, bmp
 }

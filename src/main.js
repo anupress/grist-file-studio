@@ -27,6 +27,7 @@ import { makeZip, manifestCsv, ZIP_LIMIT } from './media/zip.js';
 import { shrinkPhoto } from './media/shrink.js';
 import { TextIndex, canRead } from './media/textindex.js';
 import { createReader } from './media/ocr.js';
+import { heicJpeg } from './media/picture.js';
 import { ExifIndex, hasExif } from './media/exifindex.js';
 import { createWall } from './views/wall.js';
 import { createViewer } from './views/viewer.js';
@@ -403,6 +404,7 @@ function menuItems(f, { inLightbox = false } = {}) {
     [t('Copy to…'), () => sendTo([f], 'copy'), { disabled: !canEdit() || !fileColumn(), hint: t('The same file, also in another record') }],
     [t('Move to…'), () => sendTo([f], 'move'), { disabled: !can }],
     [t('Replace with…'), () => replaceWith(f), { disabled: !can, hint: t('Put a file from your computer in its place') }],
+    f.kind === 'heic' && [t('Convert to JPEG'), () => convertHeic([f]), { disabled: !can, hint: t('A picture every browser and program can open; the camera data is not kept') }],
     [t('Make cover'), () => reorder(f, 0), { disabled: !can || f.index === 0, hint: t('Move this file to the front of its record') }],
   );
   if (!inLightbox && V().layout === 'files') items.push([S.marked.has(f.key) ? t('Unmark') : t('Mark'), () => mark(f, 'toggle')]);
@@ -422,7 +424,7 @@ function fileMenu(f, anchor) {
 
 // ---- what can be edited -------------------------------------------------------------------------------------------
 // Pictures the browser can decode and re-encode, text, and PDFs. Video, audio and office files are not edited.
-const IMAGE_EDITABLE = /^(jpe?g|jfif|pjpeg|png|webp|bmp|gif|avif)$/;
+const IMAGE_EDITABLE = /^(jpe?g|jfif|pjpeg|png|webp|bmp|gif|avif|heic|heif)$/;
 const editorKind = (f) => (IMAGE_EDITABLE.test(f.ext) ? 'image' : f.ext === 'pdf' ? 'pdf' : f.kind === 'text' || f.ext === 'svg' ? 'text' : null);
 const canEditContent = (f) => { const k = editorKind(f); return k === 'image' ? f.size <= 60e6 : k === 'pdf' ? f.size <= 80e6 : k === 'text' ? f.size <= 2e6 : false; };
 // What can be merged into one PDF: PDFs and the pictures the browser can read.
@@ -834,6 +836,36 @@ async function openStorage() {
 }
 
 /** Photos redrawn smaller, the old file replaced by the new one in every cell that holds it, as ONE Grist action. */
+/**
+ * HEIC and HEIF pictures (an iPhone's) become JPEGs, which every browser, program and phone shows. The JPEG goes in every cell the HEIC was in
+ * (one step, Undo takes it back); the HEIC stays in the document until nothing uses it and is then freed. The camera data is not kept.
+ */
+async function convertHeic(files) {
+  const list = [...new Map(files.filter((f) => f.kind === 'heic' && canEditFile(f)).map((f) => [f.attId, f])).values()];
+  if (!list.length) { toast(t('These files are not HEIC pictures, or cannot be changed here.')); return; }
+  const stop = { label: t('Stop'), run: () => ctrl.abort() };
+  const ctrl = new AbortController();
+  const mapping = new Map();
+  let failed = 0;
+  try {
+    for (let i = 0; i < list.length && !ctrl.signal.aborted; i++) {
+      toast(t('Converting picture {done} of {total}…', { done: i + 1, total: list.length }), stop, 0);
+      try {
+        const jpeg = await heicJpeg(await source.blob(list[i], { signal: ctrl.signal }));
+        const id = await uploadOne(new File([jpeg], baseOf(list[i].name) + '.jpg', { type: 'image/jpeg' }), baseOf(list[i].name) + '.jpg');
+        if (id == null) failed++; else mapping.set(list[i].attId, id);
+      } catch (e) { if (e?.name === 'AbortError') break; failed++; }
+    }
+    if (!mapping.size) { toast(failed ? t('The pictures could not be converted.') : t('Stopped.')); return; }
+    locs = null;
+    const L = await locationsIndex();
+    const actions = replaceMany((id) => L.index.get(id), mapping, (tableId, rowId, colId) => (tableId === S.tableId ? cellOf(rowId, colId) : L.tables.get(tableId)?.rows.get(rowId)?.[colId]));
+    if (!S.demo) S.meta = await loadFileMeta().catch(() => S.meta);
+    const carried = carryNotes(NOTES.map, [...mapping].map(([from, to]) => [S.meta.get(from)?.ident, S.meta.get(to)?.ident]));
+    if (actions.length) await writeNotes([...actions, ...carried], tn(mapping.size, 'Converted {n} picture to JPEG.', 'Converted {n} pictures to JPEG.') + (failed ? ' ' + tn(failed, '{n} could not be converted.', '{n} could not be converted.') : ''));
+  } catch (e) { toast(t('The pictures could not be converted: {why}', { why: errText(e) })); }
+}
+
 async function shrinkPhotosInDocument(cands, { maxSide }, { onProgress, signal }) {
   const mapping = new Map();
   let saved = 0, failed = 0, done = 0;
@@ -1448,6 +1480,7 @@ function markedMenu(anchor) {
     [t('Move to…'), () => sendTo(files, 'move'), { disabled: !can || !files.some(canEditFile) }],
     [t('Tag…'), () => tagMarked(), { disabled: !edit }],
     [t('Rename…'), () => renameMany(files), { disabled: !edit }],
+    files.some((f) => f.kind === 'heic') && [t('Convert to JPEG'), () => convertHeic(files), { disabled: !edit }],
     files.length >= 2 && files.some(mergeable) && [t('Merge into PDF…'), () => mergeFiles(files), { disabled: !edit }],
     pictures && [t('Photo report…'), () => photoReport(files, null)],
     pair && [t('Compare'), () => compareFiles(files[0], files[1])],

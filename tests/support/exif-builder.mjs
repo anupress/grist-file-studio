@@ -60,3 +60,28 @@ export function withExif(jpeg, opts) {
   for (const p of parts) { out.set(p, o); o += p.length; }
   return out;
 }
+
+/**
+ * A HEIC file reduced to what the reader looks at: ftyp, a meta box with iinf (item 1 a picture, item 2 the Exif) and iloc (where each is),
+ * and an mdat holding the two. `v1` writes iloc version 1; `exifFirst: false` puts the picture's bytes before the Exif block.
+ */
+export function tinyHeic(opts = {}, { v1 = false, exifFirst = true, pictureBytes = 100 } = {}) {
+  const tiff = exifSegment(opts).subarray(10);
+  const exif = Uint8Array.from([0, 0, 0, 6, 0x45, 0x78, 0x69, 0x66, 0, 0, ...tiff]);   // the offset to the TIFF header (6: past "Exif\0\0"), then that and the TIFF
+  const pic = new Uint8Array(pictureBytes).fill(7);
+  const cc = (s) => [...s].map((c) => c.charCodeAt(0));
+  const u32 = (n) => [(n >>> 24) & 255, (n >> 16) & 255, (n >> 8) & 255, n & 255];
+  const u16 = (n) => [(n >> 8) & 255, n & 255];
+  const box = (type, ...payload) => { const body = payload.flat(); return [...u32(8 + body.length), ...cc(type), ...body]; };
+  const infe = (id, type) => box('infe', [2, 0, 0, 0], u16(id), u16(0), cc(type), [0]);
+  const iinf = box('iinf', [0, 0, 0, 0], u16(2), infe(1, 'hvc1'), infe(2, 'Exif'));
+  const item = (id, off, len) => (v1 ? [...u16(id), ...u16(0), ...u16(0), ...u16(1), ...u32(off), ...u32(len)] : [...u16(id), ...u16(0), ...u16(1), ...u32(off), ...u32(len)]);
+  const iloc = (picAt, exifAt) => box('iloc', [v1 ? 1 : 0, 0, 0, 0], [0x44, 0x00], u16(2), item(1, picAt, pic.length), item(2, exifAt, exif.length));
+  const ftyp = box('ftyp', cc('heic'), u32(0), cc('mif1'), cc('heic'));
+  const metaLen = box('meta', [0, 0, 0, 0], iinf, iloc(0, 0)).length;
+  const first = ftyp.length + metaLen + 8;
+  const picAt = exifFirst ? first + exif.length : first, exifAt = exifFirst ? first : first + pic.length;
+  const meta = box('meta', [0, 0, 0, 0], iinf, iloc(picAt, exifAt));
+  const mdat = box('mdat', exifFirst ? [...exif, ...pic] : [...pic, ...exif]);
+  return { bytes: Uint8Array.from([...ftyp, ...meta, ...mdat]), exifAt, exifLength: exif.length };
+}

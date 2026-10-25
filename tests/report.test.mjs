@@ -101,7 +101,7 @@ eq('a report with no pictures is one Letter page', [bare.pages, Math.round((awai
 let bad = null;
 try { await buildReport(lib, { ...base, perPage: 4, photos: photos(1) }, [{ bytes: new Uint8Array([1, 2, 3]), type: 'jpg' }], {}); } catch (e) { bad = e.message; }
 ok('a picture that is not a JPEG fails loudly', bad);
-eq('what counts as a picture', ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'bmp', 'heic', 'svg', 'pdf'].filter((x) => REPORT_PICTURE.test(x)), ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'bmp']);
+eq('what counts as a picture (HEIC is decoded in the browser)', ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'bmp', 'heic', 'svg', 'pdf'].filter((x) => REPORT_PICTURE.test(x)), ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'bmp', 'heic']);
 
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

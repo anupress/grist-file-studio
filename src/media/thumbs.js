@@ -14,6 +14,8 @@
 //   - Text: the first lines, shown as a page preview; audio: its length.
 //   - Anything else: nothing to fetch, the tile is drawn from the type alone.
 
+import { decodeBitmap } from './picture.js';
+
 const DB_NAME = 'file-studio-thumbs';
 const STORE = 'thumbs';
 const MAX_FILE = { image: 60e6, pdf: 80e6, text: 256e3, svg: 3e6 };
@@ -119,8 +121,8 @@ export function createThumbs(source, { onAspect = null } = {}) {
       if (file.size > MAX_FILE.image) return { failed: true };
       const blob = await source.blob(file, { signal });
       let bmp;
-      try { bmp = await createImageBitmap(blob); }
-      catch { return { failed: true, undecodable: true }; }   // HEIC on Chrome, a broken file
+      try { bmp = await decodeBitmap(blob); }   // HEIC too: the browser's own decoder, or libheif
+      catch { return { failed: true, undecodable: true }; }   // a broken file
       const c = scaledCanvas(bmp, bmp.width, bmp.height, px);
       const out = { blob: await toWebp(c), w: bmp.width, h: bmp.height };
       bmp.close?.();

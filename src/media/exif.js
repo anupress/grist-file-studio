@@ -28,6 +28,93 @@ export function parseExif(bytes) {
   return null;
 }
 
+/**
+ * The same, for a HEIC or HEIF file (an iPhone's): the EXIF block is an "item" of the file, found through its `meta` box (`iinf` says which
+ * item is 'Exif', `iloc` says where its bytes are). Those bytes must lie inside `bytes`; when the block sits further on than what was read,
+ * the answer is null (a photo without a date, as far as this reader can tell).
+ */
+export function parseHeicExif(bytes) {
+  const u = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  const dv = new DataView(u.buffer, u.byteOffset, u.byteLength);
+  const u32 = (o) => dv.getUint32(o);
+  const u16 = (o) => dv.getUint16(o);
+  const tag = (o) => String.fromCharCode(u[o], u[o + 1], u[o + 2], u[o + 3]);
+  /** The boxes between a and b: [{type, start (of the box), body (after its header), end}] */
+  const boxes = (a, b) => {
+    const out = [];
+    while (a + 8 <= b) {
+      let size = u32(a), head = 8;
+      if (size === 1) { if (a + 16 > b) break; size = Number(dv.getBigUint64(a + 8)); head = 16; } else if (size === 0) size = b - a;
+      if (size < head) break;
+      out.push({ type: tag(a + 4), start: a, body: a + head, end: Math.min(b, a + size) });
+      a += size;
+    }
+    return out;
+  };
+  try {
+    const top = boxes(0, u.length);
+    if (!top.length || top[0].type !== 'ftyp') return null;
+    const meta = top.find((b) => b.type === 'meta');
+    if (!meta) return null;
+    const inner = boxes(meta.body + 4, meta.end);   // a FullBox: four bytes of version and flags first
+    const iinf = inner.find((b) => b.type === 'iinf');
+    const iloc = inner.find((b) => b.type === 'iloc');
+    if (!iinf || !iloc) return null;
+    // which item is the Exif one
+    const ver = u[iinf.body];
+    let at = iinf.body + 4 + (ver === 0 ? 2 : 4);
+    let exifId = null;
+    for (const infe of boxes(at, iinf.end)) {
+      if (infe.type !== 'infe') continue;
+      const v = u[infe.body];
+      if (v < 2) continue;
+      const idAt = infe.body + 4;
+      const id = v === 2 ? u16(idAt) : u32(idAt);
+      const typeAt = idAt + (v === 2 ? 2 : 4) + 2;
+      if (tag(typeAt) === 'Exif') { exifId = id; break; }
+    }
+    if (exifId == null) return null;
+    // where its bytes are
+    const lv = u[iloc.body];
+    const sizes = u[iloc.body + 4], more = u[iloc.body + 5];
+    const offSize = sizes >> 4, lenSize = sizes & 15, baseSize = more >> 4, indexSize = lv === 1 || lv === 2 ? more & 15 : 0;
+    let p = iloc.body + 6;
+    const count = lv < 2 ? u16(p) : u32(p);
+    p += lv < 2 ? 2 : 4;
+    const read = (n, o) => (n === 0 ? 0 : n === 4 ? u32(o) : n === 8 ? Number(dv.getBigUint64(o)) : n === 2 ? u16(o) : u[o]);
+    for (let i = 0; i < count; i++) {
+      const id = lv < 2 ? u16(p) : u32(p);
+      p += lv < 2 ? 2 : 4;
+      let method = 0;
+      if (lv === 1 || lv === 2) { method = u16(p) & 15; p += 2; }
+      p += 2;   // data reference index
+      const base = read(baseSize, p); p += baseSize;
+      const extents = u16(p); p += 2;
+      let first = null;
+      for (let k = 0; k < extents; k++) {
+        if (indexSize) p += indexSize;
+        const off = read(offSize, p); p += offSize;
+        const len = read(lenSize, p); p += lenSize;
+        if (k === 0) first = { off: base + off, len };
+      }
+      if (id !== exifId) continue;
+      if (method !== 0 || !first || first.len < 12 || first.off + first.len > u.length) return null;
+      const block = u.subarray(first.off, first.off + first.len);
+      const skip = ((block[0] << 24) | (block[1] << 16) | (block[2] << 8) | block[3]) >>> 0;   // bytes between this number and the TIFF header ("Exif\0\0" is one)
+      return parseTiff(block.subarray(4 + skip));
+    }
+    return null;
+  } catch { return null; }   // a file that is not laid out as expected has no readable date
+}
+
+/** The EXIF of a JPEG or a HEIC/HEIF file, whichever these bytes are; null for anything else. */
+export function parseAnyExif(bytes) {
+  const u = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  if (u.length >= 12 && u[0] === 0xff && u[1] === 0xd8) return parseExif(u);
+  if (u.length >= 12 && String.fromCharCode(u[4], u[5], u[6], u[7]) === 'ftyp') return parseHeicExif(u);
+  return null;
+}
+
 function parseTiff(t) {
   if (t.length < 8) return null;
   const little = t[0] === 0x49 && t[1] === 0x49;

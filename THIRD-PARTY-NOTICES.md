@@ -97,3 +97,20 @@ word, is in `vendor/pdflib/LICENSES.txt`, which `scripts/build-pdflib.mjs` write
 Nothing else is fetched at view time. The widget makes no network requests of its own: it talks only
 to the Grist document it is placed in (rows, file metadata, file contents and uploads), and the one
 outbound link is the ANUPRESS logo.
+
+## libheif and libde265 (HEIC pictures)
+
+`vendor/libheif/libheif-bundle.mjs` — libheif-js 1.23.5, <https://github.com/catdad-experiments/libheif-js>: libheif
+(<https://github.com/strukturag/libheif>) and libde265 (<https://github.com/strukturag/libde265>) compiled to WebAssembly.
+Licensed under the **GNU Lesser General Public License, version 3**: the licence texts are in `vendor/libheif/LICENSE-LGPL-3.0.txt` and
+`vendor/libheif/LICENSES-libheif.txt`, and `vendor/libheif/NOTICE.txt` says where the source is and how to replace the library. It is kept as a
+separate file that the widget loads at run time in a Worker (`vendor/libheif/heic-worker.mjs`), unchanged, so it can be replaced by another
+build of the same library. Loaded only when a HEIC picture has to be shown.
+
+## tesseract.js, Tesseract and the language data (text recognition)
+
+`vendor/tesseract/` — tesseract.js 7.0.0 (<https://github.com/naptha/tesseract.js>), tesseract.js-core 7.0.0 (the Tesseract OCR engine and
+Leptonica compiled to WebAssembly) and the "best" models of tessdata_best for English, German and French
+(<https://github.com/tesseract-ocr/tessdata_best>), all licensed under the **Apache License, Version 2.0** (`vendor/LICENSE-Apache-2.0.txt`).
+Their bundled notices (buffer, ieee754, regenerator-runtime, zlib.js) are in `vendor/tesseract/LICENSES.txt`. Loaded only when scanned pages
+or pictures are read for their words.

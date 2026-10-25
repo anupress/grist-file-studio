@@ -7,6 +7,7 @@ import { icon } from '../core/assets/icons.js';
 import { trapFocus } from '../ui/dialog.js';
 import { stepDivider, dividerAt } from '../model/viewing.js';
 import { t } from '../i18n/index.js';
+import { heicJpeg } from '../media/picture.js';
 
 const MAX_BYTES = 80e6;
 
@@ -45,7 +46,8 @@ export function openCompare(host, o) {
   }
   async function pictureUrl(file) {
     if (file.size > MAX_BYTES) throw new Error('too large');
-    const url = URL.createObjectURL(await o.source.blob(file));
+    const blob = await o.source.blob(file);
+    const url = URL.createObjectURL(file.kind === 'heic' ? await heicJpeg(blob, { maxSide: 4096 }) : blob);
     urls.push(url);
     return url;
   }

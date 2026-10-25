@@ -21,7 +21,7 @@ const LIMITS = { pdf: 80e6, office: 30e6, text: 5e6, image: 30e6 };   // bytes w
 const MAX_PDF_PAGES = 500;
 const MAX_CHARS = 2.5e6;                                  // of text kept for one file
 const SCANNED_BELOW = 20;                                 // a PDF page with fewer characters than this is taken for a scan
-const IMAGE = /^(jpe?g|jfif|pjpeg|png|webp|bmp|gif|avif)$/;
+const IMAGE = /^(jpe?g|jfif|pjpeg|png|webp|bmp|gif|avif|heic|heif)$/;
 
 /** 'pdf' | 'office' | 'text' for a file whose text can be read, 'image' for a picture when pictures are to be read by text recognition, else null. */
 export function readableKind(ext, kind = kindOf(ext), { pictures = false } = {}) {
