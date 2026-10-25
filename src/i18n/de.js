@@ -1057,4 +1057,16 @@ export const DE = {
   'This table has no Reference column to itself yet. The Folders list on the left can add one (named Parent).': 'Diese Tabelle hat noch keine Verweisspalte auf sich selbst. Die Ordnerliste links kann eine hinzufügen (namens Parent).',
   // folder scope chip
   'In “{name}”': 'In „{name}“',
+  // list headings
+  'Sort the files by': 'Dateien sortieren nach',
+  'sorted ascending': 'aufsteigend sortiert',
+  'sorted descending': 'absteigend sortiert',
+  // delete folder
+  'Delete folder': 'Ordner löschen',
+  'Delete folder…': 'Ordner löschen …',
+  'Delete the folder “{name}”?': 'Den Ordner „{name}“ löschen?',
+  'Deleted the folder “{name}”.': 'Ordner „{name}“ gelöscht.',
+  'Only an empty folder': 'Nur ein leerer Ordner',
+  'Only an empty folder can be deleted: it has no files and no folders inside it.': 'Nur ein leerer Ordner kann gelöscht werden: ohne Dateien und ohne Ordner darin.',
+  'The folder is a record of this table. Deleting it removes the record and whatever its other columns hold, and clears it where other tables point to it. Undo takes it back.': 'Der Ordner ist ein Datensatz dieser Tabelle. Beim Löschen verschwindet der Datensatz mit allem, was seine anderen Spalten enthalten, und Verweise anderer Tabellen darauf werden geleert. „Rückgängig“ holt ihn zurück.',
 };

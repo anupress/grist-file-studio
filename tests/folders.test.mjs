@@ -1,6 +1,6 @@
 // Folders (a folder is a record): the actions that make and rename one, showing records that have no file yet, and where they sit in the layout.
 
-import { cleanName, canName, newFolder, renameFolder, showsEmpty, newestId, folderStats, clipFiles, MAX_NAME } from '../src/model/folders.js';
+import { cleanName, canName, newFolder, renameFolder, showsEmpty, newestId, folderStats, clipFiles, canDeleteFolder, deleteFolderActions, MAX_NAME } from '../src/model/folders.js';
 import { visibleFiles } from '../src/model/files.js';
 import { layoutFiles, HEAD_H, EMPTY_H } from '../src/model/layout.js';
 
@@ -66,6 +66,10 @@ eq('files without a size or a hash still count', [folderStats([{ key: 'z', group
 const shelf = [{ key: 'a' }, { key: 'b' }, { key: 'c' }];
 eq('clip files: the ones still there, in the order of the files', clipFiles({ mode: 'copy', keys: ['c', 'a', 'gone'] }, shelf).map((x) => x.key), ['a', 'c']);
 eq('clip files: nothing on the clipboard, or an empty one', [clipFiles(null, shelf), clipFiles({ mode: 'cut', keys: [] }, shelf), clipFiles({ mode: 'cut', keys: ['z'] }, shelf)], [[], [], []]);
+
+// deleting: only an empty folder
+eq('only a folder with no file and no folder inside may be deleted', [canDeleteFolder({ files: [] }, { children: [] }), canDeleteFolder({ files: [{}] }, { children: [] }), canDeleteFolder({ files: [] }, { children: [{}] }), canDeleteFolder({ files: [] }, null), canDeleteFolder(null, null)], [true, false, false, true, false]);
+eq('the delete is one RemoveRecord', deleteFolderActions('Sites', 4), [['RemoveRecord', 'Sites', 4]]);
 
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

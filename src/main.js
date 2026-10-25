@@ -13,7 +13,7 @@ import { loadColumns, loadFileMeta, loadAttachmentRows, loadLabels, loadOwnSecti
 import { resolveRoles, toStored, detectRoles } from './model/roles.js';
 import { buildGallery, metaFromRows, visibleFiles, visibleRecords, groupCounts, sortFiles, matcher, listSortFor } from './model/files.js';
 import { hitFor } from './model/textsearch.js';
-import { newFolder as newFolderActions, renameFolder as renameFolderActions, canName, newestId, folderStats, clipFiles } from './model/folders.js';
+import { newFolder as newFolderActions, renameFolder as renameFolderActions, canName, newestId, folderStats, clipFiles, canDeleteFolder, deleteFolderActions } from './model/folders.js';
 import { NOTES_TABLE, createTable, cleanTag, rowsAreNotes, parseNotes, allTags, setNote, addTagTo, carryNotes, notesText } from './model/notes.js';
 import { attachmentIds, cellText } from './model/values.js';
 import { addFiles as addFilesActions, removeFile, removeFiles, moveFile, newRecords, renameFiles, sharedValue, replaceFile, replaceEverywhere, removeEverywhere, removeManyEverywhere, replaceMany, insertAfter, insertManyAfter, mergeResult, copyFilesTo, moveFilesTo } from './model/edits.js';
@@ -241,7 +241,7 @@ function filesData() {
   const v = V();
   const inside = insideFn();
   const scope = scopeIds();
-  const vis = visibleFiles(S.gallery, { query: v.query, group: v.group, sort: v.sort, inside, taken: takenOf, tag: v.tag, scope, empty: v.empty ? true : new Set([...S.fresh, ...(scope || [])]) });
+  const vis = visibleFiles(S.gallery, { query: v.query, group: v.group, sort: v.sort, inside, taken: takenOf, tag: v.tag, scope, empty: v.empty || !S.gallery.files.length ? true : new Set([...S.fresh, ...(scope || [])]) });   // a table with no file yet shows its records, to drop the first files on
   setHits(vis.files, v.query, inside);
   const groups = v.grouped ? vis.groups : [{ rec: null, files: v.sort === 'cell' ? vis.files : sortFiles(vis.files, v.sort, { taken: takenOf }) }];
   return { groups, size: v.fileSize, fit: v.fit, grouped: v.grouped, captions: v.captions, sort: v.sort };
@@ -252,7 +252,8 @@ const markedFiles = () => (S.gallery?.files || []).filter((f) => S.marked.has(f.
 function render() {
   if (!S.ready) return;
   if (S.problem) { updateBars(S.problem.level || 'bare'); emptyState(S.problem.title, S.problem.body, S.problem.actions || []); return; }
-  updateBars();
+  // no Attachments column: only the message (the search and the chips would have nothing to look at)
+  updateBars(S.roles.files.length ? undefined : 'bare');
   const v = V();
   if (!S.roles.files.length) {
     emptyState(t('No Attachments column'), canEdit()
@@ -725,6 +726,7 @@ function applyDemo(actions) {
       const ids = Array.isArray(id) ? id : [id];
       ids.forEach((x, i) => { const m = S.meta.get(x); if (m && fields.fileName) { const name = Array.isArray(id) ? fields.fileName[i] : fields.fileName; S.meta.set(x, { ...m, name, ext: extOf(name) || m.ext }); } });
     } else if (kind === 'UpdateRecord') { const r = rowOf(id); if (r) Object.assign(r, fields); }
+    else if (kind === 'RemoveRecord') { const k = S.rows.findIndex((r) => r.id === id); if (k >= 0) S.rows.splice(k, 1); }
     else if (kind === 'AddRecord') {
       const r = { id: Math.max(0, ...S.rows.map((x) => x.id)) + 1 };
       for (const c of S.columns) r[c.id] = null;
@@ -1463,6 +1465,27 @@ async function newFolder({ parent = null } = {}) {
   wall?.scrollToRecord(id);
 }
 
+/** Delete an empty folder: its record goes, with whatever its other columns hold (Undo brings it back). Only a folder with no file and no folder inside. */
+async function deleteFolder(rowId) {
+  const rec = recordOf(rowId);
+  if (!rec) return;
+  if (!canEdit()) { toast(readOnlyWhy()); return; }
+  if (!canDeleteFolder(rec, S.tree?.nodes.get(rowId))) { toast(t('Only an empty folder can be deleted: it has no files and no folders inside it.')); return; }
+  const name = rec.title || t('Untitled record');
+  const ok = await confirmBox(shell, {
+    title: t('Delete the folder “{name}”?', { name }),
+    body: t('The folder is a record of this table. Deleting it removes the record and whatever its other columns hold, and clears it where other tables point to it. Undo takes it back.'),
+    ok: t('Delete folder'), danger: true,
+  });
+  if (!ok) return;
+  const wasIn = S.view.folder === rowId;
+  const up = S.tree?.nodes.get(rowId)?.parent?.rowId || null;
+  S.fresh.delete(rowId);
+  if (!(await write(deleteFolderActions(S.tableId, rowId), t('Deleted the folder “{name}”.', { name })))) return;
+  if (wasIn) chooseFolder(up, { close: false });
+  else render();
+}
+
 async function renameFolder(rowId) {
   const rec = recordOf(rowId);
   const why = folderWhy();
@@ -1543,6 +1566,7 @@ function recordMenu(rowId, anchor) {
     [t('Rename folder…'), () => renameFolder(rowId), { disabled: !folder }],
     S.roles.parent && [t('Move folder to…'), () => moveFolderTo(rowId), { disabled: !canEdit() }],
     S.roles.parent && S.tree?.nodes.get(rowId)?.parent && [t('Move to the top level'), () => moveFolder(rowId, 0), { disabled: !canEdit() }],
+    canEdit() && [t('Delete folder…'), () => deleteFolder(rowId), { danger: true, disabled: !canDeleteFolder(rec, S.tree?.nodes.get(rowId)), note: canDeleteFolder(rec, S.tree?.nodes.get(rowId)) ? null : t('Only an empty folder') }],
     null,
     [t('Download as zip'), () => zipRecord(rowId), { disabled: !rec.files.length }],
     [t('Photo report…'), () => photoReport(rec.files, rec), { disabled: !rec.files.some((f) => REPORT_PICTURE.test(f.ext)) }],

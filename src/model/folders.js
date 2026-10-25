@@ -77,3 +77,9 @@ export function clipFiles(clip, files) {
   const want = new Set(clip.keys);
   return files.filter((f) => want.has(f.key));
 }
+
+/** Only an empty folder may be deleted: no file in it and no folder inside it. */
+export const canDeleteFolder = (rec, node) => !!rec && !(rec.files || []).length && !(node && node.children && node.children.length);
+
+/** The action that deletes a folder: its record, with whatever else the record holds. */
+export const deleteFolderActions = (table, rowId) => [['RemoveRecord', table, rowId]];

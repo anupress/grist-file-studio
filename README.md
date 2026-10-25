@@ -1,16 +1,14 @@
 # File Studio — a custom widget for Grist (by ANUPRESS)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-2563EB.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.8.0-0F1B2D.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.20.0-0F1B2D.svg)](CHANGELOG.md)
 
-File Studio is a gallery, viewer, editor and file manager for the files in your Grist
-**Attachments** columns. It shows them the way people look at files:
-as **cards** with a cover picture, as a **wall of files**, or one record at a time in a **viewer**.
-Any file opens large, whether a photo, a PDF, a video, a voice note, a CSV or a text file. Pictures
-text files and PDFs can be edited and saved back in place; PDFs and photos can be merged. Drop files in, paste a screenshot, copy or move
-them between records, see every cell a file sits in, rename them by a pattern, and download them as
-one zip named after your columns. It runs entirely in the viewer's browser: there is no server, and your
-files go only between the browser and your own Grist.
+Grist keeps the files of a table in **Attachments** columns, where a cell shows a few thumbnails. File Studio is where you **work with
+those files**: see them as cards, as a wall, as a list or one record at a time; open anything large (photos, PDFs, Word, Excel and
+PowerPoint files, video, audio, an iPhone's HEIC pictures); put them in **folders**, give them **tags and notes**; **search the words
+inside them**, scans included; edit pictures and PDFs and save them back (fill and sign a form, merge pages, black out what must not be
+seen); make a **photo report**; see where the space goes; and download any selection as one zip named after your columns. It runs entirely
+in the browser: there is no server, and your files go only between the browser and your own Grist.
 
 Paste this into Grist (**Add widget → Custom → Enter Custom URL**):
 
@@ -25,6 +23,36 @@ https://anupress.github.io/grist-file-studio/
 Opened in a plain browser tab, the widget runs on sample property inspections and saves nothing:
 **[the demo](https://anupress.github.io/grist-file-studio/)**. Add `?example=speed` for
 2,000 records with 10,000 files.
+
+## What people use it for
+
+A table whose rows own files. Each row is a folder, and what changes is what the files are:
+
+- **Inspections, handovers, snagging, field service.** A row per property, room or job; the phone's photos go in (HEIC works), each
+  with its date, camera and place. Mark the good ones, **Compare** before and after, tag what is open and what is fixed, draw an arrow on a
+  defect, then make the **photo report** PDF of the visit and send it. *Cards* for the overview, *Files* for the wall.
+- **Customers, suppliers, projects.** Contracts, offers and invoices as PDFs, one row per customer or project, with **folders inside
+  folders** (customer, then year) if you want them. **Search inside files** finds the clause or the invoice number, in scans too.
+  Tags say *to check* or *paid*. Fill in and sign a PDF, merge three into one, black out a page, or download a customer's files as one zip.
+- **Receipts and bookkeeping.** Photos of receipts and scans of letters: the **Document look** turns a photo of a page into a clean scan,
+  recognised text makes them searchable by shop or amount, **Sort by date taken** puts them in order, and a month's marked files go to the
+  accountant as one zip.
+- **Equipment, vehicles, products.** Photos, manuals and certificates per item. *Cards* make a catalogue; search finds a model number
+  in a manual; **Where it is** shows every item a manual is attached to.
+- **People: applicants, staff, students, members.** CVs, certificates, ID scans; notes and tags per file; protect a PDF with a password
+  before it leaves, or make its pages into pictures so a redaction is real.
+- **A document that has grown too big.** **Storage** shows where the space goes, shrinks photos in one step, frees the files nobody uses
+  and keeps a copy of everything.
+
+## Get going in two minutes
+
+1. In Grist, **Add widget → Custom → Enter Custom URL**, paste `https://anupress.github.io/grist-file-studio/`, choose the table, and
+   accept **Full document access**.
+2. If the table has no Attachments column, press **Add an Attachments column**. Otherwise it shows the files that are there.
+3. **Drop files on a card** (or press **Add files**, or paste a screenshot). Photos from a phone work as they are.
+4. Press **Ctrl+K** to find a file, a folder or a command. Right-click a file or a folder for what you can do with it.
+5. Optional: **Columns** says which column names a record and what a card shows; the **Folders** button gives you a folder list on the
+   left; put the widget next to the table (**Select by**) and the Viewer shows the files of whichever row you select.
 
 ## The three layouts
 
@@ -152,7 +180,7 @@ tablet, **press and hold** (half a second) for the same menus; the tap that ends
 
 - **On a file:** its menu (the same as **⋯**). With several files marked, right-click one of them for the menu of the marked
   files: zip, copy, move, tag, rename, merge, report, compare, unmark, remove.
-- **On a folder** (its heading, its empty line or its card): Open in the Viewer, Add files…, New folder…, Rename folder…,
+- **On a folder** (its heading, its empty line or its card): Open in the Viewer, Add files…, New folder…, Rename folder…, Delete folder…,
   Download as zip, Photo report…, Select this record, Properties….
 - **On empty space:** Add files…, New folder…, Mark all shown, Show or hide records without files, Storage….
 
@@ -160,9 +188,9 @@ tablet, **press and hold** (half a second) for the same menus; the tap that ends
 table). So **New folder…** adds a record with the name you type, written to the record's name column (the one Columns picks, a plain
 Text column), and a file is "in" the folder when it is in that record's Attachments cell. Put files in by pressing **Add**, by
 dropping them on the folder's line, or with **Move to…** and **Copy to…**. A folder is an ordinary row, so the table's other
-columns, formulas and links work on it. **Rename folder…** changes the name cell. There is no delete: a folder is a row with whatever
-else it holds, so delete it in Grist. Undo takes back a new folder and a rename. There are no folders inside folders; for another way
-to group files (one file in several groups) use tags.
+columns, formulas and links work on it. **Rename folder…** changes the name cell. **Delete folder…** removes the row, with whatever else it holds, and only
+when the folder is empty (no file, no folder inside it). Undo takes back a new folder, a rename and a delete. Folders can sit inside folders (see
+*Folders inside folders* below); for another way to group files (one file in several groups) use tags.
 
 **Mark with a box.** In the Files layout (tiles or list), press on empty ground between the tiles, beside a short row or below the last
 one, drag, and let go: the files the box touches are marked as it grows, and the wall scrolls when the pointer reaches its top or bottom.

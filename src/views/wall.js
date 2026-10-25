@@ -172,18 +172,21 @@ export function createWall(host, thumbs, on) {
     const key = S.cols.map((c) => c.id).join();
     if (key !== S.colKey) { S.colKey = key; reset(); }
     scroll.style.setProperty('--gs-cols', ['32px', '44px', 'minmax(0, 1fr)', ...S.cols.slice(1).map((c) => c.w + 'px'), '34px'].join(' '));
-    if (!listHead) { listHead = el('div', { class: 'gs-listhead', role: 'row' }); scroll.insertBefore(listHead, canvas); }
+    if (!listHead) { listHead = el('div', { class: 'gs-listhead', role: 'group', 'aria-label': t('Sort the files by') }); scroll.insertBefore(listHead, canvas); }
     dateFmt = new Intl.DateTimeFormat(dateLocale(on.culture), { dateStyle: 'medium' });
     clear(listHead).append(el('span'), el('span'), ...S.cols.map(headCell), el('span'));
     S.off = LIST_HEAD_H;
   }
   function headCell(c) {
     const label = { name: t('Name'), type: t('Type'), size: t('Size'), added: t('Added'), tags: t('Tags'), folder: t('Record') }[c.id];
-    if (!['name', 'type', 'size', 'added'].includes(c.id)) return el('span', { class: 'gs-listhead__cell', role: 'columnheader', text: label });
+    if (!['name', 'type', 'size', 'added'].includes(c.id)) return el('span', { class: 'gs-listhead__cell', text: label });
     const state = listSortState(c.id, S.data.sort);
-    return el('span', { class: 'gs-listhead__cell' + (c.id === 'size' ? ' is-num' : '') + (state === 'none' ? '' : ' is-sorted'), role: 'columnheader', 'aria-sort': state }, [
+    // a button that says which way the list is sorted by it, for those who cannot see the arrow
+    return el('span', { class: 'gs-listhead__cell' + (c.id === 'size' ? ' is-num' : '') + (state === 'none' ? '' : ' is-sorted') }, [
       el('button', { type: 'button', title: t('Sort by {column}', { column: label }), onclick: () => on.onSort?.(c.id) }, [
-        label, state === 'none' ? null : el('span', { class: 'gs-listhead__dir', 'aria-hidden': 'true', text: state === 'ascending' ? '▲' : '▼' }),
+        label,
+        state === 'none' ? null : el('span', { class: 'gs-listhead__dir', 'aria-hidden': 'true', text: state === 'ascending' ? '▲' : '▼' }),
+        state === 'none' ? null : el('span', { class: 'gs-sr', text: ', ' + (state === 'ascending' ? t('sorted ascending') : t('sorted descending')) }),
       ]),
     ]);
   }

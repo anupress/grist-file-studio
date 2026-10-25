@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.20.0
+
+A last look at what a first-time user meets, and at what the widget is for. Checked in the demo (Delete folder: the menu item off for a folder with files or
+folders inside, Cancel, Delete, Undo), in Grist 1.7.20 (a guest document: Delete folder and Ctrl+Z, a table with no file yet, a read-only widget), in the
+audit and by the whole test run.
+
+### Folders
+- **Delete folder…** in a folder's menu. Only an empty folder (no file, no folder inside it) can go; it asks first, and Undo brings it back.
+
+### First use
+- A table that has no file yet shows its records in the Files layout as places to drop files on, not an empty wall.
+- A table without an Attachments column shows its empty state without the toolbar's file buttons, which did nothing there.
+- The README says what people use File Studio for (inspections, customers and contracts, receipts, equipment, applicants, a document that has grown too big)
+  and how to start in two minutes; its pictures are retaken at the current look; the notes on folders no longer say there is no delete or no folders inside folders.
+
+### Accessibility and French
+- The list's column headings are sort buttons in a labelled group (they claimed table roles without a table), and the sorted one says "sorted ascending" or
+  "sorted descending" to a screen reader.
+- French: the thin space before ":", "?", "!" and ";" in 11 more messages.
+
 ## 1.19.0
 
 Folders inside folders, with a folder list on the left. Checked in the demo (the nested folders, choosing one in each layout, opening and closing,
