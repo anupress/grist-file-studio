@@ -945,4 +945,14 @@ export const DE = {
   'Show records without files': 'Datensätze ohne Dateien anzeigen',
   'Storage…': 'Speicher …',
   'Where the space goes, shrinking photos, freeing what nobody uses': 'Wohin der Platz geht, Fotos verkleinern, Ungenutztes freigeben',
+  // folder properties
+  'First added': 'Zuerst hinzugefügt',
+  'How many files, how much space, what kinds': 'Wie viele Dateien, wie viel Platz, welche Arten',
+  'Largest': 'Größte',
+  'Last added': 'Zuletzt hinzugefügt',
+  'Properties': 'Eigenschaften',
+  'Properties…': 'Eigenschaften …',
+  'Space by type': 'Platz nach Art',
+  'Stored in the document': 'Im Dokument gespeichert',
+  'The same file in two cells is stored once.': 'Dieselbe Datei in zwei Zellen wird nur einmal gespeichert.',
 };

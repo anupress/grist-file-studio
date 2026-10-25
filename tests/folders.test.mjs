@@ -1,6 +1,6 @@
 // Folders (a folder is a record): the actions that make and rename one, showing records that have no file yet, and where they sit in the layout.
 
-import { cleanName, canName, newFolder, renameFolder, showsEmpty, newestId, MAX_NAME } from '../src/model/folders.js';
+import { cleanName, canName, newFolder, renameFolder, showsEmpty, newestId, folderStats, MAX_NAME } from '../src/model/folders.js';
 import { visibleFiles } from '../src/model/files.js';
 import { layoutFiles, HEAD_H, EMPTY_H } from '../src/model/layout.js';
 
@@ -51,6 +51,16 @@ eq('blocks: header and rows, then header and empty line for each empty folder', 
 const empty1 = lay.blocks.find((b) => b.kind === 'empty' && b.g === 1), head1 = lay.blocks.find((b) => b.kind === 'head' && b.g === 1), head2 = lay.blocks.find((b) => b.kind === 'head' && b.g === 2);
 eq('the empty line sits right under its header and the next folder follows with a gap', [empty1.y - head1.y, empty1.h, head2.y - empty1.y], [HEAD_H, EMPTY_H, EMPTY_H + 10]);
 eq('not grouped: no headings, so nothing is drawn for an empty folder', layoutFiles([{ rec: null, files: [] }], { width: 800, size: 160, grouped: false }).blocks, []);
+
+
+// Properties: counts, bytes, stored once per content hash, by type, the largest, the first and last upload
+const sized = (key, group, size, ident, uploaded) => ({ key, name: key + '.x', group, size, ident, uploaded });
+const st = folderStats([sized('a', 'image', 2000000, 'h1', 1000), sized('b', 'image', 1000000, 'h2', 3000), sized('c', 'pdf', 500000, 'h3', 2000), sized('d', 'image', 2000000, 'h1', 4000)]);
+eq('folder stats: count, bytes, stored once per hash', [st.count, st.bytes, st.stored], [4, 5500000, 3500000]);
+eq('folder stats: by type, biggest first', st.groups, [{ group: 'image', count: 3, bytes: 5000000 }, { group: 'pdf', count: 1, bytes: 500000 }]);
+eq('folder stats: largest, first and last upload', [st.largest.key, st.first, st.last], ['a', 1000, 4000]);
+eq('folder stats of nothing', folderStats([]), { count: 0, bytes: 0, stored: 0, groups: [], largest: null, first: null, last: null });
+eq('files without a size or a hash still count', [folderStats([{ key: 'z', group: 'other' }]).count, folderStats([{ key: 'z', group: 'other' }, { key: 'y', group: 'other' }]).stored], [1, 0]);
 
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -14,7 +14,8 @@ import { layoutFiles, layoutCards, visibleBlocks, locate, neighbour } from '../m
 import { flippable, coverOf } from '../model/files.js';
 import { shorten } from '../model/textsearch.js';
 import { renderFace, fileLabel } from './face.js';
-import { t, tn } from '../i18n/index.js';
+import { sizeText } from '../model/kinds.js';
+import { t, tn, uiLang } from '../i18n/index.js';
 
 const OVERSCAN = 700;
 /** The drag type of tiles dragged inside the widget (files from the desktop come as 'Files'). */
@@ -115,11 +116,13 @@ export function createWall(host, thumbs, on) {
   }
 
   // ---- a record's header (Files) --------------------------------------------------------------------
+  /** " · 12 MB": the space the files shown take (nothing for an empty folder). */
+  const sizeOf = (files) => { const n = files.reduce((a, f) => a + (Number(f.size) || 0), 0); return n ? ' · ' + sizeText(n, uiLang()) : ''; };
   function buildHead(grp) {
     const rec = grp.rec;
     const node = el('div', { class: 'gs-head', dataset: { row: String(rec.rowId), drop: t('Drop to add to {name}', { name: rec.title || t('this record') }) } }, [
       el('span', { class: 'gs-head__title', text: rec.title || t('Untitled record'), title: t('Select this record'), onclick: () => on.onSelect(rec.rowId) }),
-      el('span', { class: 'gs-head__n', text: grp.files.length === rec.files.length ? tn(rec.files.length, '{n} file', '{n} files') : t('{shown} of {n} files', { shown: grp.files.length, n: rec.files.length }) }),
+      el('span', { class: 'gs-head__n', text: (grp.files.length === rec.files.length ? tn(rec.files.length, '{n} file', '{n} files') : t('{shown} of {n} files', { shown: grp.files.length, n: rec.files.length })) + sizeOf(grp.files) }),
       S.editable ? el('button', { type: 'button', class: 'gs-btn gs-head__add', title: t('Add files to this record'), onclick: () => on.onAdd(rec.rowId) }, [icon('plus'), t('Add')]) : null,
     ]);
     return { node, update: () => node.classList.toggle('is-current', S.current === rec.rowId) };

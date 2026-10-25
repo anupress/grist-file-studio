@@ -205,6 +205,18 @@ a.gs-btn { color: inherit; text-decoration: none; }   /* a link that looks like 
 .gs-head__title:hover { text-decoration: underline; }
 .gs-head__n { color: var(--gs-muted); font-size: var(--gs-fs-2); white-space: nowrap; }
 .gs-head__add { margin-left: auto; }
+/* Properties of a folder */
+.gs-dialog--props { width: min(440px, calc(100% - 32px)); max-height: 80%; overflow: auto; }
+.gs-props { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0 0 8px; font-size: var(--gs-fs-3); }
+.gs-props dt { color: var(--gs-muted); }
+.gs-props dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.gs-props__note { margin: 0 0 8px; color: var(--gs-muted); font-size: var(--gs-fs-2); }
+.gs-props__h { margin: 14px 0 6px; font-size: var(--gs-fs-1); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gs-muted); }
+.gs-props__parts { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.gs-props__parts li { display: grid; grid-template-columns: 1fr auto; gap: 2px 14px; font-size: var(--gs-fs-3); }
+.gs-props__value { font-variant-numeric: tabular-nums; color: var(--gs-muted); }
+.gs-props__bar { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--gs-surface-2); position: relative; overflow: hidden; }
+.gs-props__bar::after { content: ''; position: absolute; inset: 0 auto 0 0; width: calc(var(--share) * 100%); background: var(--gs-accent); border-radius: 2px; }
 /* a folder with no file yet */
 .gs-emptyrow {
   position: absolute; left: 12px; right: 12px; box-sizing: border-box; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 14px;

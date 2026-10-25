@@ -13,7 +13,7 @@ import { loadColumns, loadFileMeta, loadAttachmentRows, loadLabels, loadOwnSecti
 import { resolveRoles, toStored, detectRoles } from './model/roles.js';
 import { buildGallery, metaFromRows, visibleFiles, visibleRecords, groupCounts, sortFiles, matcher } from './model/files.js';
 import { hitFor } from './model/textsearch.js';
-import { newFolder as newFolderActions, renameFolder as renameFolderActions, canName, newestId } from './model/folders.js';
+import { newFolder as newFolderActions, renameFolder as renameFolderActions, canName, newestId, folderStats } from './model/folders.js';
 import { NOTES_TABLE, createTable, cleanTag, rowsAreNotes, parseNotes, allTags, setNote, addTagTo, carryNotes, notesText } from './model/notes.js';
 import { attachmentIds, cellText } from './model/values.js';
 import { addFiles as addFilesActions, removeFile, removeFiles, moveFile, newRecords, renameFiles, sharedValue, replaceFile, replaceEverywhere, removeEverywhere, removeManyEverywhere, replaceMany, insertAfter, insertManyAfter, mergeResult, copyFilesTo, moveFilesTo } from './model/edits.js';
@@ -36,6 +36,7 @@ import { openColumns } from './ui/columns.js';
 import { openLibrary } from './ui/library.js';
 import { reportBox } from './ui/reportbox.js';
 import { openNoteBox } from './ui/notebox.js';
+import { openProps } from './ui/propsbox.js';
 import { REPORT_PICTURE } from './media/reportimages.js';
 import { createTray } from './ui/tray.js';
 import { openKeys } from './ui/keys.js';
@@ -1427,6 +1428,31 @@ function markedMenu(anchor) {
   ]));
 }
 
+/** Properties of a folder: the files in it, the space they take, by type, and the record's own fields. */
+function folderProps(rowId) {
+  const rec = recordOf(rowId);
+  if (!rec) return;
+  const st = folderStats(rec.files);
+  const when = (ms) => { try { return new Intl.DateTimeFormat(dateLocale(gristCulture()), { dateStyle: 'medium' }).format(new Date(ms)); } catch { return new Date(ms).toISOString().slice(0, 10); } };
+  const GROUP = { image: 'Pictures', pdf: 'PDFs', video: 'Videos', audio: 'Audio', other: 'Other' };
+  const size = (n) => sizeText(n, uiLang());
+  const rows = [
+    [t('Files'), String(st.count)],
+    [t('Size'), size(st.bytes)],
+    st.stored < st.bytes && [t('Stored in the document'), size(st.stored)],
+    st.largest && st.count > 1 && [t('Largest'), `${st.largest.name} · ${size(st.largest.size)}`],
+    st.first != null && [t('First added'), when(st.first)],
+    st.last != null && st.last !== st.first && [t('Last added'), when(st.last)],
+  ].filter(Boolean);
+  openProps(shell, {
+    name: rec.title || t('Untitled record'),
+    rows,
+    note: st.stored < st.bytes ? t('The same file in two cells is stored once.') : '',
+    parts: st.groups.map((g) => ({ label: t(GROUP[g.group] || 'Other'), value: `${g.count} · ${size(g.bytes)}`, share: st.bytes ? g.bytes / st.bytes : 0 })),
+    fields: rec.fields.filter((f) => f.text).map((f) => [f.label, f.text]),
+  });
+}
+
 /** Right click on a folder: its header, its empty line or its card. */
 function recordMenu(rowId, anchor) {
   const rec = recordOf(rowId);
@@ -1443,6 +1469,8 @@ function recordMenu(rowId, anchor) {
     [t('Download as zip'), () => zipRecord(rowId), { disabled: !rec.files.length }],
     [t('Photo report…'), () => photoReport(rec.files, rec), { disabled: !rec.files.some((f) => REPORT_PICTURE.test(f.ext)) }],
     [t('Select this record'), () => select(rowId)],
+    null,
+    [t('Properties…'), () => folderProps(rowId), { hint: t('How many files, how much space, what kinds') }],
   ]));
 }
 

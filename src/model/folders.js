@@ -44,3 +44,24 @@ export function newestId(rows, before) {
   for (const r of rows) if (!before.has(r.id) && (best == null || r.id > best)) best = r.id;
   return best;
 }
+
+/**
+ * What a folder holds, for its Properties and for the size in its heading.
+ * `stored` is what the document keeps for it: the same file twice in one folder is stored once (it has one content hash).
+ * @returns {{count, bytes, stored, groups: [{group, count, bytes}], largest, first, last}}
+ */
+export function folderStats(files) {
+  const by = new Map();
+  const seen = new Set();
+  let bytes = 0, stored = 0, first = null, last = null, largest = null;
+  for (const f of files) {
+    const n = Number(f.size) || 0;
+    bytes += n;
+    if (!f.ident || !seen.has(f.ident)) { stored += n; if (f.ident) seen.add(f.ident); }
+    const g = by.get(f.group) || { group: f.group, count: 0, bytes: 0 };
+    g.count++; g.bytes += n; by.set(f.group, g);
+    if (!largest || n > (Number(largest.size) || 0)) largest = f;
+    if (typeof f.uploaded === 'number') { first = first == null ? f.uploaded : Math.min(first, f.uploaded); last = last == null ? f.uploaded : Math.max(last, f.uploaded); }
+  }
+  return { count: files.length, bytes, stored, groups: [...by.values()].sort((a, b) => b.bytes - a.bytes || b.count - a.count), largest, first, last };
+}

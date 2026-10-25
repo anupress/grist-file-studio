@@ -952,4 +952,14 @@ export const FR = {
   'Show records without files': 'Afficher les enregistrements sans fichier',
   'Storage…': 'Stockage…',
   'Where the space goes, shrinking photos, freeing what nobody uses': 'Où va la place, réduire les photos, libérer ce que personne n’utilise',
+  // folder properties
+  'First added': 'Premier ajout',
+  'How many files, how much space, what kinds': 'Combien de fichiers, quelle place, de quels types',
+  'Largest': 'Plus gros',
+  'Last added': 'Dernier ajout',
+  'Properties': 'Propriétés',
+  'Properties…': 'Propriétés…',
+  'Space by type': 'Place par type',
+  'Stored in the document': 'Stocké dans le document',
+  'The same file in two cells is stored once.': 'Un même fichier dans deux cellules n’est stocké qu’une fois.',
 };

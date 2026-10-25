@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.11.0
+
+Folder sizes. Checked in the demo (the right mouse button) and in the audit at 1366 and 390 px, light and dark, English, German and French.
+
+### Files
+- A folder's heading says how much space its files take: "9 files · 469 kB" (the files shown, when a search narrows them).
+- **Properties…** in a folder's right-click menu: files, size, what the document stores for them (the same file twice is stored once),
+  the largest file, the first and last upload, the space by type (a bar for each) and the record's own fields.
+
 ## 1.10.0
 
 Right-click menus and folders. Checked in the demo with the real mouse (right button) and keys, and in Grist 1.7.20 (a guest document:

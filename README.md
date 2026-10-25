@@ -132,7 +132,7 @@ Right-click works where you would expect it: on a file, on a folder's heading or
 - **On a file:** its menu (the same as **⋯**). With several files marked, right-click one of them for the menu of the marked
   files: zip, copy, move, tag, rename, merge, report, compare, unmark, remove.
 - **On a folder** (its heading, its empty line or its card): Open in the Viewer, Add files…, New folder…, Rename folder…,
-  Download as zip, Photo report…, Select this record.
+  Download as zip, Photo report…, Select this record, Properties….
 - **On empty space:** Add files…, New folder…, Mark all shown, Show or hide records without files, Storage….
 
 **A folder is a record.** Grist has no folders: a file sits in an Attachments cell, and a cell belongs to a record (a row of your
@@ -142,6 +142,10 @@ dropping them on the folder's line, or with **Move to…** and **Copy to…**. A
 columns, formulas and links work on it. **Rename folder…** changes the name cell. There is no delete: a folder is a row with whatever
 else it holds, so delete it in Grist. Undo takes back a new folder and a rename. There are no folders inside folders; for another way
 to group files (one file in several groups) use tags.
+
+A folder's heading says how much space its files take ("9 files · 469 kB"), and **Properties…** adds the details: the files, the
+space they take (and what the document really stores, when the same file is in the folder twice), the largest file, the first and last
+upload, the space by type as a small bar for each, and the record's own fields.
 
 The Files layout hides records that have no file (a table can have thousands), so the folders you make stay on show during the
 visit, and **Display → Show records without files** (also in the empty-space menu, and kept for next time) shows them all. Cards and
