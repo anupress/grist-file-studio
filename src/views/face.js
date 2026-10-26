@@ -72,7 +72,8 @@ export function renderFace(host, file, { thumbs, cssPx = 200, tags = true } = {}
   }
   // Formats that can be transparent get a light checkerboard behind them: dark lines on a transparent
   // floor plan would vanish on a dark tile or in the lightbox. Opaque pictures cover it completely.
-  const img = el('img', { class: 'gs-tile__img' + (ALPHA.test(file.ext) ? ' gs-alpha' : ''), alt: '', decoding: 'async', draggable: false });
+  const img = el('img', { class: 'gs-tile__img' + (ALPHA.test(file.ext) ? ' gs-alpha' : ''), alt: '', decoding: 'async' });
+  img.draggable = false;   // el() leaves out a false property, so this is set here: a picture dragged by the browser would drop on the widget as a new file
   host.append(img);
   host.classList.add('is-loading');
   let done = false;

@@ -44,7 +44,7 @@ export function renderMark(m, v, { locked = false } = {}) {
     node = el('div', { class: `gs-pe__mark gs-pe__${m.type}` });
     Object.assign(node.style, { left: px - wpx / 2 + 'px', top: py - hpx / 2 + 'px', width: wpx + 'px', height: hpx + 'px', transform: `rotate(${m.angle || 0}deg)`, transformOrigin: 'center' });
     if (m.type === 'rect' || m.type === 'hilite') node.style.background = m.color;
-    else if (m.type === 'image') node.append(el('img', { src: m.dataUrl, alt: '', draggable: false }));
+    else if (m.type === 'image') { const im = el('img', { src: m.dataUrl, alt: '' }); im.draggable = false; node.append(im); }   // el() leaves out a false property
     else if (m.type === 'check' || m.type === 'cross') {
       const s = svg('svg', { viewBox: '0 0 21 21', preserveAspectRatio: 'none', width: '100%', height: '100%' });
       for (const [x1, y1, x2, y2] of TICK_STROKES[m.type]) {

@@ -206,7 +206,8 @@ export function createWall(host, thumbs, on) {
     const typeOnly = () => { thumb.classList.add('is-type'); thumb.replaceChildren(el('span', { class: 'gs-row__ext', text: typeLabel(f.ext) })); };
     let release = () => {};
     if (thumbs && ['image', 'heic', 'pdf', 'video'].includes(f.kind)) {
-      const img = el('img', { class: 'gs-row__img', alt: '', decoding: 'async', draggable: false });
+      const img = el('img', { class: 'gs-row__img', alt: '', decoding: 'async' });
+      img.draggable = false;   // el() leaves out a false property (see views/face.js)
       thumb.append(img);
       let gone = false;
       const stop = thumbs.want(f, 64, (r) => {

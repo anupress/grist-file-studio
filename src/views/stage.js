@@ -49,7 +49,8 @@ function fileCard(host, file, { why, onDownload }) {
 // ---- pictures ---------------------------------------------------------------------------------------
 function pictureView(host, file, { source, thumbs, onZoom, onSwipe, signal }) {
   const box = el('div', { class: 'gs-media', tabindex: '-1' });
-  const img = el('img', { class: 'gs-media__img' + (ALPHA.test(file.ext) ? ' gs-alpha' : ''), alt: file.name, draggable: false });
+  const img = el('img', { class: 'gs-media__img' + (ALPHA.test(file.ext) ? ' gs-alpha' : ''), alt: file.name });
+  img.draggable = false;   // el() leaves out a false property (see views/face.js)
   box.append(img);
   host.append(box);
 

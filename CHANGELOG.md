@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.22.8
+
+Found while filming the tutorials. **Dragging a thumbnail of the Viewer's filmstrip to the front sometimes added a copy of that picture to the record** ("Added 1 file", one more file in
+the bar), because the browser's own picture drag started instead of the filmstrip's and the widget took the dropped picture for a new file. The pictures of tiles, rows, the lightbox
+and the PDF marks were meant to be undraggable, but the helper that builds them leaves out a property that is `false`, so they never were. They are now set undraggable after they are built,
+and a test keeps the old spelling out of the code. Seen 1 time in 4 on a recorded drag.
+
 ## 1.22.7
 
 Found while filming the tutorials. **Display, "File names under the tiles" emptied the Files layout.** Ticking it crashed the wall (a name under a tile was handed to the wall without
