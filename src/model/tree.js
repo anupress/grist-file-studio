@@ -97,3 +97,22 @@ export function visibleRows(tree, open, only = null) {
 export function moveFolderActions(table, rowId, col, parentId) {
   return [['UpdateRecord', table, rowId, { [col]: parentId || 0 }]];
 }
+
+/**
+ * What lies below a folder that has no file of its own, for its card: the first file found in the folders under it (the cover), how many files and how many folders.
+ * Null when the folder has nothing below it, or files of its own (its own cover is then used).
+ * @param node a tree node (buildTree); @param coverOf (rowId) -> a file to show for that folder, or null
+ */
+export function belowOf(node, coverOf) {
+  if (!node || node.own > 0 || !node.children.length || node.total <= node.own) return null;
+  let cover = null, folders = 0;
+  const walk = (n) => {
+    for (const c of n.children) {
+      folders++;
+      if (!cover) cover = coverOf(c.rowId) || null;
+      walk(c);
+    }
+  };
+  walk(node);
+  return { files: node.total - node.own, folders, cover };
+}

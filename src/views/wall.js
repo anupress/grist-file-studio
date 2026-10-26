@@ -279,15 +279,21 @@ export function createWall(host, thumbs, on) {
     const cover = el('div', { class: 'gs-card__cover', style: { height: S.layout.coverH + 'px' } });
     const node = el('div', {
       class: 'gs-card', role: 'listitem', tabindex: '-1', dataset: { row: String(rec.rowId), drop: t('Drop to add to {name}', { name: rec.title || t('this record') }) },
-      'aria-label': (rec.title || t('Untitled record')) + ', ' + tn(rec.files.length, '{n} file', '{n} files'),
+      'aria-label': (rec.title || t('Untitled record')) + ', ' + (rec.below ? tn(rec.below.files, '{n} file in folders', '{n} files in folders') : tn(rec.files.length, '{n} file', '{n} files')),
     });
     let release = () => {};
     const pics = flippable(rec);
-    const first = coverOf(rec);
+    const first = coverOf(rec) || rec.below?.cover || null;
     if (first) {
       release = renderFace(cover, first, { thumbs, cssPx: S.layout.cardW, tags: false });
-      cover.addEventListener('click', (e) => { e.stopPropagation(); on.onSelect(rec.rowId); on.onOpen(currentPic || first); });
-      cover.append(el('span', { class: 'gs-card__count', text: tn(rec.files.length, '{n} file', '{n} files') }));
+      // A folder of folders shows the first picture below it: a click selects the folder, it does not open a file of another record.
+      if (rec.below && !rec.files.length) {
+        cover.addEventListener('click', (e) => { e.stopPropagation(); on.onSelect(rec.rowId); });
+        cover.append(el('span', { class: 'gs-card__folder', 'aria-hidden': 'true' }, [icon('folder2')]), el('span', { class: 'gs-card__count', text: tn(rec.below.files, '{n} file in folders', '{n} files in folders') }));
+      } else {
+        cover.addEventListener('click', (e) => { e.stopPropagation(); on.onSelect(rec.rowId); on.onOpen(currentPic || first); });
+        cover.append(el('span', { class: 'gs-card__count', text: tn(rec.files.length, '{n} file', '{n} files') }));
+      }
     } else {
       cover.classList.add('is-empty');
       cover.append(el('div', { class: 'gs-card__none' }, [icon('image2'), el('span', { text: t('No files yet') }), S.editable ? el('span', { text: t('Drop files here') }) : null]));

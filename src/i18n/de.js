@@ -1096,4 +1096,7 @@ export const DE = {
   'Imported {folders} with {files}.': 'Import abgeschlossen: {folders} mit {files}.',
   '{n} folder': '{n} Ordner',
   '{n} folders': '{n} Ordner',
+  // Folder cards show what lies below
+  '{n} file in folders': '{n} Datei in Ordnern',
+  '{n} files in folders': '{n} Dateien in Ordnern',
 };

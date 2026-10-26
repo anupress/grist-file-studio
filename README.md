@@ -1,7 +1,7 @@
 # File Studio — a custom widget for Grist (by ANUPRESS)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-2563EB.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.21.0-0F1B2D.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.22.0-0F1B2D.svg)](CHANGELOG.md)
 
 Grist keeps the files of a table in **Attachments** columns, where a cell shows a few thumbnails. File Studio is where you **work with
 those files**: see them as cards, as a wall, as a list or one record at a time; open anything large (photos, PDFs, Word, Excel and
@@ -228,6 +228,7 @@ The **Folders** button (or Ctrl+K → "Show the folder list") opens a list of ev
 - **Move a folder** by dragging it onto another (or onto **All files** to take it to the top level), or with **Move folder to…** in its menu. A
   folder cannot go inside itself or one of its own folders. **New subfolder…** makes one inside the folder you right-click; **New folder…** makes
   one inside the chosen folder.
+- **A folder that holds only folders** shows, in Cards, the first picture found below it with a folder mark and "9 files in folders", instead of "No files yet".
 - **Put files in a folder** by dragging files from the wall, or from your computer, onto it (Ctrl or Alt copies instead of moving).
 - **Import a folder from your computer** by dropping it on the page, or on a folder here to put it inside that one, or with **Import a folder…** (the
   right-click menu, or Ctrl+K). Each folder on the disk becomes a record named after it, inside its parent folder, with its files in the Attachments

@@ -12,7 +12,7 @@ import { droppedFiles } from './media/dropwalk.js';
 import { fileUrl, archiveUrl, fileBlob, fileHead, uploadFiles, dropTokens, docUrl, storageInfo, freeUnusedFiles } from './grist/files.js';
 import { loadColumns, loadFileMeta, loadAttachmentRows, loadLabels, loadOwnSection, forgetMeta, loadLocations } from './data/live.js';
 import { resolveRoles, toStored, detectRoles } from './model/roles.js';
-import { buildGallery, metaFromRows, visibleFiles, visibleRecords, groupCounts, sortFiles, matcher, listSortFor } from './model/files.js';
+import { buildGallery, metaFromRows, visibleFiles, visibleRecords, groupCounts, sortFiles, matcher, listSortFor, coverOf } from './model/files.js';
 import { hitFor } from './model/textsearch.js';
 import { planImport, nextIds, importActions, topFolders, MAX_IMPORT_FILES } from './model/importfolder.js';
 import { walkEntries, listFromInput, hasFolders } from './media/dropwalk.js';
@@ -31,7 +31,7 @@ import { shrinkPhoto } from './media/shrink.js';
 import { TextIndex, canRead } from './media/textindex.js';
 import { createReader } from './media/ocr.js';
 import { createTree } from './views/tree.js';
-import { buildTree, subtreeIds, ancestorIds, canMoveTo, visibleRows, moveFolderActions, refId } from './model/tree.js';
+import { buildTree, subtreeIds, ancestorIds, canMoveTo, visibleRows, moveFolderActions, refId, belowOf } from './model/tree.js';
 import { heicJpeg } from './media/picture.js';
 import { ExifIndex, hasExif } from './media/exifindex.js';
 import { createWall } from './views/wall.js';
@@ -309,7 +309,7 @@ function render() {
     }
     if (v.layout === 'cards') {
       setHits([], '', null);
-      const records = visibleRecords(S.gallery, { query: v.query, inside: insideFn(), scope: scopeIds() });
+      const records = visibleRecords(S.gallery, { query: v.query, inside: insideFn(), scope: scopeIds() }).map(withBelow);
       if (!records.length) emptyInWall(v.query ? t('No record matches “{q}”.', { q: v.query }) : t('No records to show. Grist’s filters or a linked selection may hide them.'));
       else wall.setCards({ records, size: v.cardSize, fields: S.roles.fields.length, cover: v.cover });
     } else {
@@ -321,6 +321,12 @@ function render() {
     renderState();
   }
   if (S.lb) S.lb.box.update(lightboxList(S.lb.scope));
+}
+/** A record that is only a folder of folders gets what lies below it (a cover, the counts), so its card does not say "No files yet" while nine files sit in its folders. */
+function withBelow(rec) {
+  if (rec.files.length || !S.tree) return rec;
+  const below = belowOf(S.tree.nodes.get(rec.rowId), (id) => { const r = recordOf(id); return r && r.files.length ? coverOf(r) : null; });
+  return below ? { ...rec, below } : rec;
 }
 function emptyInWall(text) {
   wall?.destroy(); wall = null;

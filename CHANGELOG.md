@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.22.0
+
+Found while filming the overview video: a card for a folder that holds only other folders said "No files yet" while nine files sat in its folders. Checked in the demo (the
+three country cards) and by the tree tests.
+
+### Folders
+- **A folder of folders shows what is below it.** Its Cards card takes the first picture found in the folders under it, a folder mark in the corner and "9 files in folders"
+  in place of the empty placeholder. A click selects the folder; a folder with nothing below it still says "No files yet".
+
 ## 1.21.0
 
 Import a folder from the computer. Checked in the demo (a real folder dropped on the page and on a folder's card, the question, Cancel, Import, the nesting and the

@@ -1,7 +1,7 @@
 // Folders inside folders: building the tree from records and a parent, the questions it answers, and the rows the list shows.
 
 import { visibleFiles, visibleRecords } from '../src/model/files.js';
-import { refId, buildTree, subtreeIds, ancestorIds, canMoveTo, visibleRows, moveFolderActions } from '../src/model/tree.js';
+import { refId, buildTree, subtreeIds, ancestorIds, canMoveTo, visibleRows, moveFolderActions, belowOf } from '../src/model/tree.js';
 
 let pass = 0, fail = 0;
 const eq = (n, got, want) => { if (JSON.stringify(got) === JSON.stringify(want)) pass++; else { fail++; console.log(`  FAIL ${n}\n    got  ${JSON.stringify(got)}\n    want ${JSON.stringify(want)}`); } };
@@ -16,6 +16,11 @@ const tree = buildTree(records, (id) => parents[id] || 0);
 const shape = (n) => `${n.title}${n.children.length ? '(' + n.children.map(shape).join(',') + ')' : ''}`;
 eq('the tree, each level by name', tree.roots.map(shape), ['Austria(Vienna)', 'France(Lyon(Old town))', 'Germany(Berlin,Hamburg)', 'Spare']);
 eq('files in a folder and in it with everything below', ['France', 'Lyon', 'Old town', 'Germany', 'Spare'].map((t) => { const n = [...tree.nodes.values()].find((x) => x.title === t); return [n.own, n.total]; }), [[0, 5], [4, 5], [1, 1], [0, 6], [3, 3]]);
+const cover = (id) => (id === 4 ? { key: 'hamburg-cover' } : id === 2 ? { key: 'vienna-cover' } : null);
+eq('a folder with only folders below it: the first cover found, the files and the folders below', [belowOf(tree.nodes.get(3), cover), belowOf(tree.nodes.get(6), (id) => (id === 8 ? { key: 'old' } : id === 7 ? { key: 'lyon' } : null)), belowOf(tree.nodes.get(1), cover)], [
+  { files: 6, folders: 2, cover: { key: 'hamburg-cover' } }, { files: 5, folders: 2, cover: { key: 'lyon' } }, { files: 2, folders: 1, cover: { key: 'vienna-cover' } }]);
+eq('no card cover below a folder that has files itself, a folder without folders, or nothing', [belowOf(tree.nodes.get(7), cover), belowOf(tree.nodes.get(4), cover), belowOf(tree.nodes.get(5), cover), belowOf(null, cover)], [null, null, null, null]);
+eq('only empty folders below: nothing to show', belowOf(buildTree([rec(1, 'A'), rec(2, 'B')], (id) => (id === 2 ? 1 : 0)).nodes.get(1), cover), null);
 eq('depth', [8, 7, 6].map((id) => tree.nodes.get(id).depth), [2, 1, 0]);
 eq('a folder and what is below it', [...subtreeIds(tree, 6)].sort(), [6, 7, 8]);
 eq('an unknown folder has nothing below it', subtreeIds(tree, 99).size, 0);

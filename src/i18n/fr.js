@@ -1103,4 +1103,7 @@ export const FR = {
   'Imported {folders} with {files}.': `Importation terminée${NB}: {folders} avec {files}.`,
   '{n} folder': '{n} dossier',
   '{n} folders': '{n} dossiers',
+  // Folder cards show what lies below
+  '{n} file in folders': '{n} fichier dans des dossiers',
+  '{n} files in folders': '{n} fichiers dans des dossiers',
 };
