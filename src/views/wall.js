@@ -83,7 +83,7 @@ export function createWall(host, thumbs, on) {
       } else if (b.kind === 'row') {
         for (const tile of b.tiles) {
           out.push([tile.f.key, () => (S.list ? buildRow(tile.f) : buildTile(tile.f, tile)), { left: tile.x, top: b.y, width: tile.w, height: tile.h }]);
-          if (S.data.captions && !S.list) out.push(['cap' + tile.f.key, () => el('div', { class: 'gs-caption', text: tile.f.name, title: tile.f.name }), { left: tile.x, top: b.y + tile.h, width: tile.w }]);
+          if (S.data.captions && !S.list) out.push(['cap' + tile.f.key, () => ({ node: el('div', { class: 'gs-caption', text: tile.f.name, title: tile.f.name }) }), { left: tile.x, top: b.y + tile.h, width: tile.w }]);
         }
       } else if (b.kind === 'cards') {
         for (const c of b.cards) {

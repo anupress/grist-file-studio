@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.22.7
+
+Found while filming the tutorials. **Display, "File names under the tiles" emptied the Files layout.** Ticking it crashed the wall (a name under a tile was handed to the wall without
+the box every other part of it comes in), so the layout showed one record's heading and the word "undefined", and the other options stopped working until the page was loaded again.
+It has been so since 1.0.0: the option was never ticked on a screen. The names now sit under the tiles, and ticking it again takes them away.
+
 ## 1.22.6
 
 **The Viewer on a folder that holds only folders** said "No files yet" and offered Add files, although the files were in the folders below it (Germany in the demo, with Hamburg and
