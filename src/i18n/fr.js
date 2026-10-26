@@ -1106,4 +1106,8 @@ export const FR = {
   // Folder cards show what lies below
   '{n} file in folders': '{n} fichier dans des dossiers',
   '{n} files in folders': '{n} fichiers dans des dossiers',
+  // The Viewer on a folder that holds only folders
+  'Folders inside {name}': 'Dossiers dans {name}',
+  '{n} file in the folders below. Choose one to see its files.': '{n} fichier dans les dossiers en dessous. Choisissez un dossier pour voir ses fichiers.',
+  '{n} files in the folders below. Choose one to see its files.': '{n} fichiers dans les dossiers en dessous. Choisissez un dossier pour voir ses fichiers.',
 };

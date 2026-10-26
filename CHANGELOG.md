@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.22.6
+
+**The Viewer on a folder that holds only folders** said "No files yet" and offered Add files, although the files were in the folders below it (Germany in the demo, with Hamburg and
+Berlin inside). It now lists the folders below, each with a cover picture and its count of files, and the header says how many files lie in them ("1 of 3 · 7 files in folders").
+A click on a folder opens it in the Viewer, and the left arrow comes back. A folder with files of its own, and the Cards and Files layouts, are unchanged. German and French wording added.
+
 ## 1.22.5
 
 Found while filming the tutorials. **Mark up, Text in the picture editor: the "Add text" box opened but the cursor stayed on the picture**, so what was typed went nowhere until the

@@ -1,7 +1,7 @@
 // Folders inside folders: building the tree from records and a parent, the questions it answers, and the rows the list shows.
 
 import { visibleFiles, visibleRecords } from '../src/model/files.js';
-import { refId, buildTree, subtreeIds, ancestorIds, canMoveTo, visibleRows, moveFolderActions, belowOf } from '../src/model/tree.js';
+import { refId, buildTree, subtreeIds, ancestorIds, canMoveTo, visibleRows, moveFolderActions, belowOf, foldersBelow } from '../src/model/tree.js';
 
 let pass = 0, fail = 0;
 const eq = (n, got, want) => { if (JSON.stringify(got) === JSON.stringify(want)) pass++; else { fail++; console.log(`  FAIL ${n}\n    got  ${JSON.stringify(got)}\n    want ${JSON.stringify(want)}`); } };
@@ -21,6 +21,12 @@ eq('a folder with only folders below it: the first cover found, the files and th
   { files: 6, folders: 2, cover: { key: 'hamburg-cover' } }, { files: 5, folders: 2, cover: { key: 'lyon' } }, { files: 2, folders: 1, cover: { key: 'vienna-cover' } }]);
 eq('no card cover below a folder that has files itself, a folder without folders, or nothing', [belowOf(tree.nodes.get(7), cover), belowOf(tree.nodes.get(4), cover), belowOf(tree.nodes.get(5), cover), belowOf(null, cover)], [null, null, null, null]);
 eq('only empty folders below: nothing to show', belowOf(buildTree([rec(1, 'A'), rec(2, 'B')], (id) => (id === 2 ? 1 : 0)).nodes.get(1), cover), null);
+// the Viewer on a folder of folders: the folders directly below it, with what each holds and a cover
+const covers = (id) => ({ 2: { key: 'vienna' }, 4: { key: 'hamburg' }, 7: { key: 'lyon' }, 8: { key: 'old' } }[id] || null);
+eq('the folders below Germany: Berlin (empty) and Hamburg, by name', foldersBelow(tree.nodes.get(3), covers).map((f) => [f.title, f.own, f.below, f.cover]), [['Berlin', 0, null, null], ['Hamburg', 6, null, { key: 'hamburg' }]]);
+eq('a folder below with only folders under it shows what lies under it, with the first cover found', foldersBelow(tree.nodes.get(6), covers).map((f) => [f.title, f.own, f.below, f.cover]), [['Lyon', 4, null, { key: 'lyon' }]]);
+eq('a folder of two levels: its card says how much lies below, and uses that cover', (() => { const t2 = buildTree([rec(1, 'Top'), rec(2, 'Mid'), rec(3, 'Leaf', 5)], (id) => ({ 2: 1, 3: 2 }[id] || 0)); return foldersBelow(t2.nodes.get(1), (id) => (id === 3 ? { key: 'leaf' } : null)).map((f) => [f.title, f.own, f.below, f.cover]); })(), [['Mid', 0, { files: 5, folders: 1, cover: { key: 'leaf' } }, { key: 'leaf' }]]);
+eq('no folder below, or no such folder: nothing', [foldersBelow(tree.nodes.get(4), covers), foldersBelow(null, covers)], [[], []]);
 eq('depth', [8, 7, 6].map((id) => tree.nodes.get(id).depth), [2, 1, 0]);
 eq('a folder and what is below it', [...subtreeIds(tree, 6)].sort(), [6, 7, 8]);
 eq('an unknown folder has nothing below it', subtreeIds(tree, 99).size, 0);

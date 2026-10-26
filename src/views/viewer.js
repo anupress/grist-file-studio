@@ -13,7 +13,7 @@ import { t, tn } from '../i18n/index.js';
 
 /**
  * @param on {onStep(dir), onOpen(file, list), onAdd(rowId), onDrop(rowId, files), onReorder(file, toIndex),
- *            onMenu(file, anchor), onDownload(file), onZip(rowId), onReport(rowId), onSelect(rowId)}
+ *            onMenu(file, anchor), onDownload(file), onZip(rowId), onReport(rowId), onSelect(rowId): a folder chosen in the overview of a folder of folders}
  */
 export function createViewer(host, { source, thumbs, culture }, on) {
   const title = el('span', { class: 'gs-viewer__title' });
@@ -27,7 +27,29 @@ export function createViewer(host, { source, thumbs, culture }, on) {
   const root = el('div', { class: 'gs-viewer', tabindex: '-1' }, [head, stage, strip]);
   clear(host).append(root);
 
-  const S = { rec: null, files: [], i: 0, editable: false, view: null, key: null, sortable: null, releases: [] };
+  const S = { rec: null, files: [], i: 0, editable: false, view: null, key: null, sortable: null, releases: [], folders: [], belowFiles: 0, tileRel: [] };
+
+  /** A record with no file of its own that is a folder of folders: its folders, each with a cover and its count, to choose from. */
+  function drawFolders() {
+    S.tileRel.splice(0).forEach((r) => r());
+    const name = S.rec.title || t('Untitled record');
+    const tiles = S.folders.map((f) => {
+      const cover = el('span', { class: 'gs-sub__cover' });
+      if (f.cover) S.tileRel.push(renderFace(cover, f.cover, { thumbs, cssPx: 200, tags: false }));
+      else cover.append(el('span', { class: 'gs-sub__none' }, [icon('folder2')]));
+      const count = f.own ? tn(f.own, '{n} file', '{n} files') : f.below ? tn(f.below.files, '{n} file in folders', '{n} files in folders') : t('No files yet');
+      const label = f.title || t('Untitled record');
+      return el('button', { type: 'button', class: 'gs-sub', title: label, onclick: () => on.onSelect(f.rowId) }, [
+        cover, el('span', { class: 'gs-sub__name', text: label }), el('span', { class: 'gs-sub__count', text: count }),
+      ]);
+    });
+    clear(stage).append(el('div', { class: 'gs-subs' }, [
+      el('h2', { text: t('Folders inside {name}', { name }) }),
+      S.belowFiles ? el('p', { text: tn(S.belowFiles, '{n} file in the folders below. Choose one to see its files.', '{n} files in the folders below. Choose one to see its files.') }) : null,
+      el('div', { class: 'gs-subs__grid' }, tiles),
+      S.editable ? el('div', { class: 'gs-empty__actions' }, [el('button', { type: 'button', class: 'gs-btn', onclick: () => on.onAdd(S.rec.rowId) }, [icon('plus'), t('Add files')])]) : null,
+    ]));
+  }
 
   function show(i) {
     S.i = Math.max(0, Math.min(S.files.length - 1, i));
@@ -35,13 +57,17 @@ export function createViewer(host, { source, thumbs, culture }, on) {
     S.view = null;
     const f = S.files[S.i];
     S.key = f?.key || null;
-    if (!f) {
+    if (!f && S.folders.length) {
+      drawFolders();
+    } else if (!f) {
+      S.tileRel.splice(0).forEach((r) => r());
       clear(stage).append(el('div', { class: 'gs-empty' }, [
         el('h2', { text: t('No files yet') }),
         el('p', { text: S.editable ? t('Drop files here, paste a screenshot, or use Add files.') : t('This record has no files.') }),
         S.editable ? el('div', { class: 'gs-empty__actions' }, [el('button', { type: 'button', class: 'gs-btn gs-btn--primary', onclick: () => on.onAdd(S.rec.rowId) }, [icon('plus'), t('Add files')])]) : null,
       ]));
     } else {
+      S.tileRel.splice(0).forEach((r) => r());
       S.view = showFile(stage, f, { source, thumbs, culture, onSwipe: (d) => show(S.i + d), onDownload: () => on.onDownload(f) });
     }
     [...strip.querySelectorAll('.gs-strip__item')].forEach((n, k) => { n.classList.toggle('is-on', k === S.i); n.setAttribute('aria-selected', k === S.i ? 'true' : 'false'); });
@@ -121,12 +147,15 @@ export function createViewer(host, { source, thumbs, culture }, on) {
     /**
      * Show a record. rec null = nothing selected. pos: {index, count} of the record among the shown ones.
      * Keeps the same file when the record is the same (an edit came back from Grist).
+     * folders / belowFiles: for a record with no file of its own, the folders directly below it (tree.foldersBelow) and how many files lie below it.
      */
-    set(rec, { editable, index, count }) {
+    set(rec, { editable, index, count, folders = [], belowFiles = 0 }) {
       const same = S.rec && rec && S.rec.rowId === rec.rowId;
       S.rec = rec;
       S.editable = editable;
       S.files = rec ? rec.files : [];
+      S.folders = rec && !rec.files.length ? folders : [];
+      S.belowFiles = belowFiles;
       prevRec.disabled = !rec || index <= 0;
       nextRec.disabled = !rec || index >= count - 1;
       if (!rec) {
@@ -134,6 +163,7 @@ export function createViewer(host, { source, thumbs, culture }, on) {
         pos.textContent = '';
         S.view?.destroy(); S.view = null;
         S.releases.splice(0).forEach((r) => r());
+        S.tileRel.splice(0).forEach((r) => r());
         clear(strip);
         clear(stage).append(el('div', { class: 'gs-empty' }, [
           el('h2', { text: count ? t('Pick a record') : t('No records') }),
@@ -143,7 +173,7 @@ export function createViewer(host, { source, thumbs, culture }, on) {
         return;
       }
       title.textContent = rec.title || t('Untitled record');
-      pos.textContent = t('{i} of {n}', { i: index + 1, n: count }) + ' · ' + tn(rec.files.length, '{n} file', '{n} files');
+      pos.textContent = t('{i} of {n}', { i: index + 1, n: count }) + ' · ' + (S.folders.length && S.belowFiles ? tn(S.belowFiles, '{n} file in folders', '{n} files in folders') : tn(rec.files.length, '{n} file', '{n} files'));
       const keep = same ? S.files.findIndex((f) => f.key === S.key || (S.key && f.attId === Number(S.key.split(':')[3]))) : -1;
       renderStrip();
       renderActions();
@@ -152,6 +182,6 @@ export function createViewer(host, { source, thumbs, culture }, on) {
     },
     current: () => S.files[S.i] || null,
     focus: () => root.focus(),
-    destroy() { S.view?.destroy(); S.sortable?.destroy(); S.releases.splice(0).forEach((r) => r()); root.remove(); },
+    destroy() { S.view?.destroy(); S.sortable?.destroy(); S.releases.splice(0).forEach((r) => r()); S.tileRel.splice(0).forEach((r) => r()); root.remove(); },
   };
 }

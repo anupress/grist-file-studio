@@ -31,7 +31,7 @@ import { shrinkPhoto } from './media/shrink.js';
 import { TextIndex, canRead } from './media/textindex.js';
 import { createReader } from './media/ocr.js';
 import { createTree } from './views/tree.js';
-import { buildTree, subtreeIds, ancestorIds, canMoveTo, visibleRows, moveFolderActions, refId, belowOf } from './model/tree.js';
+import { buildTree, subtreeIds, ancestorIds, canMoveTo, visibleRows, moveFolderActions, refId, belowOf, foldersBelow } from './model/tree.js';
 import { heicJpeg } from './media/picture.js';
 import { ExifIndex, hasExif } from './media/exifindex.js';
 import { createWall } from './views/wall.js';
@@ -279,12 +279,16 @@ function render() {
         onDownload: (f) => downloadFile(f),
         onZip: (rowId) => zipRecord(rowId),
         onReport: (rowId) => photoReport(recordOf(rowId)?.files || [], recordOf(rowId)),
+        onSelect: (rowId) => select(rowId),
       });
     }
     const recs = scopedRecords();
     if (S.current == null || !recs.some((r) => r.rowId === S.current)) S.current = recs[0]?.rowId ?? S.gallery.records[0]?.rowId ?? null;
     const index = recs.findIndex((r) => r.rowId === S.current);
-    viewer.set(recordOf(S.current), { editable: canEdit() && !!fileColumn(), index, count: recs.length });
+    // a folder that holds only folders: the Viewer lists them (a cover and a count each) instead of saying "No files yet"
+    const here = recordOf(S.current), node = here && !here.files.length && S.tree ? S.tree.nodes.get(here.rowId) : null;
+    const folders = node ? foldersBelow(node, (id) => { const r = recordOf(id); return r && r.files.length ? coverOf(r) : null; }) : [];
+    viewer.set(here, { editable: canEdit() && !!fileColumn(), index, count: recs.length, folders, belowFiles: node ? node.total - node.own : 0 });
   } else {
     if (viewer) { viewer.destroy(); viewer = null; }
     if (!wall) {

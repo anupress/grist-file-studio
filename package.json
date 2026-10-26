@@ -1,6 +1,6 @@
 {
   "name": "grist-file-studio",
-  "version": "1.22.5",
+  "version": "1.22.6",
   "description": "File Studio — a Grist custom widget by ANUPRESS. A gallery, viewer, editor and file manager for the files in your Attachments columns: photos, PDFs, video and audio open large, pictures, text files and PDFs can be edited and saved in place (PDF pages reordered, split, merged, filled and signed), files can be copied and moved between records, and zips are named after your columns. No server anywhere.",
   "type": "module",
   "private": true,

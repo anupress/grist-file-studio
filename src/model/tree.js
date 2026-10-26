@@ -116,3 +116,16 @@ export function belowOf(node, coverOf) {
   walk(node);
   return { files: node.total - node.own, folders, cover };
 }
+
+/**
+ * The folders directly below a folder, for the Viewer when that folder has no file of its own: each with its own file count, what lies below it
+ * (belowOf) and a file to show as its cover. Empty when there is no folder below it.
+ * @param node a tree node (buildTree); @param coverOf (rowId) -> a file to show for that folder, or null
+ */
+export function foldersBelow(node, coverOf) {
+  if (!node) return [];
+  return node.children.map((c) => {
+    const below = belowOf(c, coverOf);
+    return { rowId: c.rowId, title: c.title, own: c.own, below, cover: c.own > 0 ? coverOf(c.rowId) || null : below?.cover || null };
+  });
+}

@@ -195,6 +195,22 @@ a.gs-btn { color: inherit; text-decoration: none; }   /* a link that looks like 
 .gs-empty h2 { font-size: var(--gs-fs-4); margin: 0 0 8px; }
 .gs-empty p { color: var(--gs-muted); margin: 0 0 16px; }
 .gs-empty__actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+/* The Viewer on a folder that holds only folders: the folders to choose from, each with a cover and its count. */
+.gs-subs { max-width: 940px; margin: 28px auto; padding: 0 16px; }
+.gs-subs h2 { font-size: var(--gs-fs-4); margin: 0 0 4px; }
+.gs-subs > p { color: var(--gs-muted); margin: 0 0 16px; font-size: var(--gs-fs-3); }
+.gs-subs__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(172px, 1fr)); gap: 12px; margin-bottom: 18px; }
+.gs-sub {
+  display: flex; flex-direction: column; text-align: left; padding: 0; overflow: hidden; cursor: pointer; font: inherit; color: inherit;
+  background: var(--gs-card); border: 1px solid var(--gs-card-line); border-radius: var(--gs-r-2);
+}
+.gs-sub:hover { border-color: var(--gs-line-strong); }
+.gs-sub:focus-visible { outline: 2px solid var(--gs-focus); outline-offset: 3px; }
+.gs-sub__cover { position: relative; display: block; aspect-ratio: 4 / 3; background: var(--gs-tile); overflow: hidden; }
+.gs-sub__none { position: absolute; inset: 8px; display: grid; place-items: center; border: 1.5px dashed var(--gs-line-strong); border-radius: var(--gs-r-2); color: var(--gs-muted); }
+.gs-sub__none svg { width: 24px; height: 24px; opacity: 0.7; }
+.gs-sub__name { display: block; padding: 8px 12px 0; font-weight: 600; font-size: var(--gs-fs-3); line-height: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gs-sub__count { display: block; padding: 0 12px 10px; font-size: var(--gs-fs-2); color: var(--gs-muted); font-variant-numeric: tabular-nums; }
 
 /* ---- a record's header in the Files layout ---- */
 .gs-head {
