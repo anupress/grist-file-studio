@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.22.5
+
+Found while filming the tutorials. **Mark up, Text in the picture editor: the "Add text" box opened but the cursor stayed on the picture**, so what was typed went nowhere until the
+field was clicked. The click gives the focus to the picture just after the box has taken it. The box now opens a moment later and keeps the focus: click, type, Enter.
+
 ## 1.22.4
 
 Found while filming the tutorials. **"How zip files are named…" (Download menu) opened the Columns panel at its top**, with the zip settings out of sight at the bottom. It now

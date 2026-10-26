@@ -265,7 +265,8 @@ export async function openImageEditor(host, o) {
       drag = { handle: hit >= 0 ? HANDLES[hit] : 'move', start: p, from: { ...c }, before: snap() };
     } else if (tab === 'mark') {
       const g = toGeom(p);
-      if (tool === 'text') { addText(g); return; }
+      // the browser moves the focus to the clicked picture right after this handler: the text box opens after that, or typing would go nowhere
+      if (tool === 'text') { setTimeout(() => addText(g), 0); return; }
       draft = { type: tool, color, size, points: [g, g] };
     } else if (tab === 'hide') {
       draft = { hide: true, type: hideType, a: toGeom(p), b: toGeom(p) };
