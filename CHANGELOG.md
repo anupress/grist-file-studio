@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.22.9
+
+Found while filming the tutorials. **In the lightbox, the keys stopped working after a click on the filmstrip.** A click on a thumbnail of the strip (or on the Previous and Next
+arrows) shows the new file and builds the strip again, so the button that was clicked is gone and the keyboard focus goes with it: the arrows, S (slideshow), I (details), E (edit)
+and Esc did nothing until the picture was clicked once. The lightbox now takes the focus back after it has changed the file, and a test keeps that line in the code.
+
 ## 1.22.8
 
 Found while filming the tutorials. **Dragging a thumbnail of the Viewer's filmstrip to the front sometimes added a copy of that picture to the record** ("Added 1 file", one more file in

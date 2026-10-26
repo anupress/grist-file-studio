@@ -256,6 +256,9 @@ export function openLightbox(host, o) {
     if (k < 0 || k >= files.length || k === i) return;
     i = k;
     show();
+    // show() builds the filmstrip and the arrows again, so the button that was just clicked is gone and the focus with it; without it the keys
+    // (arrows, S, I, E, Esc) do nothing until the box is clicked. Take the focus back.
+    if (!box.contains(box.ownerDocument.activeElement)) box.focus({ preventScroll: true });
   }
   function close() {
     stopTimer();
