@@ -1237,7 +1237,7 @@ function downloadMenu(anchor) {
     [rec ? t('Photo report of “{name}”…', { name: rec.title || t('this record') }) : t('Photo report of the selected record…'), () => photoReport(rec.files, rec), { disabled: !rec?.files.some((f) => REPORT_PICTURE.test(f.ext)), hint: t('The photos on pages with the record’s details, as a PDF') }],
     S.marked.size && markedFiles().some((f) => REPORT_PICTURE.test(f.ext)) ? [t('Photo report of the marked files…'), () => photoReport(markedFiles(), null)] : null,
     null,
-    [t('How zip files are named…'), () => openColumnsPanel()],
+    [t('How zip files are named…'), () => openColumnsPanel('gs-c-downloads')],
   ].filter((x, i, a) => !(x === null && a[i - 1] === null)));
 }
 const zipRecord = (rowId) => { const rec = recordOf(rowId); if (rec?.files.length) zipFiles(rec.files, rec.title || `Record ${rec.rowId}`); };
@@ -1291,9 +1291,10 @@ async function zipFiles(files, name) {
 }
 
 // ---- the Columns panel ---------------------------------------------------------------------------------------------
-function openColumnsPanel() {
+function openColumnsPanel(scrollTo) {
   const first = S.gallery?.files[0];
   openColumns(shell, {
+    scrollTo: typeof scrollTo === 'string' ? scrollTo : null,
     columns: S.columns, tableId: S.tableId, roles: S.roles, settings: S.settings, editable: canEdit(), demo: S.demo, readOnlyWhy: readOnlyWhy(),
     sample: first ? { file: first, record: recordOf(first.rowId) || { rowId: first.rowId, title: first.recordTitle }, textOf } : null,
     onAddColumn: () => addFilesColumn(),

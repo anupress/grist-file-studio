@@ -120,7 +120,7 @@ export function openColumns(host, o) {
     body.append(el('h3', { text: t('Layout') }));
     body.append(select('gs-c-layout', t('Opens in'), LAYOUTS.map((id) => [id, t(LAYOUT_LABELS[id])]), s.layout, (v) => { s.layout = v; }, t('Everyone sees this first; each person can switch, and their browser remembers.')));
     // ---- zip
-    body.append(el('h3', { text: t('Downloads') }));
+    body.append(el('h3', { id: 'gs-c-downloads', text: t('Downloads') }));
     body.append(patternField('gs-c-pattern', t('File names in a zip'), s.zip.pattern, (v) => { s.zip.pattern = v || '{file}'; },
       t('Columns in braces are filled in for each file. The extension is always the file’s own.')));
     body.append(el('div', { class: 'gs-field' }, [
@@ -142,6 +142,8 @@ export function openColumns(host, o) {
   render();
   host.append(scrim, drawer);
   const release = trapFocus(drawer, () => close());
-  drawer.querySelector('input, select, button')?.focus();
+  drawer.querySelector('input, select, button')?.focus({ preventScroll: true });
+  // a menu item that is about one section (how zip files are named) lands on it
+  if (typeof o.scrollTo === 'string') drawer.querySelector('#' + o.scrollTo)?.scrollIntoView({ block: 'start' });
   return close;
 }

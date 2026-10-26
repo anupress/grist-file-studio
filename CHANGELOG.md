@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.22.4
+
+Found while filming the tutorials. **"How zip files are named…" (Download menu) opened the Columns panel at its top**, with the zip settings out of sight at the bottom. It now
+opens on the Downloads section, where the pattern for file names in a zip is.
+
 ## 1.22.3
 
 Found while filming the tutorials. **A record's card (Where it is, Show the row) showed a folder as `Inspections[7]`** instead of its name, because the name of a reference was only
