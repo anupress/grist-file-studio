@@ -671,13 +671,18 @@ async function placesOf(f) {
     };
   });
 }
+/** The columns whose references are shown by name on the wall and the tree: the title, the fields on a card, the folder column. */
+function labelCols() { return [S.roles.title, ...S.roles.fields, S.roles.parent].filter(Boolean); }
 async function showRow(p) {
   const L = await locationsIndex();
   const own = p.tableId === S.tableId;
   const row = own ? rowOf(p.rowId) || L.tables.get(p.tableId)?.rows.get(p.rowId) : L.tables.get(p.tableId)?.rows.get(p.rowId);
   if (!row) { toast(t('That row is gone.')); return; }
   const columns = own ? S.columns : L.tables.get(p.tableId)?.columns || [];
-  const labels = own ? S.labels : await loadLabels(columns, columns.filter((c) => c.refTable).map((c) => c.id)).catch(() => ({}));
+  // the card shows every column, so every reference needs its name, also the ones the wall does not use
+  const refs = columns.filter((c) => c.refTable && !(own && c.id in S.labels)).map((c) => c.id);
+  const more = refs.length && !S.demo ? await loadLabels(columns, refs).catch(() => ({})) : {};
+  const labels = own ? { ...S.labels, ...more } : more;
   openRowCard(shell, {
     title: p.rowTitle || t('Row {id}', { id: p.rowId }), subtitle: `${p.tableLabel} · ${t('Row {id}', { id: p.rowId })}`,
     row, columns, labels, fmt: fmt(), link: p.link,
@@ -1167,7 +1172,7 @@ async function importFolder(items, rowId, { unreadable = 0, skippedDirs = 0, too
   for (let i = 0; i < 50 && !S.rows.some((r) => r.id === ids[0]); i++) await new Promise((r) => setTimeout(r, 100));
   for (const id of ids) S.fresh.add(id);
   // Names of the new folders for a Parent field on the cards (they are read once, so the new rows are not in them yet).
-  if (!S.demo) S.labels = await loadLabels(S.columns, [S.roles.title, ...S.roles.fields, S.roles.parent].filter(Boolean)).catch(() => S.labels);
+  if (!S.demo) S.labels = await loadLabels(S.columns, labelCols()).catch(() => S.labels);
   if (parentId != null) S.treeOpen.add(parentId);
   const first = ids[topFolders(plan)[0].index];
   S.treeOpen.add(first);
@@ -1302,7 +1307,7 @@ function openColumnsPanel() {
       if (!S.demo) {
         try { await setOptions(writeOptions(settings, toStored(roles, S.columns))); }
         catch (e) { toast(t('Grist refused the change: {why}', { why: errText(e) })); }
-        S.labels = await loadLabels(S.columns, [S.roles.title, ...S.roles.fields].filter(Boolean)).catch(() => S.labels);
+        S.labels = await loadLabels(S.columns, labelCols()).catch(() => S.labels);
       }
       rebuild(); render();
     },
@@ -1912,7 +1917,7 @@ async function addParentColumn() {
     S.settings = { ...S.settings, roles: toStored(S.roles, S.columns) };
     try { await setOptions(writeOptions(S.settings, toStored(S.roles, S.columns))); } catch { /* shown for this visit only */ }
     S.treeShow = true; mem.set(TREE_SHOW_KEY(), '1');
-    S.labels = await loadLabels(S.columns, [S.roles.title, ...S.roles.fields, S.roles.parent].filter(Boolean)).catch(() => S.labels);
+    S.labels = await loadLabels(S.columns, labelCols()).catch(() => S.labels);
     rebuild(); render();
     toast(t('Added the column “{id}”. Choose a folder it is inside in each record, or drag a folder onto another.', { id: made?.colId || 'Parent' }));
   } catch (e) { toast(t('Grist refused the change: {why}', { why: errText(e) })); }
@@ -2063,7 +2068,7 @@ async function onRows(rows) {
           S.tableId = (await selectedTableId()) || S.tableId;
           S.columns = await loadColumns(S.tableId);
           S.roles = resolveRoles(S.settings.roles, S.columns, S.tableId);
-          S.labels = await loadLabels(S.columns, [S.roles.title, ...S.roles.fields].filter(Boolean)).catch(() => S.labels);
+          S.labels = await loadLabels(S.columns, labelCols()).catch(() => S.labels);
         } catch { /* keep what is known */ }
       }
     }
@@ -2092,7 +2097,7 @@ async function onOptions(options) {
   S.settings = readOptions(options);
   if (!S.ready || !S.columns.length) return;
   S.roles = resolveRoles(S.settings.roles, S.columns, S.tableId);
-  S.labels = await loadLabels(S.columns, [S.roles.title, ...S.roles.fields].filter(Boolean)).catch(() => S.labels);
+  S.labels = await loadLabels(S.columns, labelCols()).catch(() => S.labels);
   rebuild(); render();
 }
 
@@ -2121,7 +2126,7 @@ async function boot() {
     S.columns = columns;
     S.meta = meta;
     S.roles = resolveRoles(S.settings.roles, S.columns, S.tableId);
-    S.labels = await loadLabels(S.columns, [S.roles.title, ...S.roles.fields].filter(Boolean)).catch(() => ({}));
+    S.labels = await loadLabels(S.columns, labelCols()).catch(() => ({}));
     S.ownSection = await loadOwnSection(S.tableId, S.options ? JSON.parse(S.options) : null);
     // Files renamed or uploaded elsewhere: Grist sends nothing for those, so look again when the person comes back.
     window.addEventListener('focus', () => { dropTokens(); reloadMeta(); loadNotes().then(() => render()); });

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.22.3
+
+Found while filming the tutorials. **A record's card (Where it is, Show the row) showed a folder as `Inspections[7]`** instead of its name, because the name of a reference was only
+loaded for the columns the wall uses and the folder column was left out after some changes of settings. The card now loads the names of every reference it shows, and the
+columns the wall names by reference are listed in one place so that no reload forgets the folder column.
+
 ## 1.22.2
 
 Found while filming the tutorials. **The keyboard shortcuts list (the ? button) opened scrolled to its bottom**, because the Close button took the focus and scrolled the dialog to it:

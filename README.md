@@ -1,7 +1,7 @@
 # File Studio — a custom widget for Grist (by ANUPRESS)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-2563EB.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.22.2-0F1B2D.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.22.3-0F1B2D.svg)](CHANGELOG.md)
 
 Grist keeps the files of a table in **Attachments** columns, where a cell shows a few thumbnails. File Studio is where you **work with
 those files**: see them as cards, as a wall, as a list or one record at a time; open anything large (photos, PDFs, Word, Excel and
