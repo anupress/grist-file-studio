@@ -52,5 +52,5 @@ export function openKeys(host) {
   ]);
   host.append(scrim, box);
   const release = trapFocus(box, () => close());
-  box.querySelector('button').focus();
+  box.querySelector('button').focus({ preventScroll: true });   // the list opens at its top, not scrolled down to the Close button
 }

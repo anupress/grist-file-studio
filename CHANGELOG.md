@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.22.2
+
+Found while filming the tutorials. **The keyboard shortcuts list (the ? button) opened scrolled to its bottom**, because the Close button took the focus and scrolled the dialog to it:
+the title and the first rows were out of view in a widget of ordinary height. It now opens at the top, and its Close button stays in view at the foot while the list scrolls.
+
 ## 1.22.1
 
 **Fixes adding files, broken since 1.21.0.** Choosing files with Add files (and dropping or pasting plain files) ended in "The folder could not be read: Cv is not iterable" and
