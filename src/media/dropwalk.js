@@ -5,7 +5,7 @@
 import { skipName } from '../model/importfolder.js';
 
 /**
- * The files of a drop, as `[...dataTransfer.files]`, plus, when the drop holds a folder, its entries (a non-enumerable `entries` on the
+ * The files of a drop, as `[...dataTransfer.files]`, plus, when the drop holds a folder, its entries (a non-enumerable `folderEntries` on the
  * array) so addFiles can import the folder. A dropped folder shows up in `files` as one empty file, which is no use to upload.
  */
 export function droppedFiles(dt) {
@@ -16,7 +16,7 @@ export function droppedFiles(dt) {
     const e = typeof it.webkitGetAsEntry === 'function' ? it.webkitGetAsEntry() : null;
     if (e) entries.push(e);
   }
-  if (entries.some((e) => e.isDirectory)) Object.defineProperty(files, 'entries', { value: entries });
+  if (entries.some((e) => e.isDirectory)) Object.defineProperty(files, 'folderEntries', { value: entries });
   return files;
 }
 

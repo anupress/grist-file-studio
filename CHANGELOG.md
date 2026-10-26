@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.22.1
+
+**Fixes adding files, broken since 1.21.0.** Choosing files with Add files (and dropping or pasting plain files) ended in "The folder could not be read: Cv is not iterable" and
+added nothing. The check for "a folder was dropped" asked whether the list of files had an `entries`, and every JavaScript array has one (the method). The dropped folder's
+entries now sit in `folderEntries`, and the check asks for an array there. A test that should have caught it compared `undefined` with a function through JSON and passed;
+it now checks the property itself. Checked in the demo (the Add files picker with two files, a drop of one file on a card) and in a folder drop (import), then in real Grist.
+
 ## 1.22.0
 
 Found while filming the overview video: a card for a folder that holds only other folders said "No files yet" while nine files sat in its folders. Checked in the demo (the

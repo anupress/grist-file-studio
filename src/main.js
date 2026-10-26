@@ -999,7 +999,7 @@ function pickFiles(rowId) {
  */
 async function addFiles(files, rowId, { picked = false } = {}) {
   if (!files.length) return;
-  if (files.entries) { await importDropped(files, rowId); return; }   // a folder was dropped
+  if (Array.isArray(files.folderEntries)) { await importDropped(files, rowId); return; }   // a folder was dropped (an array's own .entries is a method: never test that)
   if (!canEdit()) { toast(readOnlyWhy()); return; }
   const col = fileColumn();
   if (!col) { toast(S.roles.files.length ? t('The files columns here are formulas: files cannot be added to them.') : t('Add an Attachments column first.')); return; }
@@ -1098,7 +1098,7 @@ async function importDropped(files, rowId) {
   if (!canEdit()) { toast(readOnlyWhy()); return; }
   toast(t('Reading the folder…'), null, 0);
   let read;
-  try { read = await walkEntries(files.entries, { limit: MAX_IMPORT_FILES + 1 }); } catch (e) { toast(t('The folder could not be read: {why}', { why: errText(e) })); return; }
+  try { read = await walkEntries(files.folderEntries, { limit: MAX_IMPORT_FILES + 1 }); } catch (e) { toast(t('The folder could not be read: {why}', { why: errText(e) })); return; }
   toastBox.hidden = true;
   await importFolder(read.items, rowId, read);
 }

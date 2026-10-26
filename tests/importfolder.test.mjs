@@ -73,8 +73,8 @@ eq('loose files dropped beside a folder keep a one-part path', (await walkEntrie
 const dt = (items, files = []) => ({ files, items: items.map((e) => ({ kind: 'file', webkitGetAsEntry: () => e })) });
 const none = droppedFiles(dt([fileE('a.jpg')], [{ name: 'a.jpg' }]));
 const withDir = droppedFiles(dt([fileE('a.jpg'), dirE('A', [])], [{ name: 'a.jpg' }, { name: 'A' }]));
-eq('a drop of files only is just the files, as before', [none.length, none.entries], [1, undefined]);
-eq('a drop holding a folder carries its entries, and the list does not show them when spread', [withDir.length, withDir.entries.length, Object.keys(withDir), [...withDir].length], [2, 2, ['0', '1'], 2]);
+eq('a drop of files only is just the files, as before: no folder entries (an array has its own .entries method, which must never count as one)', [none.length, none.folderEntries === undefined, Array.isArray(none.folderEntries), typeof none.entries], [1, true, false, 'function']);
+eq('a drop holding a folder carries its entries, and the list does not show them when spread', [withDir.length, Array.isArray(withDir.folderEntries), withDir.folderEntries.length, Object.keys(withDir), [...withDir].length], [2, true, 2, ['0', '1'], 2]);
 eq('a browser without entries, and a text drop, give the plain list', [droppedFiles({ files: [{ name: 'a' }], items: [{ kind: 'file' }] }).length, droppedFiles({ files: [], items: [{ kind: 'string' }] }).length, droppedFiles(null).length], [1, 0, 0]);
 
 // the picker
