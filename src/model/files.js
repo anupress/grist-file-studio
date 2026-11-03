@@ -79,8 +79,21 @@ export function coverOf(rec) {
 /** Files a card can flip through on hover: everything that draws as a picture. */
 export const flippable = (rec) => rec.files.filter((f) => f.kind === 'image' || f.kind === 'pdf' || f.kind === 'video' || f.kind === 'heic');
 
-/** Text as the search compares it: no accents, no capitals, and ß written ss (Straße is found by strasse and the other way round). */
-export const fold = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/ß/g, 'ss');
+const PLAIN = { 'ß': 'ss', 'æ': 'ae', 'œ': 'oe', 'ø': 'o', 'ł': 'l', 'đ': 'd', 'ð': 'd', 'þ': 'th', 'ħ': 'h', 'ŧ': 't', 'ı': 'i' };   // letters that decomposing leaves whole
+const ASCII = /^[\x00-\x7f]*$/;
+
+/**
+ * Text as the search compares it, the same way on both sides (what is typed, and the names, fields and file text it is held against): no accents and no
+ * capitals; ß is ss, æ ae, œ oe, and ø, ł, đ, ð, ħ, ŧ, ı are o, l, d, d, h, t, i; a ligature (ﬁ), a fullwidth letter (Ｆ) and a superscript (m²) are
+ * their plain letters; a curly apostrophe is a straight one; a soft hyphen or zero-width space inside a word is not there. An é written as one
+ * character or as e plus an accent is the same. Only the comparing is changed: the text on screen and in the file is never touched.
+ */
+export const fold = (s) => {
+  const t = String(s || '');
+  if (ASCII.test(t)) return t.toLowerCase();   // most text: nothing to take apart
+  return t.normalize('NFKD').replace(/[\u0300-\u036f\u00ad\u200b\ufeff]/g, '').replace(/[\u2018\u2019\u02bc\u2032]/g, "'")
+    .toLowerCase().replace(/[ßæœøłđðþħŧı]/g, (c) => PLAIN[c]);
+};
 
 /** Every word of the query must appear in the file's name, its record's title or the record's fields. */
 export function matcher(query) {

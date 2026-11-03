@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.23.0
+
+**The search compares more kinds of text as the same.** A reader on the Grist forum asked whether the search normalises text before it compares, or compares the extracted strings as they are. It has always folded accents and capitals on both sides (what you type, and the names, fields and file text it is held against), so an é typed as one character and an e with a separate accent were already the same, and `strasse` found Straße. Some text still slipped through, and it does so no longer:
+
+- **Letters with a plain spelling:** `lodz` finds Łódź, `soren` finds Søren, `kaer` finds Kær, `coeur` finds cœur, `diyarbakir` finds Dıyarbakır (also đ, ð, þ, ħ, ŧ, and a capital İ or ẞ).
+- **Forms that only look different:** a ligature (`finance` finds ﬁnance, `office` finds oﬃce), fullwidth letters and digits (`file` finds Ｆｉｌｅ), `m2` finds m², and the Arabic presentation forms a PDF writes find the plain letters.
+- **Invisible and curly marks:** a soft hyphen or zero-width space that a PDF leaves inside a word is ignored (`information` finds infor­mation), and `don't` finds don’t.
+- **The snippet marks the right place.** The words shown around a match in a file's text come from the original text again when folding changed its length (before, a page with a ß or a separate accent showed the folded text, and one with a ß and a separate accent could mark the wrong words). A word that ends inside a letter written as two (the o of œ) marks the whole letter.
+
+Only the comparing changed. The text on screen, in the records and in the files is not touched, and nothing is read again: the text kept in the browser is folded when it is loaded. There is still no switch for exact accents: the search ignores them everywhere.
+
+Checked with a new test file (`tests/fold.test.mjs`, 31 checks; the new cases fail on 1.22.9), and with 55,698 random pages of awkward characters (ß, æ, œ, ø, separate accents, ligatures, fullwidth, emoji, Greek, Hangul, Arabic) in which the marked words were always the right ones. Checked in the demo, from source and in the built bundle: a file renamed to `Søren Łódź ﬁnance Ｆｉｌｅ don’t.jpg` is found by `soren lodz`, `finance`, `file` and `don't`, and not by `lodz soren zzz`; with Inside files on, the snippet of a Word file shows Hafenstraße as written when `strasse` is searched. Not yet checked in real Grist.
+
 ## 1.22.9
 
 Found while filming the tutorials. **In the lightbox, the keys stopped working after a click on the filmstrip.** A click on a thumbnail of the strip (or on the Previous and Next

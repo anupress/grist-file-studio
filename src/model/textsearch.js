@@ -9,6 +9,24 @@ import { fold } from './files.js';
 export { fold };
 export const PAGE_BREAK = '\f';
 
+/**
+ * Where each character of a folded page starts in the original page, as a function (folded position -> original position), or null when the two do
+ * not line up. Folding can lengthen a character (ß, æ, a ligature) or drop one (an accent written apart), so the same length does not mean the same places.
+ */
+function positions(orig, folded) {
+  if (ASCII.test(orig)) return orig.length === folded.length ? (i) => i : null;
+  const at = [];
+  for (let i = 0; i < orig.length;) {
+    const step = orig.codePointAt(i) > 0xffff ? 2 : 1;
+    const n = orig.charCodeAt(i) < 128 ? 1 : fold(orig.slice(i, i + step)).length;
+    for (let k = 0; k < n; k++) at.push(i);
+    i += step;
+  }
+  at.push(orig.length);
+  return at.length === folded.length + 1 ? (i) => at[Math.min(i, folded.length)] : null;
+}
+const ASCII = /^[\x00-\x7f]*$/;
+
 /** pages: the text of each page -> an entry ready to search. */
 export function prepare(pages) {
   const list = pages.map((p) => String(p || ''));
@@ -35,14 +53,22 @@ export function hitFor(entry, words, { context = 44 } = {}) {
   const pi = pages[0] - 1;
   const f = entry.folded[pi], orig = entry.pages[pi];
   const word = present.find((w) => f.includes(w));
-  const at = f.indexOf(word);
-  const src = orig.length === f.length ? orig : f;    // folding can change a length: then the plain text is shown
-  const from = Math.max(0, at - context), to = Math.min(src.length, at + word.length + context);
+  const found = f.indexOf(word);
+  const where = positions(orig, f);
+  const src = where ? orig : f;                       // the folded text is shown only when its places cannot be found in the original
+  const at = where ? where(found) : found;
+  let end = where ? where(found + word.length) : found + word.length;
+  if (where && end === where(found + word.length - 1)) {   // the word stops inside a character that folding wrote with two (the o of œ): mark all of it
+    let k = found + word.length;
+    while (k < f.length && where(k) === end) k++;
+    end = where(k);
+  }
+  const from = Math.max(0, at - context), to = Math.min(src.length, end + context);
   const flat = (s) => s.replace(/\s+/g, ' ');
   const parts = [
     (from > 0 ? '…' : '') + flat(src.slice(from, at)).trimStart(),
-    src.slice(at, at + word.length),
-    flat(src.slice(at + word.length, to)).trimEnd() + (to < src.length ? '…' : ''),
+    src.slice(at, end),
+    flat(src.slice(end, to)).trimEnd() + (to < src.length ? '…' : ''),
   ];
   return { words: present.length, pages, paged: entry.pages.length > 1, snippet: parts.join(''), parts };
 }

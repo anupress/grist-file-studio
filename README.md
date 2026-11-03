@@ -1,7 +1,7 @@
 # File Studio — a custom widget for Grist (by ANUPRESS)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-2563EB.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.22.9-0F1B2D.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.23.0-0F1B2D.svg)](CHANGELOG.md)
 
 Grist keeps the files of a table in **Attachments** columns, where a cell shows a few thumbnails. File Studio is where you **work with
 those files**: see them as cards, as a wall, as a list or one record at a time; open anything large (photos, PDFs, Word, Excel and
@@ -140,8 +140,11 @@ Markdown, CSV and HTML files.
 - **Where the words are.** A tile says the page (**Page 3**, **Pages 3, 7**) or **In the text**, with the words around
   the match. The lightbox opens a PDF at its first page with a match and has **Next match** for the others. In Cards, a
   record shows when one of its files matches.
-- **Accents and capitals do not matter** (`muller` finds Müller, `fenetre` finds Fenêtre). Every word you type must be
-  somewhere in the file's name, the record or the file's own text.
+- **Accents and capitals do not matter** (`muller` finds Müller, `fenetre` finds Fenêtre). Letters that can be written in more than one way are
+  the same letter: an é typed as one character or as e plus an accent; ß and ss; æ and ae; œ and oe; ø, ł, đ and ı with o, l, d and i
+  (`soren` finds Søren, `lodz` finds Łódź); a ligature such as ﬁ with its letters; a fullwidth letter with the plain one; `m2` with m²; a curly
+  apostrophe with a straight one; and a soft hyphen inside a word is ignored. Only the comparing changes, never the text you see or the file.
+  Every word you type must be somewhere in the file's name, the record or the file's own text.
 - **Scans and pictures (text recognition).** A scanned PDF page is a picture of text and has no words of its own. The first question
   offers to **also read scanned pages**, and a note beside the search ("2 scanned pages have no text yet", **Read scans**) offers it later;
   **also read pictures** takes photos of pages, signs and labels too (most photos have no words, and are left empty). The words are
@@ -508,7 +511,7 @@ what is on screen is drawn: 10,000 files open in about 0.3 s and scroll at full 
 the commands that fit (layouts, Show as, Sort, Show only, a tag, Add files, New folder, Mark all, zip, Undo, Storage, Columns…), the
 folders whose name or fields fit, and the files whose name, record, tags or note fit; the group with the best match comes first.
 Arrow keys choose, **Enter** runs it (a file opens, a folder is selected and scrolled to, a command does its job), **Esc** closes.
-With nothing typed it lists the commands. Accents and capitals do not matter, and ß and ss are the same (`strasse` finds Hafenstraße).
+With nothing typed it lists the commands. Accents and capitals do not matter, and letters with a plain spelling are the same as it (`strasse` finds Hafenstraße, `soren` finds Søren).
 
 ## Languages and keys
 
